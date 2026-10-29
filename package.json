@@ -1,0 +1,9 @@
+{
+  "name": "envision-math-companion",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "enVision 2.0 Math Companion (7th Grade Topic 3)",
+  "scripts": {
+    "test": "node src/math-engine.js"
+  }
+}

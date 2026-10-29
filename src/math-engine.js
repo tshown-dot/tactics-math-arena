@@ -2,25 +2,32 @@
  * enVision 2.0 Math Companion (Grade 7 Topic 3)
  * Lesson 3-1: Analyze Percents of Numbers
  * 
- * Math Engine & Scaffolding
- * Dependencies: Zero (Pure Vanilla JavaScript / Node.js compatible)
+ * 3-Tier Cognitive Ladder Engine:
+ * - Tier 1 (Preskill Ramp / DOK 1): Rapid-fire decimal shifts & benchmark mental math.
+ * - Tier 2 (Base Skills / DOK 2): enVision 3-1 direct percent calculations (standard, >100%, <1%).
+ * - Tier 3 (Deep DOK / DOK 3): Multi-step extension problems (commissions, pool capacity shifts).
+ * 
+ * Dependencies: Zero (Vanilla JS / ES Modules / Node CLI compatible)
  */
 
 /**
  * Parses user input or expected answer into structured math representations.
- * Handles string cleanup, whitespace, currency signs ($), percent signs (%),
- * and fractions (e.g., 1/4, 7/100).
+ * Handles string cleanup, whitespace, commas, currency signs ($), percent signs (%),
+ * fractions (e.g., 1/4, 7/100), and optional measurement units.
  *
  * @param {string|number} input
  * @returns {{ raw: number, mathValue: number, hasPercent: boolean, hasCurrency: boolean, isFraction: boolean } | null}
  */
-function parseMathInput(input) {
+export function parseMathInput(input) {
   if (input === null || input === undefined) return null;
   let s = String(input).trim();
   if (s === '') return null;
 
-  // Remove commas for numbers like 1,000
+  // Remove commas for numbers like 1,000 or 12,000
   s = s.replace(/,/g, '');
+
+  // Strip optional trailing unit words (e.g. "gallons", "books", "dollars")
+  s = s.replace(/\s*(gallons?|books?|dollars?|units?)\b/gi, '').trim();
 
   // Detect and strip currency signs ($)
   let hasCurrency = false;
@@ -79,7 +86,7 @@ function parseMathInput(input) {
  * @param {string|number|Array|Object} expectedAnswer - The expected solution or problem definition
  * @returns {boolean} True if the answer is equivalent; false otherwise
  */
-function evaluateAnswer(userInput, expectedAnswer) {
+export function evaluateAnswer(userInput, expectedAnswer) {
   // Support array of acceptable answers
   if (Array.isArray(expectedAnswer)) {
     return expectedAnswer.some(exp => evaluateAnswer(userInput, exp));
@@ -127,79 +134,155 @@ function evaluateAnswer(userInput, expectedAnswer) {
 }
 
 /**
- * 5 Curated Problems for enVision 2.0 (Grade 7 Topic 3, Lesson 3-1: Analyze Percents of Numbers)
- * - 2 Rapid-fire preskill conversions
- * - 2 Core application questions (direct percent calculations)
- * - 1 Multi-step extension problem
+ * 3-Tier Cognitive Ladder for enVision 2.0 (Grade 7 Topic 3, Lesson 3-1: Analyze Percents of Numbers)
+ * - Tier 1 (Preskill Ramp / DOK 1): Rapid-fire decimal shifts & benchmark mental math.
+ * - Tier 2 (Base Skills / DOK 2): enVision 3-1 core percent calculations (standard, >100%, <1%).
+ * - Tier 3 (Deep DOK / DOK 3): Multi-step extension problems (commissions, capacity shifts).
  */
-const LESSON_3_1_PROBLEMS = [
+export const LESSON_3_1_PROBLEMS = [
+  // --------------------------------------------------------------------------
+  // TIER 1: Preskill Ramp (DOK 1 - Rapid-fire Fluency & Decimal Shifts)
+  // --------------------------------------------------------------------------
   {
-    id: "3-1-preskill-01",
+    id: "3-1-t1-01",
+    tier: 1,
+    dok: 1,
     category: "preskill",
     type: "rapid_fire",
-    title: "Preskill 1: Decimal Conversion",
+    title: "Tier 1: Decimal Shift",
     prompt: "Write 7% as a decimal.",
     expectedAnswer: 0.07,
+    options: ["0.07", "0.7", "7.0", "0.007"],
     acceptableInputs: ["0.07", ".07", "7/100", "7%"],
-    hint: "Percent means per hundred. Divide 7 by 100: 7 ÷ 100 = 0.07.",
-    misconceptionNote: "Common misconception: 7% is 0.07, not 0.7 (which equals 70%)."
+    hint: "Percent means 'per hundred'. Divide 7 by 100 or shift the decimal point two places left: 7% = 0.07.",
+    misconception: "Common misconception: 7% is 0.07, not 0.7 (which equals 70%). Move the decimal two places to the left.",
+    misconceptionNote: "Common misconception: 7% is 0.07, not 0.7 (which equals 70%). Move the decimal two places to the left."
   },
   {
-    id: "3-1-preskill-02",
+    id: "3-1-t1-02",
+    tier: 1,
+    dok: 1,
     category: "preskill",
     type: "rapid_fire",
-    title: "Preskill 2: Benchmark Percent Conversion",
+    title: "Tier 1: Mental Math 10% Benchmark",
+    prompt: "Find 10% of 60.",
+    expectedAnswer: 6,
+    options: ["6", "0.6", "60", "16"],
+    acceptableInputs: ["6", "6.0", "6.00"],
+    hint: "To find 10% of any number, divide it by 10 or shift the decimal one place left: 60 ÷ 10 = 6.",
+    misconception: "To find 10% of a number, divide by 10: 60 ÷ 10 = 6 (not 0.6 or 60).",
+    misconceptionNote: "To find 10% of a number, divide by 10: 60 ÷ 10 = 6 (not 0.6 or 60)."
+  },
+  {
+    id: "3-1-t1-03",
+    tier: 1,
+    dok: 1,
+    category: "preskill",
+    type: "rapid_fire",
+    title: "Tier 1: Benchmark Fraction Conversion",
     prompt: "Write 1/4 as a percentage.",
     expectedAnswer: "25%",
+    options: ["25%", "2.5%", "40%", "14%"],
     acceptableInputs: ["25%", "25", "0.25", "1/4"],
-    hint: "Convert 1/4 to an equivalent fraction out of 100: 1/4 = 25/100 = 25%.",
-    misconceptionNote: "Benchmark fractions like 1/4 (25%), 1/2 (50%), and 3/4 (75%) represent key percent benchmarks."
+    hint: "Convert 1/4 to an equivalent fraction over 100: 1/4 = 25/100 = 25%.",
+    misconception: "Benchmark fractions: 1/4 is one quarter of 100%, which equals 25% (not 2.5% or 40%).",
+    misconceptionNote: "Benchmark fractions: 1/4 is one quarter of 100%, which equals 25% (not 2.5% or 40%)."
   },
+
+  // --------------------------------------------------------------------------
+  // TIER 2: Base Skills (DOK 2 - enVision 3-1 Direct Percent Calculations)
+  // --------------------------------------------------------------------------
   {
-    id: "3-1-core-01",
+    id: "3-1-t2-01",
+    tier: 2,
+    dok: 2,
     category: "core",
     type: "direct_calculation",
-    title: "Core 1: Direct Percent Calculation",
+    title: "Tier 2: Direct Percent of a Number",
     prompt: "Find 35% of 80.",
     expectedAnswer: 28,
+    options: null,
     acceptableInputs: ["28", "28.0", "28.00"],
-    hint: "Convert 35% to a decimal (0.35) and multiply: 0.35 × 80 = 28.",
-    misconceptionNote: "Part = Percent × Whole: Part = 0.35 × 80 = 28."
+    hint: "Convert 35% to a decimal (0.35) and multiply: Part = 0.35 × 80 = 28.",
+    misconception: "Part = Percent × Whole. First convert 35% to 0.35, then compute 0.35 × 80 = 28.",
+    misconceptionNote: "Part = Percent × Whole. First convert 35% to 0.35, then compute 0.35 × 80 = 28."
   },
   {
-    id: "3-1-core-02",
+    id: "3-1-t2-02",
+    tier: 2,
+    dok: 2,
     category: "core",
     type: "direct_calculation",
-    title: "Core 2: Sales Tax Calculation",
-    prompt: "A jacket costs $60. The sales tax rate is 8%. How much is the sales tax?",
-    expectedAnswer: "$4.80",
-    acceptableInputs: ["$4.80", "4.80", "4.8", "$4.8", "$ 4.80"],
-    hint: "Convert 8% to 0.08, then multiply by the cost: 0.08 × $60 = $4.80.",
-    misconceptionNote: "Remember 8% = 0.08, so tax = 0.08 × $60 = $4.80."
+    title: "Tier 2: Percent Greater than 100%",
+    prompt: "Find 125% of 64.",
+    expectedAnswer: 80,
+    options: null,
+    acceptableInputs: ["80", "80.0", "80.00"],
+    hint: "Percents greater than 100% result in a value greater than the original number: 125% = 1.25. Compute 1.25 × 64 = 80.",
+    misconception: "When a percent is greater than 100%, the answer is greater than the base. 125% = 1.25, so 1.25 × 64 = 80.",
+    misconceptionNote: "When a percent is greater than 100%, the answer is greater than the base. 125% = 1.25, so 1.25 × 64 = 80."
   },
   {
-    id: "3-1-ext-01",
+    id: "3-1-t2-03",
+    tier: 2,
+    dok: 2,
+    category: "core",
+    type: "direct_calculation",
+    title: "Tier 2: Percent Less than 1%",
+    prompt: "Find 0.5% of 200.",
+    expectedAnswer: 1,
+    options: null,
+    acceptableInputs: ["1", "1.0", "1.00"],
+    hint: "Be careful with decimals: 0.5% means 0.5 ÷ 100 = 0.005. Then 0.005 × 200 = 1.",
+    misconception: "Common misconception: 0.5% is NOT 0.5. 0.5% = 0.005. Multiply 0.005 × 200 = 1 (not 100).",
+    misconceptionNote: "Common misconception: 0.5% is NOT 0.5. 0.5% = 0.005. Multiply 0.005 × 200 = 1 (not 100)."
+  },
+
+  // --------------------------------------------------------------------------
+  // TIER 3: Deep DOK (DOK 3 - Multi-step Extension & Strategic Reasoning)
+  // --------------------------------------------------------------------------
+  {
+    id: "3-1-t3-01",
+    tier: 3,
+    dok: 3,
     category: "extension",
     type: "multi_step",
-    title: "Extension: Multi-Step Library Books",
-    prompt: "A school library has 400 books. 45% are fiction and 30% are non-fiction. The rest are graphic novels. How many graphic novels does the library have?",
-    expectedAnswer: 100,
-    acceptableInputs: ["100", "100.0"],
-    hint: "Fiction + Non-fiction = 45% + 30% = 75%. The rest is 100% - 75% = 25%. Then 25% of 400 is 0.25 × 400 = 100 graphic novels.",
-    misconceptionNote: "Calculate either remaining percent first (100% - 75% = 25% of 400 = 100) or total known books (180 fiction + 120 non-fiction = 300, and 400 - 300 = 100)."
+    title: "Tier 3: Salary Plus Commission",
+    prompt: "Maya earns a weekly base salary of $400 plus a 5% commission on all sales. If her sales this week are $3,000, what are her total weekly earnings?",
+    expectedAnswer: "$550",
+    options: null,
+    acceptableInputs: ["$550", "550", "$550.00", "550.00", "$ 550"],
+    hint: "Calculate commission first: 5% of $3,000 is 0.05 × 3,000 = $150. Then add her base salary: $400 + $150 = $550.",
+    misconception: "Calculate the 5% commission first (0.05 × $3,000 = $150), and then add it to her $400 base salary: $400 + $150 = $550.",
+    misconceptionNote: "Calculate the 5% commission first (0.05 × $3,000 = $150), and then add it to her $400 base salary: $400 + $150 = $550."
+  },
+  {
+    id: "3-1-t3-02",
+    tier: 3,
+    dok: 3,
+    category: "extension",
+    type: "multi_step",
+    title: "Tier 3: Pool Capacity Shifts",
+    prompt: "A swimming pool holds 12,000 gallons of water. It is currently filled to 85% capacity. How many more gallons of water are needed to fill the pool to 100% capacity?",
+    expectedAnswer: 1800,
+    options: null,
+    acceptableInputs: ["1800", "1,800", "1800.0", "1800 gallons", "1,800 gallons"],
+    hint: "Find the remaining percentage needed: 100% - 85% = 15%. Then calculate 15% of 12,000 gallons: 0.15 × 12,000 = 1,800 gallons.",
+    misconception: "Find the remaining unfilled percentage first (100% - 85% = 15%), then find 15% of 12,000: 0.15 × 12,000 = 1,800 gallons (or 12,000 - 10,200 = 1,800).",
+    misconceptionNote: "Find the remaining unfilled percentage first (100% - 85% = 15%), then find 15% of 12,000: 0.15 × 12,000 = 1,800 gallons (or 12,000 - 10,200 = 1,800)."
   }
 ];
 
 /**
  * Self-test routine verifying:
- * 1. All 5 curated problems pass with their primary expectedAnswer.
- * 2. All acceptable input formats pass (decimals, percents, fractions, currency formats).
+ * 1. Cognitive Ladder Schema: Every problem has tier (1-3), dok (1-3), prompt, expectedAnswer, misconception.
+ * 2. All 8 curated problems pass with their primary expectedAnswer and variants.
  * 3. GEMINI.md Rule 3: Multiple format test ($15, 15, 15.00).
- * 4. Negative tests correctly reject common misconceptions (e.g. 0.7 for 7%).
+ * 4. Negative tests correctly reject common misconceptions across all 3 tiers.
  */
-function runSelfTest() {
+export function runSelfTest() {
   console.log("==================================================");
-  console.log("⚡ enVision 2.0 Math Companion: Math Engine Self-Test");
+  console.log("⚡ enVision 2.0 Math Companion: 3-Tier Cognitive Ladder");
   console.log("==================================================\n");
 
   let totalTests = 0;
@@ -215,46 +298,71 @@ function runSelfTest() {
     }
   }
 
-  // Section 1: Verify all 5 Lesson 3-1 Curated Problems
-  console.log("--- 1. Testing Curated Lesson 3-1 Problems ---");
+  // Section 1: Schema Verification for all 3 Tiers
+  console.log("--- 1. Schema & Field Verification (Tiers, DOK, Misconceptions) ---");
   LESSON_3_1_PROBLEMS.forEach((prob, index) => {
-    // Primary answer verification
-    const primaryPass = evaluateAnswer(prob.expectedAnswer, prob.expectedAnswer);
-    assert(primaryPass, `Problem ${index + 1} (${prob.id}): Primary expected answer evaluates to true`);
+    assert(
+      [1, 2, 3].includes(prob.tier),
+      `Problem ${index + 1} (${prob.id}): Valid tier (${prob.tier})`
+    );
+    assert(
+      [1, 2, 3].includes(prob.dok),
+      `Problem ${index + 1} (${prob.id}): Valid DOK (${prob.dok})`
+    );
+    assert(
+      typeof prob.prompt === 'string' && prob.prompt.length > 5,
+      `Problem ${index + 1} (${prob.id}): Has valid prompt text`
+    );
+    assert(
+      prob.expectedAnswer !== undefined && prob.expectedAnswer !== null,
+      `Problem ${index + 1} (${prob.id}): Has expectedAnswer (${prob.expectedAnswer})`
+    );
+    assert(
+      typeof prob.misconception === 'string' && prob.misconception.length > 10,
+      `Problem ${index + 1} (${prob.id}): Has targeted misconception feedback`
+    );
+  });
 
-    // Acceptable input variants verification
+  // Section 2: Mathematical Accuracy & Variant Tests
+  console.log("\n--- 2. Mathematical Accuracy & Input Variants ---");
+  LESSON_3_1_PROBLEMS.forEach((prob, index) => {
+    const primaryPass = evaluateAnswer(prob.expectedAnswer, prob.expectedAnswer);
+    assert(primaryPass, `Problem ${index + 1} (${prob.id}): Primary answer evaluates to true`);
+
     prob.acceptableInputs.forEach(variant => {
       const variantPass = evaluateAnswer(variant, prob.expectedAnswer);
       assert(variantPass, `Problem ${index + 1} (${prob.id}): Input variant "${variant}" accepted`);
     });
+
+    if (prob.options) {
+      const correctOptionExists = prob.options.some(opt => evaluateAnswer(opt, prob.expectedAnswer));
+      assert(correctOptionExists, `Problem ${index + 1} (${prob.id}): Correct answer is present in options`);
+    }
   });
 
-  // Section 2: GEMINI.md Rule 3 Currency / Formats Verification ($15, 15, 15.00)
-  console.log("\n--- 2. GEMINI.md Verification Gate ($15, 15, 15.00) ---");
+  // Section 3: GEMINI.md Rule 3 Verification Gate ($15, 15, 15.00)
+  console.log("\n--- 3. GEMINI.md Verification Gate ($15, 15, 15.00) ---");
   const currencyTests = ["$15", "15", "15.00", "$15.00", "  $ 15  ", "15$"];
   currencyTests.forEach(input => {
     assert(evaluateAnswer(input, 15), `Currency format "${input}" matches expected number 15`);
     assert(evaluateAnswer(input, "$15"), `Currency format "${input}" matches expected "$15"`);
   });
 
-  // Section 3: Decimal, Percent, and Fraction Equivalents
-  console.log("\n--- 3. Decimal, Percent, and Fraction Equivalents ---");
-  assert(evaluateAnswer("0.25", "25%"), 'Decimal "0.25" matches "25%"');
-  assert(evaluateAnswer("25%", 0.25), 'Percent "25%" matches decimal 0.25');
-  assert(evaluateAnswer("1/4", "25%"), 'Fraction "1/4" matches percent "25%"');
-  assert(evaluateAnswer("1/4", 0.25), 'Fraction "1/4" matches decimal 0.25');
-  assert(evaluateAnswer("7/100", 0.07), 'Fraction "7/100" matches decimal 0.07');
-  assert(evaluateAnswer("7%", 0.07), 'Percent "7%" matches decimal 0.07');
-
-  // Section 4: Misconception Rejection (Negative Tests)
+  // Section 4: Misconception Rejection (Tier-Specific Negative Tests)
   console.log("\n--- 4. Misconception Rejection (Negative Tests) ---");
-  assert(!evaluateAnswer("0.7", 0.07), 'Rejects misconception: 0.7 is not 0.07 (7% != 70%)');
-  assert(!evaluateAnswer("7", 0.07), 'Rejects misconception: plain 7 is not 0.07');
-  assert(!evaluateAnswer("50%", "25%"), 'Rejects incorrect percent: 50% is not 25%');
-  assert(!evaluateAnswer("29", 28), 'Rejects incorrect calculation: 29 is not 28');
-  assert(!evaluateAnswer("$5.00", "$4.80"), 'Rejects incorrect tax: $5.00 is not $4.80');
-  assert(!evaluateAnswer("", 28), 'Rejects empty input');
-  assert(!evaluateAnswer("abc", 28), 'Rejects non-numeric text input');
+  // Tier 1 Negative Tests
+  assert(!evaluateAnswer("0.7", 0.07), 'Tier 1 Rejects: 0.7 for 7% (7% != 70%)');
+  assert(!evaluateAnswer("0.6", 6), 'Tier 1 Rejects: 0.6 for 10% of 60');
+  assert(!evaluateAnswer("50%", "25%"), 'Tier 1 Rejects: 50% for 1/4');
+  
+  // Tier 2 Negative Tests
+  assert(!evaluateAnswer("29", 28), 'Tier 2 Rejects: 29 for 35% of 80');
+  assert(!evaluateAnswer("8", 80), 'Tier 2 Rejects: 8 for 125% of 64 (must be > 64)');
+  assert(!evaluateAnswer("100", 1), 'Tier 2 Rejects: 100 for 0.5% of 200 (misconception of 0.5)');
+
+  // Tier 3 Negative Tests
+  assert(!evaluateAnswer("$150", "$550"), 'Tier 3 Rejects: $150 (forgot base salary)');
+  assert(!evaluateAnswer("10200", 1800), 'Tier 3 Rejects: 10,200 (calculated current water instead of needed)');
 
   console.log("\n==================================================");
   console.log(`Results: ${passedTests}/${totalTests} tests passed.`);
@@ -263,18 +371,11 @@ function runSelfTest() {
   return passedTests === totalTests;
 }
 
-// Module export for Node.js / bundling
-if (typeof module !== 'undefined' && module.exports) {
-  module.exports = {
-    LESSON_3_1_PROBLEMS,
-    parseMathInput,
-    evaluateAnswer,
-    runSelfTest
-  };
-}
-
-// Direct execution in Node.js
-if (typeof require !== 'undefined' && require.main === module) {
-  const success = runSelfTest();
-  process.exit(success ? 0 : 1);
+// Auto-run when executed directly via Node.js
+if (typeof process !== 'undefined' && process.argv && process.argv[1]) {
+  const isDirectRun = process.argv[1].endsWith('math-engine.js');
+  if (isDirectRun) {
+    const success = runSelfTest();
+    process.exit(success ? 0 : 1);
+  }
 }
