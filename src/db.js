@@ -1,6 +1,5 @@
 /**
- * enVision 2.0 Math Companion (7th Grade Topic 3)
- * Database & Sync Service
+ * enVision 2.0 Math Companion - Database & Gradebook Service
  * 
  * Hybrid Architecture:
  * 1. Supabase Client: Anonymous student state (PIN, level, coins) via public publishable anon key.
@@ -10,7 +9,9 @@
  * Dependencies: Zero runtime build dependencies (uses browser window.supabase CDN or local fallback).
  */
 
-// Placeholders for external services
+// ==============================================================================
+// CONFIGURATION CONSTANTS (Replace placeholders with deployment credentials)
+// ==============================================================================
 export const SUPABASE_URL = (typeof window !== 'undefined' && window.ENV?.SUPABASE_URL) 
   || 'https://gorvcvovtxykqzrscayg.supabase.co';
 
@@ -24,8 +25,7 @@ const LOCAL_STORAGE_PROFILE_PREFIX = 'math_station_student_';
 const OFFLINE_QUEUE_KEY = 'math_station_offline_queue';
 
 /**
- * Initializes and returns the Supabase client if the CDN script is loaded.
- * Returns null or safe stub if offline or unavailable.
+ * Initializes and returns the Supabase client if CDN is present.
  */
 export function getSupabaseClient() {
   if (typeof window !== 'undefined' && window.supabase && typeof window.supabase.createClient === 'function') {
@@ -35,7 +35,7 @@ export function getSupabaseClient() {
       }
       return window._cachedSupabaseClient;
     } catch (e) {
-      console.warn('[db.js] Error creating Supabase client:', e);
+      console.warn('[db.js] Error initializing Supabase client:', e);
     }
   }
   return null;
@@ -55,7 +55,6 @@ export async function loadStudentProfile(pin) {
   const cleanPin = String(pin).trim();
   const client = getSupabaseClient();
 
-  // 1. Try Supabase if online
   if (client && navigator.onLine) {
     try {
       const { data, error } = await client
@@ -73,13 +72,11 @@ export async function loadStudentProfile(pin) {
     }
   }
 
-  // 2. Check local storage
   const local = getLocalProfile(cleanPin);
   if (local) {
     return { success: true, profile: local, source: 'localStorage' };
   }
 
-  // 3. Create default anonymous profile for new/offline PIN
   const newProfile = {
     pin: cleanPin,
     level: 1,
@@ -93,49 +90,24 @@ export async function loadStudentProfile(pin) {
 }
 
 /**
- * Logs session results to Supabase session_logs table if accessible.
- */
-export async function logSupabaseSession({ pin, lessonId, score, total, durationSeconds }) {
-  const client = getSupabaseClient();
-  if (!client || !navigator.onLine || !pin) return;
-
-  try {
-    const accuracy = total > 0 ? Math.round((score / total) * 100) : 0;
-    await client
-      .from('session_logs')
-      .insert({
-        pin: String(pin),
-        lesson_id: String(lessonId),
-        mode: 'station_practice',
-        problems_attempted: total,
-        problems_correct: score,
-        accuracy: accuracy,
-        boss_defeated: score === total
-      });
-  } catch (err) {
-    console.warn('[db.js] Could not log session to Supabase:', err);
-  }
-}
-
-/**
  * Syncs end-of-session gradebook summary to Google Sheets via Google Apps Script Web App.
- * Uses native fetch with 'no-cors' mode and falls back to localStorage if offline or request fails.
+ * Uses native fetch with 'no-cors' mode and falls back to localStorage if offline.
  *
  * @param {Object} params
  * @param {string} [params.gasUrl] - Google Apps Script Web App Executable URL
  * @param {string} params.pin - Anonymous 4-digit student PIN
- * @param {string} params.lessonId - e.g. "3-1"
+ * @param {string} params.lessonId - e.g. "G07_U03_L01"
  * @param {number} params.score - Number of problems correct on first try
- * @param {number} params.total - Total number of problems (5)
+ * @param {number} params.total - Total number of problems
  * @param {number} params.durationSeconds - Station completion time in seconds
  * @returns {Promise<{ success: boolean, source: string, queued?: boolean, error?: string }>}
  */
 export async function syncToGoogleSheets({
   gasUrl = GAS_ENDPOINT_URL,
   pin,
-  lessonId = '3-1',
+  lessonId = 'G07_U03_L01',
   score,
-  total = 5,
+  total = 8,
   durationSeconds = 0
 }) {
   const payload = {
@@ -148,12 +120,22 @@ export async function syncToGoogleSheets({
     durationSeconds: Number(durationSeconds)
   };
 
-  // Also log to Supabase in background
-  logSupabaseSession({ pin, lessonId, score, total, durationSeconds });
+  // Optional background log to Supabase
+  const client = getSupabaseClient();
+  if (client && navigator.onLine && pin) {
+    client.from('session_logs').insert({
+      pin: String(pin),
+      lesson_id: String(lessonId),
+      mode: 'station_practice',
+      problems_attempted: total,
+      problems_correct: score,
+      accuracy: payload.accuracy
+    }).catch(err => console.warn('[db.js] Background Supabase log notice:', err));
+  }
 
-  // If URL is placeholder, save locally and inform caller
+  // Check placeholder URL
   if (!gasUrl || gasUrl.includes('YOUR_GAS_EXEC_ID')) {
-    console.info('[db.js] Google Apps Script endpoint is a placeholder. Caching log locally:', payload);
+    console.info('[db.js] GAS URL is placeholder. Summary cached in localStorage:', payload);
     queueOfflinePayload(payload);
     return { success: true, source: 'local_cached', queued: true };
   }
@@ -169,15 +151,15 @@ export async function syncToGoogleSheets({
         },
         body: JSON.stringify(payload)
       });
-      console.log('[db.js] Successfully dispatched summary log to Google Apps Script');
+      console.log('[db.js] Dispatched summary log to Google Apps Script');
       return { success: true, source: 'google_sheets' };
     } catch (err) {
-      console.warn('[db.js] Failed to post to Google Sheets; queuing for retry:', err);
+      console.warn('[db.js] Error posting to GAS; queuing in localStorage:', err);
       queueOfflinePayload(payload);
       return { success: false, queued: true, error: err.message };
     }
   } else {
-    console.info('[db.js] Device is offline. Queuing summary log in localStorage.');
+    console.info('[db.js] Device offline. Queuing summary log in localStorage.');
     queueOfflinePayload(payload);
     return { success: true, queued: true, source: 'offline_queue' };
   }
@@ -192,7 +174,7 @@ export function queueOfflinePayload(payload) {
     queue.push(payload);
     localStorage.setItem(OFFLINE_QUEUE_KEY, JSON.stringify(queue));
   } catch (err) {
-    console.error('[db.js] Failed to cache offline payload:', err);
+    console.error('[db.js] Failed to queue offline payload:', err);
   }
 }
 
