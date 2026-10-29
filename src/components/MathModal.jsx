@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { HelpCircle, BookOpen, AlertTriangle, CheckCircle2, XCircle, ArrowRight } from 'lucide-react';
 import { sound } from '../utils/audio';
 
 export default function MathModal({
@@ -14,12 +13,11 @@ export default function MathModal({
 }) {
   const [selectedOption, setSelectedOption] = useState(null);
   const [typedInput, setTypedInput] = useState('');
-  const [feedback, setFeedback] = useState(null); // 'correct' | 'wrong'
+  const [feedback, setFeedback] = useState(null);
   const [showVocab, setShowVocab] = useState(false);
   const [showGrimoire, setShowGrimoire] = useState(false);
 
   useEffect(() => {
-    // Reset state on problem change
     setSelectedOption(null);
     setTypedInput('');
     setFeedback(null);
@@ -30,14 +28,12 @@ export default function MathModal({
 
   const isMinion = problem.type === 'minion';
 
-  // Normalize check for equivalent answers ($15, 15, 15.00, etc.)
   const checkAnswer = (candidate) => {
     const rawClean = String(candidate).trim().replace(/[$,%]/g, '');
     const correctClean = String(problem.correctAnswer).trim().replace(/[$,%]/g, '');
 
     if (rawClean === correctClean) return true;
 
-    // Check optional acceptableAnswers array
     if (problem.acceptableAnswers) {
       return problem.acceptableAnswers.some(ans => {
         const c = String(ans).trim().replace(/[$,%]/g, '');
@@ -45,7 +41,6 @@ export default function MathModal({
       });
     }
 
-    // Number float equivalence check
     const numCand = parseFloat(rawClean);
     const numCorr = parseFloat(correctClean);
     if (!isNaN(numCand) && !isNaN(numCorr) && Math.abs(numCand - numCorr) < 0.001) {
@@ -71,7 +66,7 @@ export default function MathModal({
       setFeedback('correct');
       setTimeout(() => {
         onSolve(problem);
-      }, 900);
+      }, 750);
     } else {
       sound.shieldBreak();
       setFeedback('wrong');
@@ -80,9 +75,9 @@ export default function MathModal({
   };
 
   const handleNumpadPress = (char) => {
-    if (char === 'CLEAR') {
+    if (char === 'CLR') {
       setTypedInput('');
-    } else if (char === 'BACK') {
+    } else if (char === 'DEL') {
       setTypedInput(prev => prev.slice(0, -1));
     } else {
       setTypedInput(prev => prev + char);
@@ -90,40 +85,32 @@ export default function MathModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-md p-4 animate-in fade-in duration-200">
-      <div className="bg-slate-900 border-2 border-amber-500/80 rounded-2xl max-w-xl w-full shadow-2xl overflow-hidden flex flex-col max-h-[92vh]">
-        {/* Modal Header */}
-        <div className="bg-slate-950 px-5 py-3 border-b border-slate-800 flex items-center justify-between">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 p-2 md:p-4 select-none">
+      <div className="fft-box max-w-2xl w-full p-4 md:p-6 shadow-[0_0_50px_rgba(0,0,0,0.95)] flex flex-col max-h-[92vh]">
+        
+        {/* Battle Dialog Banner */}
+        <div className="flex items-center justify-between border-b-2 border-amber-500/80 pb-2.5 mb-3 text-[10px]">
           <div className="flex items-center gap-2">
-            <span className="text-xl">⚔️</span>
-            <div>
-              <h3 className="font-bold text-amber-400 text-sm md:text-base tracking-wide uppercase">
-                {problem.mobName || 'Arena Target'}
-              </h3>
-              <p className="text-xs text-slate-400">{lesson?.title || 'Math Challenge'}</p>
-            </div>
+            <span className="text-amber-300 font-bold tracking-wider">
+              ► {monster?.name?.toUpperCase() || 'HERO'} [STRIKE]
+            </span>
+            <span className="text-slate-400">vs</span>
+            <span className="text-purple-300 font-bold">{problem.mobName || 'TARGET'}</span>
           </div>
 
           <div className="flex items-center gap-2">
-            {/* Grimoire Reference Button */}
             <button
               onClick={() => setShowGrimoire(!showGrimoire)}
-              className="px-2.5 py-1 text-xs font-semibold bg-indigo-900/60 hover:bg-indigo-800 text-indigo-200 rounded-lg border border-indigo-700/60 flex items-center gap-1.5 transition"
-              title="Open Concept Grimoire"
+              className="px-2 py-1 bg-indigo-900 border border-indigo-500 text-indigo-200 text-[9px] hover:bg-indigo-800"
             >
-              <BookOpen className="w-3.5 h-3.5" />
-              <span>Grimoire</span>
+              GRIMOIRE
             </button>
-
-            {/* Vocab helper */}
-            {lesson?.vocabWords && lesson.vocabWords.length > 0 && (
+            {lesson?.vocabWords && (
               <button
                 onClick={() => setShowVocab(!showVocab)}
-                className="px-2.5 py-1 text-xs font-semibold bg-emerald-900/60 hover:bg-emerald-800 text-emerald-200 rounded-lg border border-emerald-700/60 flex items-center gap-1.5 transition"
-                title="Vocab Hints"
+                className="px-2 py-1 bg-emerald-900 border border-emerald-500 text-emerald-200 text-[9px] hover:bg-emerald-800"
               >
-                <HelpCircle className="w-3.5 h-3.5" />
-                <span>Vocab</span>
+                VOCAB
               </button>
             )}
           </div>
@@ -131,105 +118,77 @@ export default function MathModal({
 
         {/* Grimoire Accordion */}
         {showGrimoire && (
-          <div className="bg-indigo-950/90 border-b border-indigo-800/80 p-4 text-xs text-indigo-100 animate-in slide-in-from-top-2">
-            <div className="flex items-center justify-between mb-2">
-              <span className="font-bold text-amber-300 uppercase tracking-wider flex items-center gap-1.5">
-                <BookOpen className="w-4 h-4 text-amber-400" />
-                Lesson Key Concept
-              </span>
-              <button onClick={() => setShowGrimoire(false)} className="text-slate-400 hover:text-white text-xs">✕ Close</button>
-            </div>
-            <p className="leading-relaxed bg-black/40 p-2.5 rounded-lg border border-indigo-800/50">
-              {lesson?.keyConceptSummary}
-            </p>
+          <div className="bg-slate-950 border-2 border-indigo-500 p-3 mb-3 text-[9px] text-indigo-200 leading-relaxed">
+            <div className="text-amber-300 font-bold mb-1">► KEY CONCEPT REFERENCE:</div>
+            <p>{lesson?.keyConceptSummary}</p>
           </div>
         )}
 
-        {/* Vocab Helper Accordion */}
+        {/* Vocab Accordion */}
         {showVocab && lesson?.vocabWords && (
-          <div className="bg-emerald-950/90 border-b border-emerald-800/80 p-4 text-xs text-emerald-100 animate-in slide-in-from-top-2">
-            <div className="flex items-center justify-between mb-2">
-              <span className="font-bold text-emerald-300 uppercase tracking-wider">Lesson Vocabulary</span>
-              <button onClick={() => setShowVocab(false)} className="text-slate-400 hover:text-white text-xs">✕ Close</button>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-              {lesson.vocabWords.map((v, i) => (
-                <div key={i} className="bg-black/40 p-2 rounded border border-emerald-800/40">
-                  <span className="font-bold text-amber-300">{v.term}:</span> {v.definition}
-                </div>
-              ))}
-            </div>
+          <div className="bg-slate-950 border-2 border-emerald-500 p-3 mb-3 text-[9px] text-emerald-200 leading-relaxed grid grid-cols-1 md:grid-cols-2 gap-2">
+            {lesson.vocabWords.map((v, i) => (
+              <div key={i} className="border border-emerald-800/80 p-1.5 bg-black/50">
+                <span className="text-amber-300 font-bold">[{v.term}]:</span> {v.definition}
+              </div>
+            ))}
           </div>
         )}
 
-        {/* Problem Card Body */}
-        <div className="p-5 overflow-y-auto flex-1 space-y-4">
-          {/* Question Stem */}
-          <div className="bg-slate-950/80 rounded-xl p-4 border border-slate-800 shadow-inner">
-            <p className="text-slate-100 text-base md:text-lg font-medium leading-relaxed">
-              {problem.prompt || problem.question}
-            </p>
-          </div>
+        {/* Question Slate */}
+        <div className="bg-black/90 border-2 border-slate-700 p-4 mb-4 shadow-inner">
+          <p className="text-slate-100 text-xs md:text-sm leading-relaxed font-mono font-semibold">
+            {problem.prompt || problem.question}
+          </p>
+        </div>
 
-          {/* Remediation / Teachable Moment Feedback Alert */}
-          {feedback === 'wrong' && (
-            <div className="bg-rose-950/90 border-2 border-rose-600 rounded-xl p-4 text-rose-100 animate-in shake">
-              <div className="flex items-start gap-2.5">
-                <AlertTriangle className="w-5 h-5 text-rose-400 shrink-0 mt-0.5" />
-                <div className="space-y-1.5 text-xs md:text-sm">
-                  <p className="font-bold text-rose-300">
-                    Shield absorbed the attack! Review the concept:
-                  </p>
-                  {problem.misconceptionTrap && (
-                    <p className="text-rose-200 bg-black/40 p-2 rounded border border-rose-800/60">
-                      💡 <strong>Watch Out:</strong> {problem.misconceptionTrap}
-                    </p>
-                  )}
-                  {problem.hint && (
-                    <p className="text-slate-300">
-                      <strong>Hint:</strong> {problem.hint}
-                    </p>
-                  )}
-                </div>
-              </div>
-            </div>
-          )}
-
-          {feedback === 'correct' && (
-            <div className="bg-emerald-950/90 border-2 border-emerald-500 rounded-xl p-3.5 text-emerald-100 flex items-center gap-2.5 animate-in zoom-in-95">
-              <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
-              <p className="text-xs md:text-sm font-semibold">
-                Critical Strike! {problem.explanation || 'Mathematical mastery unlocked!'}
+        {/* Misconception Diagnostic Feedback */}
+        {feedback === 'wrong' && (
+          <div className="fft-box-danger p-3 mb-3 text-[9px] text-rose-200 leading-relaxed animate-in shake">
+            <div className="text-rose-300 font-bold mb-1">⚠️ TACTICAL WARNING (MISTAKE DETECTED):</div>
+            {problem.misconceptionTrap && (
+              <p className="mb-1 text-amber-200">
+                <strong>TRAP:</strong> {problem.misconceptionTrap}
               </p>
-            </div>
-          )}
+            )}
+            {problem.hint && (
+              <p className="text-slate-300">
+                <strong>HINT:</strong> {problem.hint}
+              </p>
+            )}
+          </div>
+        )}
 
-          {/* Input Method: 4 Arcade Buttons (Minions) vs Number Pad (Elites / Bosses) */}
+        {feedback === 'correct' && (
+          <div className="bg-emerald-950 border-2 border-emerald-400 p-2.5 mb-3 text-[10px] text-emerald-200 font-bold text-center">
+            ★ CRITICAL STRIKE! FORMULA MASTERED!
+          </div>
+        )}
+
+        {/* Input Controls */}
+        <div className="mt-auto">
           {isMinion && problem.options ? (
-            <div className="grid grid-cols-2 gap-3 pt-2">
+            <div className="grid grid-cols-2 gap-2.5">
               {problem.options.map((opt, idx) => (
                 <button
                   key={idx}
                   onClick={() => handleSelectOption(opt)}
                   disabled={feedback === 'correct'}
-                  className={`p-3.5 md:p-4 rounded-xl border-2 font-bold text-base md:text-lg transition-all active:scale-95 shadow-md flex items-center justify-between ${
+                  className={`fft-btn p-3 text-left text-xs md:text-sm font-bold flex items-center justify-between ${
                     selectedOption === opt
                       ? opt === problem.correctAnswer
-                        ? 'bg-emerald-600 border-emerald-400 text-white'
-                        : 'bg-rose-700 border-rose-500 text-white'
-                      : 'bg-slate-800/90 hover:bg-slate-700 border-slate-700 hover:border-amber-400 text-slate-100'
+                        ? 'bg-emerald-700 border-emerald-400 text-white'
+                        : 'bg-rose-900 border-rose-500 text-white'
+                      : ''
                   }`}
                 >
-                  <span className="text-amber-400 text-xs font-mono px-2 py-0.5 bg-black/40 rounded">
-                    {idx + 1}
-                  </span>
+                  <span className="text-amber-400 text-[10px]">[{String.fromCharCode(65 + idx)}]</span>
                   <span className="flex-1 text-center font-mono">{opt}</span>
                 </button>
               ))}
             </div>
           ) : (
-            /* Direct Number Pad / Keyboard Entry */
-            <div className="space-y-3 pt-1">
+            <div className="space-y-2">
               <form
                 onSubmit={(e) => {
                   e.preventDefault();
@@ -241,28 +200,27 @@ export default function MathModal({
                   type="text"
                   value={typedInput}
                   onChange={(e) => setTypedInput(e.target.value)}
-                  placeholder="Enter exact value (e.g. 25, 1.50)..."
+                  placeholder="ENTER VALUE..."
                   autoFocus
-                  className="flex-1 bg-black/60 border-2 border-slate-700 focus:border-amber-400 text-slate-100 px-4 py-3 rounded-xl text-lg font-mono tracking-wider outline-none text-center"
+                  className="flex-1 bg-black border-2 border-slate-700 focus:border-amber-400 text-amber-300 px-3 py-2 text-sm md:text-base font-mono text-center outline-none"
                 />
                 <button
                   type="submit"
                   disabled={!typedInput.trim()}
-                  className="px-6 py-3 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-black rounded-xl border-2 border-amber-300 shadow-lg active:scale-95 transition flex items-center gap-1.5"
+                  className="fft-btn-gold px-5 py-2 text-xs font-black disabled:opacity-50"
                 >
-                  <span>Strike</span>
-                  <ArrowRight className="w-4 h-4" />
+                  STRIKE
                 </button>
               </form>
 
-              {/* On-Screen Touch Numpad for Chromebooks */}
-              <div className="grid grid-cols-4 gap-1.5 pt-2">
-                {['7', '8', '9', 'BACK', '4', '5', '6', 'CLEAR', '1', '2', '3', '.', '0', '00', '$', '%'].map((key) => (
+              {/* Retro Keypad */}
+              <div className="grid grid-cols-4 gap-1.5 pt-1">
+                {['7', '8', '9', 'DEL', '4', '5', '6', 'CLR', '1', '2', '3', '.', '0', '00', '$', '%'].map((key) => (
                   <button
                     key={key}
                     type="button"
                     onClick={() => handleNumpadPress(key)}
-                    className="py-2.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 active:bg-slate-600 text-slate-200 font-mono font-bold rounded-lg text-sm transition shadow"
+                    className="fft-btn py-2 text-[10px] md:text-xs font-mono font-bold"
                   >
                     {key}
                   </button>
@@ -272,15 +230,9 @@ export default function MathModal({
           )}
         </div>
 
-        {/* Footer info */}
-        <div className="bg-slate-950 px-5 py-2.5 border-t border-slate-800 text-xs text-slate-400 flex items-center justify-between">
-          <div className="flex items-center gap-1.5">
-            <span>🛡️ Shields Left:</span>
-            <span className="font-bold text-amber-400">{shields}</span>
-          </div>
-          <span className="text-[11px] text-slate-500">
-            Press [1-4] or type and hit Enter
-          </span>
+        <div className="mt-3 pt-2 border-t border-slate-800 text-[8px] text-slate-400 flex items-center justify-between">
+          <span>SHIELDS REMAINING: {shields}</span>
+          <span>SELECT [A-D] OR TYPE & HIT ENTER</span>
         </div>
       </div>
     </div>

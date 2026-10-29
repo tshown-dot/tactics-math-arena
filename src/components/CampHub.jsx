@@ -1,8 +1,14 @@
 import React, { useState } from 'react';
-import { Shield, Zap, Sparkles, ShoppingBag, Trophy, LogOut, ChevronRight, BookOpen, AlertCircle, Play } from 'lucide-react';
 import { STARTER_MONSTERS } from '../data/monsters';
 import { TOPIC_3_DATA } from '../data/curriculumData';
 import { sound } from '../utils/audio';
+import {
+  IgnisSprite,
+  HydraSprite,
+  VoltSprite,
+  PixelShieldIcon,
+  PixelCoinIcon
+} from './PixelSprites';
 
 export default function CampHub({
   playerProfile,
@@ -19,7 +25,6 @@ export default function CampHub({
   const currentCoins = playerProfile?.coins || 0;
   const currentShields = playerProfile?.shields || 1;
 
-  // Evolution lookup
   const currentEvolution = monster.evolutions.reduce((best, evo) => {
     return currentLevel >= evo.level ? evo : best;
   }, monster.evolutions[0]);
@@ -34,86 +39,70 @@ export default function CampHub({
     onSelectEncounter({ lesson, mode: 'phantom_boss' });
   };
 
+  const renderMonsterSprite = (size = 64) => {
+    if (monster?.id === 'hydra') return <HydraSprite size={size} />;
+    if (monster?.id === 'volt') return <VoltSprite size={size} />;
+    return <IgnisSprite size={size} />;
+  };
+
   return (
-    <div className="w-full max-w-5xl mx-auto p-3 md:p-6 select-none animate-in fade-in">
-      {/* 1. TOP STATUS BAR */}
-      <div className="bg-slate-950/90 border-2 border-slate-800 rounded-2xl p-4 shadow-2xl flex flex-wrap items-center justify-between gap-4 mb-6">
-        {/* Monster Avatar & Level */}
+    <div className="w-full max-w-5xl mx-auto p-3 md:p-6 select-none font-mono">
+      {/* 1. TOP RETRO STATUS BANNER */}
+      <div className="fft-box p-3 md:p-4 mb-4 flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-3">
-          <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-amber-500 to-red-600 border-2 border-amber-300 flex items-center justify-center text-3xl shadow-lg animate-pulse">
-            {monster.icon}
+          <div className="w-14 h-14 bg-black border-2 border-amber-400 flex items-center justify-center">
+            {renderMonsterSprite(44)}
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h2 className="font-mono font-black text-amber-400 text-lg md:text-xl">
-                {currentEvolution.name}
-              </h2>
-              <span className="text-xs px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/40 font-mono font-bold">
-                Lvl {currentLevel}
+              <span className="text-amber-300 font-bold text-xs md:text-sm">
+                {currentEvolution.name.toUpperCase()}
+              </span>
+              <span className="text-[9px] px-1.5 py-0.5 bg-amber-500/20 text-amber-300 border border-amber-500/50">
+                LV.{currentLevel}
               </span>
             </div>
-            <p className="text-xs text-slate-400 font-mono">
-              {currentEvolution.title} • PIN: <strong className="text-slate-200">#{playerProfile?.pin}</strong>
-            </p>
+            <div className="text-[9px] text-slate-400 mt-0.5">
+              PIN: #{playerProfile?.pin} • CLASS: {currentEvolution.title.toUpperCase()}
+            </div>
           </div>
         </div>
 
-        {/* Resources & Quick Actions */}
-        <div className="flex items-center gap-3 md:gap-5 font-mono text-xs md:text-sm">
-          {/* XP Bar */}
-          <div className="hidden sm:flex flex-col items-end">
-            <span className="text-slate-400 text-[11px] font-bold">XP: {currentXp} / {currentLevel * 100}</span>
-            <div className="w-28 h-2 bg-slate-900 border border-slate-700 rounded-full overflow-hidden mt-1">
-              <div
-                className="h-full bg-gradient-to-r from-amber-500 to-amber-300"
-                style={{ width: `${Math.min(100, (currentXp % 100))}%` }}
-              />
-            </div>
+        {/* Resources */}
+        <div className="flex items-center gap-3 text-[10px]">
+          <div className="flex items-center gap-1 text-emerald-400 bg-black/60 px-2.5 py-1.5 border border-emerald-700">
+            <PixelShieldIcon size={16} />
+            <span>{currentShields} SHIELDS</span>
           </div>
 
-          {/* Shields */}
-          <div className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-950/70 border border-emerald-600/70 rounded-xl text-emerald-300 font-bold">
-            <Shield className="w-4 h-4 text-emerald-400" />
-            <span>{currentShields} Shields</span>
+          <div className="flex items-center gap-1 text-amber-400 bg-black/60 px-2.5 py-1.5 border border-amber-700">
+            <PixelCoinIcon size={16} />
+            <span>{currentCoins} G</span>
           </div>
 
-          {/* Coins */}
-          <div className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-950/70 border border-amber-600/70 rounded-xl text-amber-300 font-bold">
-            <span>💰</span>
-            <span>{currentCoins}</span>
-          </div>
-
-          {/* Shop Button */}
           <button
             onClick={() => { sound.move(); onOpenShop(); }}
-            className="px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl shadow active:scale-95 transition flex items-center gap-1.5"
+            className="fft-btn px-3 py-1.5 text-[9px] text-amber-300 font-bold"
           >
-            <ShoppingBag className="w-4 h-4" />
-            <span>Shop</span>
+            [ BAZAAR ]
           </button>
 
-          {/* Logout */}
           <button
             onClick={() => { sound.move(); onLogout(); }}
-            className="p-2 text-slate-400 hover:text-rose-400 bg-slate-900 border border-slate-800 rounded-xl transition"
+            className="px-2 py-1.5 text-[9px] text-slate-400 hover:text-rose-400 bg-slate-900 border border-slate-700"
             title="Log out"
           >
-            <LogOut className="w-4 h-4" />
+            QUIT
           </button>
         </div>
       </div>
 
-      {/* 2. MAIN CAMPAIGN ARENA SELECTOR */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left: Lesson Stages List */}
-        <div className="lg:col-span-1 space-y-2.5">
-          <div className="flex items-center justify-between px-2 mb-2">
-            <span className="font-mono text-xs font-bold text-slate-400 uppercase tracking-wider">
-              Topic 3 Arenas (6 Lessons)
-            </span>
-            <span className="text-[11px] font-mono text-amber-400 font-semibold">
-              enVision 2.0
-            </span>
+      {/* 2. WORLD MAP / ARENA SELECTION */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        {/* Stage List */}
+        <div className="lg:col-span-1 space-y-2">
+          <div className="text-[10px] text-amber-400 font-bold tracking-wider uppercase mb-1">
+            ► SELECT MISSION:
           </div>
 
           {TOPIC_3_DATA.lessons.map((lesson) => {
@@ -122,94 +111,63 @@ export default function CampHub({
               <div
                 key={lesson.id}
                 onClick={() => { sound.move(); setSelectedLesson(lesson); }}
-                className={`p-3.5 rounded-2xl border-2 cursor-pointer transition-all ${
+                className={`p-3 border-2 cursor-pointer transition ${
                   isSelected
-                    ? 'bg-slate-900 border-amber-400 shadow-[0_0_15px_rgba(245,158,11,0.2)] scale-[1.02]'
-                    : 'bg-slate-950/70 hover:bg-slate-900/80 border-slate-800/80 hover:border-slate-700'
+                    ? 'bg-amber-950/70 border-amber-400 text-amber-200 shadow'
+                    : 'bg-slate-950/90 border-slate-800 hover:border-slate-600 text-slate-300'
                 }`}
               >
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2.5">
-                    <span className="w-7 h-7 rounded-lg bg-slate-800 border border-slate-700 flex items-center justify-center font-mono font-bold text-xs text-amber-400">
-                      3-{lesson.number}
-                    </span>
-                    <h3 className="font-bold text-slate-200 text-xs md:text-sm font-mono truncate max-w-[190px]">
-                      {lesson.title}
-                    </h3>
-                  </div>
-                  <ChevronRight className={`w-4 h-4 transition ${isSelected ? 'text-amber-400 translate-x-1' : 'text-slate-600'}`} />
+                <div className="flex items-center justify-between text-[10px]">
+                  <span>[3-{lesson.number}] {lesson.title.toUpperCase()}</span>
+                  <span>{isSelected ? '◄' : ''}</span>
                 </div>
               </div>
             );
           })}
         </div>
 
-        {/* Right: Selected Lesson Mission Control */}
-        <div className="lg:col-span-2 bg-slate-900/90 border-2 border-slate-800 rounded-3xl p-5 md:p-6 shadow-2xl flex flex-col justify-between">
+        {/* Mission Briefing Window */}
+        <div className="lg:col-span-2 fft-box p-4 md:p-6 flex flex-col justify-between">
           <div>
-            <div className="flex items-center justify-between border-b border-slate-800 pb-3 mb-4">
-              <div>
-                <span className="text-xs font-mono font-bold text-amber-400 tracking-wider uppercase">
-                  Lesson 3-{selectedLesson.number}
-                </span>
-                <h2 className="text-xl md:text-2xl font-black text-slate-100 font-mono">
-                  {selectedLesson.title}
-                </h2>
-              </div>
-              <span className="text-2xl">👻</span>
+            <div className="border-b-2 border-amber-500/60 pb-2 mb-3">
+              <span className="text-[9px] text-amber-400 font-bold">
+                LESSON 3-{selectedLesson.number} BRIEFING:
+              </span>
+              <h2 className="text-sm md:text-base font-black text-white mt-1">
+                {selectedLesson.title.toUpperCase()}
+              </h2>
             </div>
 
-            {/* Essential Question & I Can */}
+            {/* Objective & Grimoire */}
             <div className="space-y-3 mb-6">
-              <div className="bg-slate-950/80 rounded-xl p-3.5 border border-slate-800">
-                <span className="text-[11px] font-mono font-bold text-slate-400 uppercase tracking-wider block mb-1">
-                  🎯 Mission Objective ("I Can"):
-                </span>
-                <p className="text-xs md:text-sm text-slate-200 font-medium leading-relaxed">
-                  {selectedLesson.iCan}
-                </p>
+              <div className="bg-black/80 border border-slate-700 p-3 text-[10px] leading-relaxed">
+                <span className="text-amber-300 font-bold block mb-1">► OBJECTIVE ("I CAN"):</span>
+                <p className="text-slate-200">{selectedLesson.iCan}</p>
               </div>
 
-              <div className="bg-indigo-950/40 rounded-xl p-3.5 border border-indigo-900/50">
-                <span className="text-[11px] font-mono font-bold text-indigo-300 uppercase tracking-wider block mb-1 flex items-center gap-1.5">
-                  <BookOpen className="w-3.5 h-3.5 text-indigo-400" />
-                  Key Concept Grimoire:
-                </span>
-                <p className="text-xs text-indigo-200/90 leading-relaxed">
-                  {selectedLesson.keyConceptSummary}
-                </p>
+              <div className="bg-black/80 border border-indigo-700/80 p-3 text-[9px] leading-relaxed text-indigo-200">
+                <span className="text-indigo-300 font-bold block mb-1">► FIELD GRIMOIRE (KEY CONCEPT):</span>
+                <p>{selectedLesson.keyConceptSummary}</p>
               </div>
             </div>
           </div>
 
-          {/* Action Choice: The Grind vs The Percentage Phantom */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-4 border-t border-slate-800/80">
-            {/* The Grind Button */}
+          {/* Action Choice: The Grind vs The Phantom Boss */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-3 border-t border-slate-800">
             <button
               onClick={() => handleStartGrind(selectedLesson)}
-              className="p-4 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-500 hover:to-teal-600 text-white font-mono font-bold border-2 border-emerald-400/80 shadow-lg active:scale-95 transition flex flex-col items-center justify-center text-center gap-1"
+              className="fft-btn py-3 px-3 text-center flex flex-col items-center justify-center gap-1 text-[10px]"
             >
-              <div className="flex items-center gap-2">
-                <span className="text-xl">⚔️</span>
-                <span className="text-base uppercase tracking-wider">The Grind</span>
-              </div>
-              <span className="text-[11px] text-emerald-200/90 font-normal">
-                Rapid-Fire Pre-skills & Core Fluency (Earns Shields & XP)
-              </span>
+              <span className="text-emerald-400 font-bold">► THE GRIND</span>
+              <span className="text-[8px] text-slate-400">Pre-Skill Ramping & Shields</span>
             </button>
 
-            {/* The Percentage Phantom Boss Button */}
             <button
               onClick={() => handleStartBoss(selectedLesson)}
-              className="p-4 rounded-2xl bg-gradient-to-r from-purple-700 to-indigo-800 hover:from-purple-600 hover:to-indigo-700 text-white font-mono font-bold border-2 border-purple-400/80 shadow-lg active:scale-95 transition flex flex-col items-center justify-center text-center gap-1"
+              className="fft-btn-gold py-3 px-3 text-center flex flex-col items-center justify-center gap-1 text-[10px]"
             >
-              <div className="flex items-center gap-2">
-                <span className="text-xl">👻</span>
-                <span className="text-base uppercase tracking-wider">Phantom Boss</span>
-              </div>
-              <span className="text-[11px] text-purple-200/90 font-normal">
-                2-Phase Boss Fight • Multi-Step Extension Challenge
-              </span>
+              <span className="text-slate-950 font-black">► PHANTOM RAID</span>
+              <span className="text-[8px] text-slate-900 font-bold">2-Phase Boss Battle</span>
             </button>
           </div>
         </div>

@@ -11,6 +11,7 @@
     "@supabase/supabase-js": "^2.49.1",
     "canvas-confetti": "^1.9.4",
     "lucide-react": "^0.479.0",
+    "pg": "^8.23.1",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
   },

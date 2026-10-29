@@ -1,10 +1,18 @@
 import React, { useState, useEffect } from 'react';
-import { Shield, Zap, Sparkles, BookOpen, AlertOctagon, Heart, Award } from 'lucide-react';
 import { sound } from '../utils/audio';
 import confetti from 'canvas-confetti';
 import MathModal from './MathModal';
+import {
+  IgnisSprite,
+  HydraSprite,
+  VoltSprite,
+  PercentagePhantomSprite,
+  SlimeSprite,
+  PixelHeartIcon,
+  PixelShieldIcon,
+  PixelCoinIcon
+} from './PixelSprites';
 
-// 5 Columns x 3 Rows Tactical Micro-Grid
 const GRID_COLS = 5;
 const GRID_ROWS = 3;
 
@@ -16,112 +24,97 @@ export default function TacticsArena({
   onBattleComplete,
   onExitArena
 }) {
-  // Battle state
   const [playerPos, setPlayerPos] = useState({ x: 0, y: 1 });
   const [bossPos, setBossPos] = useState({ x: 4, y: 1 });
   const [playerHp, setPlayerHp] = useState(100);
   const [bossHp, setBossHp] = useState(100);
   const [shields, setShields] = useState(playerProfile?.shields || 1);
-  const [turn, setTurn] = useState('player'); // 'player' | 'enemy'
+  const [turn, setTurn] = useState('player');
   const [turnCount, setTurnCount] = useState(1);
   const [moveMode, setMoveMode] = useState(false);
   const [telegraphedTiles, setTelegraphedTiles] = useState([]);
   const [activeMathProblem, setActiveMathProblem] = useState(null);
   const [isMathModalOpen, setIsMathModalOpen] = useState(false);
   const [specialTiles, setSpecialTiles] = useState([
-    { x: 1, y: 0, type: 'rune', icon: '⚡' },
-    { x: 2, y: 2, type: 'shield', icon: '🛡️' },
-    { x: 3, y: 0, type: 'coin', icon: '💰' }
+    { x: 1, y: 0, type: 'rune' },
+    { x: 2, y: 2, type: 'shield' },
+    { x: 3, y: 0, type: 'coin' }
   ]);
   const [floaters, setFloaters] = useState([]);
   const [isEnragedPhase, setIsEnragedPhase] = useState(false);
-  const [bossPhase, setBossPhase] = useState(1); // 1 or 2
-  const [bossPartIndex, setBossPartIndex] = useState(0); // for multipart
+  const [bossPhase, setBossPhase] = useState(1);
+  const [bossPartIndex, setBossPartIndex] = useState(0);
   const [grindIndex, setGrindIndex] = useState(0);
 
-  // Statistics for teacher logging
   const [attempted, setAttempted] = useState(0);
   const [correct, setCorrect] = useState(0);
 
-  // Initialize encounter
   useEffect(() => {
     if (mode === 'grind') {
-      // Pick current grind mob
       const q = lesson.grindQueue[grindIndex % lesson.grindQueue.length];
       setActiveMathProblem(q);
     } else {
-      // Boss battle initialized
       const p1Part = lesson.bossFight.phase1.partA;
       setActiveMathProblem({
         ...p1Part,
-        mobName: `${lesson.bossFight.bossName} (Phase 1)`
+        mobName: `${lesson.bossFight.bossName} [PHASE 1]`
       });
     }
-    // Random initial telegraph for Boss
     generateTelegraph();
   }, [lesson, mode, grindIndex]);
 
-  const addFloater = (text, color = '#f59e0b') => {
+  const addFloater = (text, color = '#facc15') => {
     const id = Date.now() + Math.random();
     setFloaters(prev => [...prev, { id, text, color }]);
     setTimeout(() => {
       setFloaters(prev => prev.filter(f => f.id !== id));
-    }, 1500);
+    }, 1400);
   };
 
   const generateTelegraph = () => {
-    // Enemy targets 1 or 2 tiles in column 0 or 1
     const targetY = Math.floor(Math.random() * GRID_ROWS);
     const targetX = Math.floor(Math.random() * 2);
     setTelegraphedTiles([{ x: targetX, y: targetY }]);
   };
 
-  const handleMoveAction = () => {
-    setMoveMode(!moveMode);
-    sound.move();
-  };
-
   const handleTileClick = (x, y) => {
     if (!moveMode) return;
 
-    // Check distance (Manhattan distance <= 2)
     const dist = Math.abs(x - playerPos.x) + Math.abs(y - playerPos.y);
     if (dist > 0 && dist <= 2 && !(x === bossPos.x && y === bossPos.y)) {
       setPlayerPos({ x, y });
       setMoveMode(false);
       sound.move();
-      addFloater('Maneuvered!', '#38bdf8');
+      addFloater('STEP', '#38bdf8');
 
-      // Check special tile triggers
       const tileIdx = specialTiles.findIndex(t => t.x === x && t.y === y);
       if (tileIdx !== -1) {
         const found = specialTiles[tileIdx];
         if (found.type === 'shield') {
           setShields(s => s + 1);
           sound.coin();
-          addFloater('+1 Shield Rune!', '#10b981');
+          addFloater('+1 SHIELD!', '#10b981');
         } else if (found.type === 'coin') {
           sound.coin();
-          addFloater('+25 Arena Coins!', '#fbbf24');
+          addFloater('+25 COINS!', '#fbbf24');
         } else if (found.type === 'rune') {
           sound.hit();
-          addFloater('Attack Charged (+25%)!', '#a855f7');
+          addFloater('ATK SURGE!', '#c084fc');
         }
-        // Consume tile
         setSpecialTiles(prev => prev.filter((_, idx) => idx !== tileIdx));
       }
     }
   };
 
   const handleCastAction = () => {
-    setIsMathModalOpen(true);
     sound.move();
+    setIsMathModalOpen(true);
   };
 
   const handleGuardAction = () => {
     sound.move();
     setShields(s => s + 1);
-    addFloater('Guarded! (+1 Shield)', '#10b981');
+    addFloater('+1 SHIELD', '#10b981');
     endPlayerTurn();
   };
 
@@ -131,10 +124,9 @@ export default function TacticsArena({
     setCorrect(c => c + 1);
 
     if (mode === 'grind') {
-      // Grind strike deals 34 dmg (3 questions = clear)
       const dmg = 35;
       sound.criticalHit();
-      addFloater(`-${dmg} HP!`, '#ef4444');
+      addFloater(`CRIT! -${dmg} HP`, '#ef4444');
       const nextHp = Math.max(0, bossHp - dmg);
       setBossHp(nextHp);
 
@@ -145,29 +137,25 @@ export default function TacticsArena({
         endPlayerTurn();
       }
     } else {
-      // Boss Battle Multipart resolution
       const dmg = problem.damage || 25;
       sound.criticalHit();
-      addFloater(`CRITICAL STRIKE! -${dmg} HP`, '#ef4444');
+      addFloater(`SLASH! -${dmg} HP`, '#f43f5e');
       const nextHp = Math.max(0, bossHp - dmg);
       setBossHp(nextHp);
 
-      // Phase 1 -> Phase 2 transition at 50% HP
       if (nextHp <= 50 && bossPhase === 1) {
         setBossPhase(2);
         setIsEnragedPhase(true);
-        addFloater('⚠️ ENRAGED PHASE! Core Exposed!', '#f43f5e');
-        // Load Phase 2 Part A
+        addFloater('⚠️ ENRAGED CORE EXPOSED!', '#ff0000');
         const p2A = lesson.bossFight.phase2.partA;
         setActiveMathProblem({
           ...p2A,
-          mobName: `${lesson.bossFight.bossName} (Enraged Phase)`
+          mobName: `${lesson.bossFight.bossName} [ENRAGED]`
         });
         endPlayerTurn();
       } else if (nextHp <= 0) {
         handleVictory();
       } else {
-        // Advance to next part in sequence
         advanceBossSequence();
         endPlayerTurn();
       }
@@ -179,22 +167,21 @@ export default function TacticsArena({
       const p1B = lesson.bossFight.phase1.partB;
       setActiveMathProblem({
         ...p1B,
-        mobName: `${lesson.bossFight.bossName} (Phase 1)`
+        mobName: `${lesson.bossFight.bossName} [PHASE 1]`
       });
     } else {
-      // Phase 2 parts
       if (bossPartIndex === 0) {
         setBossPartIndex(1);
         const p2B = lesson.bossFight.phase2.partB;
         setActiveMathProblem({
           ...p2B,
-          mobName: `${lesson.bossFight.bossName} (Enraged Core)`
+          mobName: `${lesson.bossFight.bossName} [ENRAGED]`
         });
       } else {
         const p2C = lesson.bossFight.phase2.partC;
         setActiveMathProblem({
           ...p2C,
-          mobName: `${lesson.bossFight.bossName} (Final Strike!)`
+          mobName: `${lesson.bossFight.bossName} [FINAL]`
         });
       }
     }
@@ -206,12 +193,11 @@ export default function TacticsArena({
     if (shields > 0) {
       setShields(s => s - 1);
       sound.shieldBreak();
-      addFloater('SHIELD SHATTERED!', '#fb7185');
+      addFloater('SHIELD BROKEN!', '#fb7185');
     } else {
-      // Take direct HP damage
       setPlayerHp(hp => Math.max(0, hp - 35));
       sound.shieldBreak();
-      addFloater('-35 HP Damage Taken!', '#e11d48');
+      addFloater('-35 HP HIT!', '#e11d48');
       if (playerHp - 35 <= 0) {
         handleDefeat();
       }
@@ -222,31 +208,29 @@ export default function TacticsArena({
     setTurn('enemy');
     setTimeout(() => {
       resolveEnemyTurn();
-    }, 1200);
+    }, 1100);
   };
 
   const resolveEnemyTurn = () => {
-    // Check if player is standing on telegraphed danger tile
     const hit = telegraphedTiles.some(t => t.x === playerPos.x && t.y === playerPos.y);
     if (hit) {
       if (shields > 0) {
         setShields(s => s - 1);
         sound.shieldBreak();
-        addFloater('Phantom Blast Absorbed by Shield!', '#f43f5e');
+        addFloater('SHIELD BLOCKED BLAST!', '#f43f5e');
       } else {
         setPlayerHp(hp => Math.max(0, hp - 25));
         sound.shieldBreak();
-        addFloater('Direct Hit! -25 HP!', '#e11d48');
+        addFloater('BLAST! -25 HP', '#e11d48');
         if (playerHp - 25 <= 0) {
           handleDefeat();
           return;
         }
       }
     } else {
-      addFloater('DODGED Phantom Blast!', '#38bdf8');
+      addFloater('EVADED BLAST!', '#38bdf8');
     }
 
-    // Prepare next turn
     generateTelegraph();
     setTurn('player');
     setTurnCount(c => c + 1);
@@ -254,8 +238,7 @@ export default function TacticsArena({
 
   const handleVictory = () => {
     sound.victory();
-    confetti({ particleCount: 120, spread: 80, origin: { y: 0.6 } });
-
+    confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
     setTimeout(() => {
       onBattleComplete({
         victory: true,
@@ -265,7 +248,7 @@ export default function TacticsArena({
         attempted,
         correct
       });
-    }, 1600);
+    }, 1500);
   };
 
   const handleDefeat = () => {
@@ -282,175 +265,151 @@ export default function TacticsArena({
     }, 1200);
   };
 
-  const currentOpponentName = mode === 'phantom_boss'
-    ? lesson.bossFight.bossName
-    : activeMathProblem?.mobName || 'Arena Opponent';
+  const renderPlayerSprite = (size = 48) => {
+    if (monster?.id === 'hydra') return <HydraSprite size={size} />;
+    if (monster?.id === 'volt') return <VoltSprite size={size} />;
+    return <IgnisSprite size={size} />;
+  };
+
+  const renderOpponentSprite = (size = 54) => {
+    if (mode === 'phantom_boss') {
+      return <PercentagePhantomSprite size={size} enraged={isEnragedPhase} />;
+    }
+    return <SlimeSprite size={size - 10} />;
+  };
+
+  const opponentName = mode === 'phantom_boss' ? 'PHANTOM' : (activeMathProblem?.mobName || 'SLIME');
 
   return (
-    <div className="relative w-full max-w-5xl mx-auto flex flex-col items-center justify-between min-h-[85vh] p-3 md:p-6 select-none">
-      {/* 1. TURN TIMELINE BAR (FF Tactics Style) */}
-      <div className="w-full bg-slate-950/90 border-2 border-slate-800 rounded-xl px-4 py-2.5 flex items-center justify-between shadow-xl mb-4">
+    <div className="relative w-full max-w-4xl mx-auto flex flex-col items-center justify-between min-h-[90vh] p-2 md:p-4 select-none">
+      
+      {/* 1. TOP CT TURN TIMELINE & COMBAT STATUS (16-Bit Style) */}
+      <div className="w-full fft-box p-3 mb-2 flex items-center justify-between">
+        {/* Left: Player CT Tag */}
         <div className="flex items-center gap-2">
-          <span className="text-xs font-mono uppercase tracking-wider text-slate-400">Timeline:</span>
-          <div className="flex items-center gap-2 font-mono text-xs">
-            <span className={`px-2.5 py-1 rounded-md font-bold flex items-center gap-1 border transition ${
-              turn === 'player'
-                ? 'bg-amber-500 text-slate-950 border-amber-300 ring-2 ring-amber-400/50'
-                : 'bg-slate-800 text-slate-400 border-slate-700'
-            }`}>
-              <span>{monster?.icon || '🦊'}</span>
-              <span>{monster?.name || 'Player'}</span>
-            </span>
-
-            <span className="text-slate-600">➔</span>
-
-            <span className={`px-2.5 py-1 rounded-md font-bold flex items-center gap-1 border transition ${
-              turn === 'enemy'
-                ? 'bg-purple-600 text-white border-purple-400 ring-2 ring-purple-400/50'
-                : 'bg-slate-800 text-slate-400 border-slate-700'
-            }`}>
-              <span>{mode === 'phantom_boss' ? '👻' : '👾'}</span>
-              <span>{currentOpponentName}</span>
-            </span>
+          <div className="w-10 h-10 bg-slate-900 border-2 border-amber-400 flex items-center justify-center">
+            {renderPlayerSprite(32)}
           </div>
-        </div>
-
-        <div className="flex items-center gap-4 text-xs font-mono">
-          <div className="flex items-center gap-1 text-emerald-400">
-            <Shield className="w-4 h-4" />
-            <span className="font-bold">{shields} Shields</span>
-          </div>
-          <span className="text-slate-400 font-bold">Turn {turnCount}</span>
-        </div>
-      </div>
-
-      {/* 2. COMBAT HEADERS & HEALTH BARS */}
-      <div className="w-full grid grid-cols-2 gap-4 mb-4">
-        {/* Player Stats */}
-        <div className="bg-slate-900/90 border border-slate-800 p-3 rounded-xl flex items-center gap-3">
-          <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-amber-500 to-red-600 flex items-center justify-center text-2xl shadow">
-            {monster?.icon || '🦊'}
-          </div>
-          <div className="flex-1">
-            <div className="flex justify-between items-center text-xs font-bold font-mono">
-              <span className="text-amber-400">{monster?.name} (Lvl {playerProfile?.level || 1})</span>
-              <span className="text-slate-300">{playerHp}/100 HP</span>
+          <div>
+            <div className="flex items-center gap-1.5 text-[10px]">
+              <span className="text-amber-300 font-bold">{monster?.name?.toUpperCase()}</span>
+              <span className="text-slate-400">LV.{playerProfile?.level || 1}</span>
             </div>
-            <div className="w-full h-3 bg-slate-950 rounded-full mt-1.5 overflow-hidden border border-slate-800">
-              <div
-                className="h-full bg-gradient-to-r from-emerald-500 to-emerald-400 transition-all duration-300"
-                style={{ width: `${playerHp}%` }}
-              />
+            {/* Pixel HP Bar */}
+            <div className="flex items-center gap-1.5 mt-1">
+              <span className="text-[9px] text-emerald-400">HP</span>
+              <div className="w-20 md:w-28 h-2.5 bg-black border border-slate-700">
+                <div
+                  className="h-full bg-emerald-500 transition-all duration-300"
+                  style={{ width: `${playerHp}%` }}
+                />
+              </div>
+              <span className="text-[9px] text-slate-300">{playerHp}</span>
             </div>
           </div>
         </div>
 
-        {/* Boss / Opponent Stats */}
-        <div className="bg-slate-900/90 border border-slate-800 p-3 rounded-xl flex items-center gap-3">
-          <div className="flex-1">
-            <div className="flex justify-between items-center text-xs font-bold font-mono">
-              <span className="text-purple-400">{currentOpponentName}</span>
-              <span className="text-slate-300">{bossHp}/100 HP</span>
-            </div>
-            <div className="w-full h-3 bg-slate-950 rounded-full mt-1.5 overflow-hidden border border-slate-800">
-              <div
-                className={`h-full transition-all duration-300 ${
-                  isEnragedPhase
-                    ? 'bg-gradient-to-r from-rose-500 to-rose-600'
-                    : 'bg-gradient-to-r from-purple-500 to-indigo-500'
-                }`}
-                style={{ width: `${bossHp}%` }}
-              />
-            </div>
-          </div>
-          <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-2xl shadow ${
-            isEnragedPhase ? 'bg-gradient-to-br from-purple-700 to-rose-800 animate-pulse' : 'bg-slate-800'
+        {/* Center: Turn Indicator */}
+        <div className="text-center font-mono">
+          <div className={`px-2 py-0.5 text-[9px] uppercase border ${
+            turn === 'player'
+              ? 'bg-amber-500 text-black border-amber-300 font-black'
+              : 'bg-purple-950 text-purple-300 border-purple-600 font-bold'
           }`}>
-            {mode === 'phantom_boss' ? (isEnragedPhase ? '👾' : '👻') : '👾'}
+            {turn === 'player' ? '► PLAYER TURN' : 'ENEMY CAST'}
+          </div>
+          <div className="text-[8px] text-slate-400 mt-1">TURN {turnCount}</div>
+        </div>
+
+        {/* Right: Boss CT Tag */}
+        <div className="flex items-center gap-2 text-right">
+          <div>
+            <div className="flex items-center justify-end gap-1.5 text-[10px]">
+              <span className={isEnragedPhase ? 'text-rose-400 font-bold' : 'text-purple-300 font-bold'}>
+                {opponentName}
+              </span>
+            </div>
+            {/* Boss Pixel HP Bar */}
+            <div className="flex items-center justify-end gap-1.5 mt-1">
+              <span className="text-[9px] text-slate-300">{bossHp}</span>
+              <div className="w-20 md:w-28 h-2.5 bg-black border border-slate-700">
+                <div
+                  className={`h-full transition-all duration-300 ${isEnragedPhase ? 'bg-rose-500' : 'bg-purple-500'}`}
+                  style={{ width: `${bossHp}%` }}
+                />
+              </div>
+              <span className="text-[9px] text-purple-400">HP</span>
+            </div>
+          </div>
+          <div className={`w-10 h-10 border-2 flex items-center justify-center ${
+            isEnragedPhase ? 'bg-rose-950 border-rose-500' : 'bg-slate-900 border-purple-500'
+          }`}>
+            {renderOpponentSprite(36)}
           </div>
         </div>
       </div>
 
-      {/* FLOATING TEXT NOTIFICATIONS */}
-      <div className="absolute top-28 z-40 pointer-events-none flex flex-col items-center gap-1">
+      {/* Floating Retro Damage Text */}
+      <div className="absolute top-24 z-50 pointer-events-none flex flex-col items-center gap-1 font-mono">
         {floaters.map(f => (
           <div
             key={f.id}
-            className="px-4 py-1 rounded-full font-black text-sm md:text-base font-mono shadow-2xl animate-bounce"
-            style={{ backgroundColor: 'rgba(0,0,0,0.85)', color: f.color, border: `2px solid ${f.color}` }}
+            className="px-3 py-1 bg-black border-2 text-xs md:text-sm font-black shadow-2xl animate-bounce"
+            style={{ borderColor: f.color, color: f.color }}
           >
             {f.text}
           </div>
         ))}
       </div>
 
-      {/* 3. TACTICAL MICRO-GRID (5x3 Tiles) */}
-      <div className="relative w-full max-w-3xl my-auto py-4">
-        <div className="grid grid-cols-5 gap-2.5 md:gap-3.5 p-3 md:p-5 bg-slate-950/80 rounded-2xl border-2 border-slate-800 shadow-2xl">
+      {/* 2. ISOMETRIC 3D TACTICAL BATTLEFIELD */}
+      <div className="tactics-board-container my-auto py-8 w-full flex items-center justify-center">
+        <div className="tactics-board grid grid-cols-5 gap-3 p-4 bg-slate-950/90 border-4 border-slate-800 shadow-[0_20px_50px_rgba(0,0,0,0.95)]">
           {Array.from({ length: GRID_ROWS }).map((_, r) =>
             Array.from({ length: GRID_COLS }).map((_, c) => {
-              const isPlayerHere = playerPos.x === c && playerPos.y === r;
-              const isBossHere = bossPos.x === c && bossPos.y === r;
-              const isTelegraphed = telegraphedTiles.some(t => t.x === c && t.y === r);
+              const isPlayer = playerPos.x === c && playerPos.y === r;
+              const isBoss = bossPos.x === c && bossPos.y === r;
+              const isTelegraph = telegraphedTiles.some(t => t.x === c && t.y === r);
               const specialTile = specialTiles.find(t => t.x === c && t.y === r);
 
-              // Movement reach calculation
               const dist = Math.abs(c - playerPos.x) + Math.abs(r - playerPos.y);
-              const canMoveHere = moveMode && dist > 0 && dist <= 2 && !isBossHere;
+              const canMove = moveMode && dist > 0 && dist <= 2 && !isBoss;
+
+              let tileClass = "tactics-tile w-14 h-14 md:w-20 md:h-20 bg-slate-900 flex items-center justify-center cursor-pointer ";
+              if (isPlayer) tileClass += "tactics-tile-active bg-amber-950/40 ";
+              else if (isBoss) tileClass += isEnragedPhase ? "tactics-tile-danger " : "border-purple-600 bg-purple-950/40 ";
+              else if (canMove) tileClass += "tactics-tile-move ";
+              else if (isTelegraph) tileClass += "tactics-tile-danger ";
 
               return (
                 <div
                   key={`${r}-${c}`}
                   onClick={() => handleTileClick(c, r)}
-                  className={`relative aspect-square rounded-xl border-2 transition-all duration-200 flex items-center justify-center font-mono cursor-pointer ${
-                    isPlayerHere
-                      ? 'bg-amber-950/70 border-amber-400 ring-4 ring-amber-400/30 z-20 scale-105'
-                      : isBossHere
-                      ? isEnragedPhase
-                        ? 'bg-rose-950/80 border-rose-500 ring-4 ring-rose-500/40 z-20'
-                        : 'bg-purple-950/70 border-purple-500 ring-4 ring-purple-500/30 z-20'
-                      : canMoveHere
-                      ? 'bg-cyan-950/70 border-cyan-400 hover:bg-cyan-900/80 animate-pulse'
-                      : isTelegraphed
-                      ? 'bg-rose-950/50 border-rose-600/90 shadow-[inset_0_0_15px_rgba(244,63,94,0.4)]'
-                      : 'bg-slate-900/60 hover:bg-slate-800/80 border-slate-800/90'
-                  }`}
+                  className={tileClass}
                 >
-                  {/* Danger Zone Telegraph Marker */}
-                  {isTelegraphed && !isPlayerHere && !isBossHere && (
-                    <div className="absolute inset-0 flex items-center justify-center opacity-70">
-                      <AlertOctagon className="w-5 h-5 text-rose-500 animate-spin" />
+                  {/* Danger Zone Marker */}
+                  {isTelegraph && !isPlayer && !isBoss && (
+                    <div className="text-[9px] text-rose-500 font-bold animate-pulse">
+                      ⚡DANGER
                     </div>
                   )}
 
-                  {/* Special Rune / Coin Tile */}
-                  {specialTile && !isPlayerHere && !isBossHere && (
-                    <span className="text-xl md:text-2xl animate-bounce">{specialTile.icon}</span>
-                  )}
-
-                  {/* Player Sprite */}
-                  {isPlayerHere && (
-                    <div className="flex flex-col items-center">
-                      <span className="text-3xl md:text-4xl filter drop-shadow-[0_5px_5px_rgba(0,0,0,0.8)]">
-                        {monster?.icon || '🦊'}
-                      </span>
-                      <span className="text-[10px] font-bold text-amber-300 font-mono mt-0.5">YOU</span>
+                  {/* Special Tiles */}
+                  {specialTile && !isPlayer && !isBoss && (
+                    <div className="animate-bounce-slight">
+                      {specialTile.type === 'shield' && <PixelShieldIcon size={24} />}
+                      {specialTile.type === 'coin' && <PixelCoinIcon size={24} />}
+                      {specialTile.type === 'rune' && <span className="text-purple-400 font-black text-sm">⚡</span>}
                     </div>
                   )}
 
-                  {/* Boss Sprite */}
-                  {isBossHere && (
-                    <div className="flex flex-col items-center">
-                      <span className="text-3xl md:text-4xl filter drop-shadow-[0_5px_5px_rgba(0,0,0,0.8)] animate-pulse">
-                        {mode === 'phantom_boss' ? (isEnragedPhase ? '👾' : '👻') : '👾'}
-                      </span>
-                      <span className="text-[10px] font-bold text-purple-300 font-mono mt-0.5">BOSS</span>
-                    </div>
-                  )}
+                  {/* Character Sprites */}
+                  {isPlayer && renderPlayerSprite(48)}
+                  {isBoss && renderOpponentSprite(52)}
 
-                  {/* Move Target indicator */}
-                  {canMoveHere && (
-                    <div className="w-3 h-3 rounded-full bg-cyan-400 shadow-[0_0_8px_#22d3ee]" />
+                  {/* Valid Move Indicator Dot */}
+                  {canMove && (
+                    <div className="w-2.5 h-2.5 bg-cyan-400 shadow-[0_0_8px_#38bdf8]" />
                   )}
                 </div>
               );
@@ -459,54 +418,59 @@ export default function TacticsArena({
         </div>
       </div>
 
-      {/* 4. TACTICAL COMMAND MENU (FF Tactics Style) */}
-      <div className="w-full bg-slate-950/95 border-2 border-slate-800 rounded-2xl p-4 shadow-2xl flex flex-wrap items-center justify-between gap-3 mt-auto">
-        <div className="flex items-center gap-2">
-          {/* CAST / ACT (Opens Math Problem) */}
-          <button
-            onClick={handleCastAction}
-            disabled={turn !== 'player'}
-            className="px-5 py-3 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-black text-sm md:text-base border-2 border-amber-300 shadow-lg active:scale-95 transition disabled:opacity-50 flex items-center gap-2"
-          >
-            <Sparkles className="w-4 h-4" />
-            <span>⚔️ CAST / ACT</span>
-          </button>
+      {/* 3. CLASSIC FFT BATTLE COMMAND WINDOW */}
+      <div className="w-full fft-box p-3 md:p-4 mt-auto">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          {/* Action Commands */}
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleCastAction}
+              disabled={turn !== 'player'}
+              className="fft-btn-gold px-4 py-2.5 text-xs flex items-center gap-1.5 disabled:opacity-50"
+            >
+              <span>⚔️</span>
+              <span>ATTACK</span>
+            </button>
 
-          {/* MOVE */}
-          <button
-            onClick={handleMoveAction}
-            disabled={turn !== 'player'}
-            className={`px-4 py-3 rounded-xl font-bold text-sm md:text-base border-2 shadow active:scale-95 transition disabled:opacity-50 flex items-center gap-2 ${
-              moveMode
-                ? 'bg-cyan-500 text-slate-950 border-cyan-300 ring-2 ring-cyan-400'
-                : 'bg-slate-800 hover:bg-slate-700 text-slate-200 border-slate-700'
-            }`}
-          >
-            <span>🏃 MOVE</span>
-          </button>
+            <button
+              onClick={() => { sound.move(); setMoveMode(!moveMode); }}
+              disabled={turn !== 'player'}
+              className={`fft-btn px-4 py-2.5 text-xs flex items-center gap-1.5 disabled:opacity-50 ${
+                moveMode ? 'bg-cyan-600 border-cyan-300 text-white' : ''
+              }`}
+            >
+              <span>🏃</span>
+              <span>MOVE</span>
+            </button>
 
-          {/* GUARD */}
-          <button
-            onClick={handleGuardAction}
-            disabled={turn !== 'player'}
-            className="px-4 py-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-sm md:text-base border border-slate-700 shadow active:scale-95 transition disabled:opacity-50"
-          >
-            🛡️ GUARD
-          </button>
-        </div>
+            <button
+              onClick={handleGuardAction}
+              disabled={turn !== 'player'}
+              className="fft-btn px-4 py-2.5 text-xs flex items-center gap-1.5 disabled:opacity-50"
+            >
+              <span>🛡️</span>
+              <span>WAIT</span>
+            </button>
+          </div>
 
-        {/* Exit & Grimoire Quick Access */}
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => onExitArena()}
-            className="px-3 py-2 text-xs font-semibold text-slate-400 hover:text-slate-200 bg-slate-900 border border-slate-800 rounded-lg hover:bg-slate-800 transition"
-          >
-            Retreat to Camp
-          </button>
+          {/* Shields & Retreat */}
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-1.5 text-emerald-300 text-[10px]">
+              <PixelShieldIcon size={16} />
+              <span>{shields} SHIELDS</span>
+            </div>
+
+            <button
+              onClick={onExitArena}
+              className="px-2.5 py-1.5 text-[9px] text-slate-400 hover:text-white bg-slate-900 border border-slate-700 hover:border-slate-500 rounded transition"
+            >
+              RETREAT
+            </button>
+          </div>
         </div>
       </div>
 
-      {/* MATH ACTION MODAL */}
+      {/* MATH ACTION WINDOW (FFT Dialogue Style) */}
       <MathModal
         isOpen={isMathModalOpen}
         problem={activeMathProblem}
