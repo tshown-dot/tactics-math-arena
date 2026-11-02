@@ -16,7 +16,7 @@ export const SUPABASE_ANON_KEY = (typeof window !== 'undefined' && window.ENV?.S
   || 'sb_publishable_CFzz592giYGX2XLp2rryeg_ohUSmG4o';
 
 export const GAS_ENDPOINT_URL = (typeof window !== 'undefined' && window.ENV?.GAS_ENDPOINT_URL)
-  || '';
+  || 'https://script.google.com/macros/s/AKfycbytcIs1xic99kfW2OxkfC8kfpUeUTz_FMGx1QbJc5tyMImTmkBWjkpYZJINXt3gjxly/exec';
 
 let _cachedClient = null;
 
