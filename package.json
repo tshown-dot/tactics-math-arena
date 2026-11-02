@@ -2,7 +2,7 @@
   "name": "envision-math-companion",
   "version": "1.0.0",
   "type": "module",
-  "description": "enVision 2.0 Math Companion (7th Grade Topic 3)",
+  "description": "enVision 2.0 Math Companion (6th Grade Topic 3)",
   "scripts": {
     "test": "node test_hub_progression.js"
   }

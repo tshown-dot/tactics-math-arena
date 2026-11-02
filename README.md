@@ -1,6 +1,6 @@
 # ⚔️ Tactics Math Arena
 
-> **Gamified Math Study Companion aligned with enVision 2.0 (Grade 7 Topic 3: Analyze and Solve Percent Problems)**  
+> **Gamified Math Study Companion aligned with enVision 2.0 (Grade 6 Topic 3: Numeric and Algebraic Expressions)**  
 > Built for classroom stations, independent practice, and study halls with an authentic *Final Fantasy Tactics*-style micro-grid battle engine.
 
 ---

@@ -1033,7 +1033,7 @@ class VaultBreakerGame {
         window.parent.postMessage({
           type: 'CARTRIDGE_COMPLETE',
           payload: {
-            lessonId: 'G07_U03_L02',
+            lessonId: 'G06_U03_L02',
             score: Math.max(10, Math.round(this.score / 100)),
             total: 10,
             bossDefeated: true

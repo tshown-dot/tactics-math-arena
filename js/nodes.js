@@ -1,14 +1,14 @@
 /**
  * Realm of Numeria - Realm Nodes Registry
  * 
- * Maps 7th Grade Topic 3 lessons to fantasy world regions.
+ * Maps 6th Grade Topic 3 lessons (Numeric and Algebraic Expressions) to fantasy world regions.
  * Features linear progression gating with Lesson 3-6 reserved for Distributive Property.
  */
 
 export const REALM_NODES = [
   {
     id: 'node_3_1',
-    lessonId: 'G07_U03_L01',
+    lessonId: 'G06_U03_L01',
     lessonCode: '3-1',
     title: 'Spire of Powers',
     regionName: 'The Celestial Peaks',
@@ -27,7 +27,7 @@ export const REALM_NODES = [
   },
   {
     id: 'node_3_2',
-    lessonId: 'G07_U03_L02',
+    lessonId: 'G06_U03_L02',
     lessonCode: '3-2',
     title: 'Vault of Divisors',
     regionName: 'The Under-Keep',
@@ -46,7 +46,7 @@ export const REALM_NODES = [
   },
   {
     id: 'node_3_3',
-    lessonId: 'G07_U03_L03',
+    lessonId: 'G06_U03_L03',
     lessonCode: '3-3',
     title: 'The Siege Works',
     regionName: 'Ironhold Bastion',
@@ -65,7 +65,7 @@ export const REALM_NODES = [
   },
   {
     id: 'node_3_4',
-    lessonId: 'G07_U03_L04',
+    lessonId: 'G06_U03_L04',
     lessonCode: '3-4',
     title: 'Resonance Bastion',
     regionName: 'The Arcane Dynamo',
@@ -84,7 +84,7 @@ export const REALM_NODES = [
   },
   {
     id: 'node_3_6',
-    lessonId: 'G07_U03_L06',
+    lessonId: 'G06_U03_L06',
     lessonCode: '3-6',
     title: "The Alchemist's Forge",
     regionName: 'The Grand Foundry',
@@ -103,7 +103,7 @@ export const REALM_NODES = [
   },
   {
     id: 'node_3_7',
-    lessonId: 'G07_U03_L07',
+    lessonId: 'G06_U03_L07',
     lessonCode: '3-7',
     title: 'Plains of Convergence',
     regionName: 'The Shifting Dunes',
@@ -123,14 +123,14 @@ export const REALM_NODES = [
   },
   {
     id: 'node_apex',
-    lessonId: 'G07_U03_BOSS',
+    lessonId: 'G06_U03_BOSS',
     lessonCode: 'Apex Climax',
-    title: 'The Citadel of Percents',
+    title: 'The Citadel of Expressions',
     regionName: 'The Shadow Throne',
-    subtitle: 'The Percentage Phantom Grand Climax',
-    description: 'The ultimate confrontation! Confront the legendary Percentage Phantom across a 2-phase tactical battle combining all unit principles: discounts, markups, taxes, and multi-step reasoning.',
-    standard: 'enVision 2.0 Topic 3 Climax: Multi-Tier Mastery',
-    cartridgeUrl: './cartridges/crane/index.html', // Can point to apex cartridge or boss arena
+    subtitle: 'Topic 3 Grand Master Climax',
+    description: 'The ultimate confrontation! Confront the Expression Colossus across a multi-phase tactical battle combining all unit principles: exponents, order of operations, factoring, and like terms.',
+    standard: 'enVision 2.0 Topic 3 Climax: Numeric and Algebraic Expressions Mastery',
+    cartridgeUrl: './cartridges/crane/index.html',
     icon: '👑',
     badgeName: 'Hero of Numeria',
     mapCoords: { x: 1250, y: 530 },
@@ -138,7 +138,7 @@ export const REALM_NODES = [
     xpReward: 600,
     coinsReward: 250,
     isWip: false,
-    bossName: 'Percentage Phantom Prime',
+    bossName: 'Expression Colossus Prime',
   }
 ];
 

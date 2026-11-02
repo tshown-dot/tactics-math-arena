@@ -605,7 +605,7 @@ class ExponentReactorGame {
         window.parent.postMessage({
           type: 'CARTRIDGE_COMPLETE',
           payload: {
-            lessonId: 'G07_U03_L01',
+            lessonId: 'G06_U03_L01',
             score: Math.max(1, this.totalAttempts - this.trapHits),
             total: Math.max(1, this.totalAttempts),
             evasionRate: evasionRate,
