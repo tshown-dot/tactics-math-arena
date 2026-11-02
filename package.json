@@ -4,6 +4,6 @@
   "type": "module",
   "description": "enVision 2.0 Math Companion (7th Grade Topic 3)",
   "scripts": {
-    "test": "node src/math-engine.js"
+    "test": "node test_hub_progression.js"
   }
 }

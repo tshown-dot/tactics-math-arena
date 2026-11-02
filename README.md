@@ -30,18 +30,38 @@
 
 ---
 
-## 🚀 Deploying to Render
+## 🚀 Deploying to Render on `shownlab.com` Subdomain
 
-This app is a high-speed static web application ready for Render deployment on a custom subdomain:
+This app is a high-speed, zero-build static web application ready for Render deployment on a custom subdomain (e.g., `math.shownlab.com` or `arena.shownlab.com`):
 
-1. **Connect Repo:** Link this GitHub repo (`tshown-dot/tactics-math-arena`) in Render.
+1. **Connect Repo:** Link this GitHub repo (`tshown-dot/tactics-math-arena`) in the [Render Dashboard](https://dashboard.render.com).
 2. **Build Settings:**
-   * **Environment:** `Static Site`
-   * **Build Command:** `npm run build`
-   * **Publish Directory:** `dist`
-3. **Custom Subdomain:**
-   * In Render settings, add your custom domain/subdomain (e.g. `arena.yourdomain.com`).
-   * Add the CNAME record in your DNS manager. SSL certificates are provisioned automatically for free!
+   * **Service Type:** `Static Site`
+   * **Build Command:** *(leave blank / empty)*
+   * **Publish Directory:** `.` (root directory)
+3. **Custom Subdomain (`*.shownlab.com`):**
+   * In your Render static site dashboard, navigate to **Settings** ➔ **Custom Domains**.
+   * Add your desired subdomain (e.g., `math.shownlab.com` or `arena.shownlab.com`).
+   * In your DNS manager for `shownlab.com`, create a `CNAME` record pointing the host (e.g., `math` or `arena`) to your Render onrender address (e.g. `tactics-math-arena.onrender.com`).
+   * Render automatically issues and manages free SSL/TLS certificates!
+
+---
+
+## 🗺️ Overworld Map & Cartridge Progression
+
+The Realm of Numeria connects all modular cartridges through a unified tactical progression graph:
+
+1. **Spire of Powers (Lesson 3-1):** Exponents & Repeated Multiplication *(Charge Runner)*
+2. **Vault of Divisors (Lesson 3-2):** Greatest Common Factor *(Vault Breaker)*
+3. **The Siege Works (Lesson 3-3):** Order of Operations *(Demolition Crane)*
+4. **Resonance Bastion (Lesson 3-4):** Least Common Multiple *(Power Grid)*
+5. **The Alchemist's Forge (Lesson 3-6):** The Distributive Property *(Reserved Modular Node)*
+6. **Plains of Convergence (Lesson 3-7):** Combining Like Terms *(Term Popper)*
+7. **The Citadel of Percents (Apex Boss):** Topic 3 Climax *(The Percentage Phantom)*
+
+* **Progression Gating:** Clearing each realm unlocks the next node on the tactical map, awarding XP, Gold Coins, and Mastery Stars.
+* **Lesson 3-6 Modular Plug:** Lesson 3-6 is marked as an active reserved slot (`isWip: true`), automatically bridging Lesson 3-4 to 3-7 until the cartridge is placed into `cartridges/distributive/`.
+* **Teacher Demo Override:** Logging in with PIN `7777` instantly unlocks all realms and the Apex Boss for classroom demonstrations.
 
 ---
 

@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>Power Grid: Pulse Interceptor (enVision LCM)</title>
+
+  <!-- Tailwind CSS CDN (Zero build tools) -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@600;700;800;900&display=swap');
+
+    * {
+      box-sizing: border-box;
+    }
+
+    button:focus {
+      outline: none;
+    }
+
+    body {
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      user-select: none;
+      -webkit-user-select: none;
+      background-color: #030712;
+      color: #f3f4f6;
+      height: 100vh;
+      width: 100vw;
+      overflow: hidden;
+    }
+
+    .font-mono-math {
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    /* Vibrant Neon Glows */
+    .glow-cyan {
+      box-shadow: 0 0 25px rgba(6, 182, 212, 0.75), 0 0 10px rgba(6, 182, 212, 0.5);
+    }
+    .glow-amber {
+      box-shadow: 0 0 25px rgba(245, 158, 11, 0.75), 0 0 10px rgba(245, 158, 11, 0.5);
+    }
+    .glow-emerald {
+      box-shadow: 0 0 35px rgba(16, 185, 129, 0.9), 0 0 15px rgba(16, 185, 129, 0.6);
+    }
+    .glow-rose {
+      box-shadow: 0 0 25px rgba(244, 63, 94, 0.8), 0 0 12px rgba(244, 63, 94, 0.5);
+    }
+
+    /* Screen shake on error */
+    @keyframes screenShake {
+      0%, 100% { transform: translate(0, 0); }
+      15% { transform: translate(-8px, 5px); }
+      30% { transform: translate(8px, -5px); }
+      45% { transform: translate(-6px, 3px); }
+      60% { transform: translate(6px, -3px); }
+      75% { transform: translate(-3px, 1px); }
+    }
+    .shake-active {
+      animation: screenShake 0.4s ease-in-out;
+    }
+
+    /* Tile pulse animations (color flash only, no scaling beyond cell boundaries) */
+    @keyframes zapCyan {
+      0% { background-color: #06b6d4; color: #000; box-shadow: 0 0 15px #06b6d4; }
+      100% { }
+    }
+    .zap-cyan {
+      animation: zapCyan 0.35s ease-out;
+    }
+
+    @keyframes zapAmber {
+      0% { background-color: #f59e0b; color: #000; box-shadow: 0 0 15px #f59e0b; }
+      100% { }
+    }
+    .zap-amber {
+      animation: zapAmber 0.35s ease-out;
+    }
+
+    @keyframes zapJoint {
+      0% { background-color: #10b981; color: #000; box-shadow: 0 0 25px #10b981; }
+      100% { }
+    }
+    .zap-joint {
+      animation: zapJoint 0.5s ease-out;
+    }
+  </style>
+</head>
+<body class="bg-gray-950 text-slate-100 flex flex-col justify-between p-2 select-none">
+
+  <!-- ==================== HEADER HUD ==================== -->
+  <header class="w-full bg-slate-900/90 border border-slate-800 rounded-2xl px-4 py-2 flex items-center justify-between shadow-xl">
+    <div class="flex items-center space-x-3">
+      <div class="w-8 h-8 rounded-xl bg-gradient-to-tr from-cyan-500 to-amber-500 flex items-center justify-center font-black text-slate-950 text-base shadow-md">
+        ⚡
+      </div>
+      <div>
+        <div class="flex items-center space-x-2">
+          <span class="font-black text-xs sm:text-sm tracking-wider uppercase text-cyan-400">POWER GRID</span>
+          <span class="text-xs text-slate-500">·</span>
+          <span id="sector-badge" class="px-2 py-0.5 text-[10px] font-black rounded-full bg-cyan-950 text-cyan-300 border border-cyan-800">SECTOR 1</span>
+          <span id="round-badge" class="px-2 py-0.5 text-[10px] font-black rounded-full bg-slate-800 text-slate-300">ROUND 1/3</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Center Objective -->
+    <div class="flex items-center space-x-2 bg-slate-950/80 px-4 py-1 rounded-xl border border-slate-800">
+      <span class="text-xs text-amber-400 font-mono-math font-black">MISSION:</span>
+      <span class="text-xs sm:text-sm font-black text-white tracking-wide font-mono-math">
+        INTERCEPT THE FIRST JOINT COLLISION
+      </span>
+    </div>
+
+    <!-- Right Telemetry -->
+    <div class="flex items-center space-x-3">
+      <span id="streak-badge" class="px-2 py-0.5 text-[11px] font-mono-math font-bold bg-slate-800 text-slate-400 rounded-lg">
+        STREAK: 0
+      </span>
+      <div class="flex flex-col items-end">
+        <span class="text-[9px] font-mono-math font-bold text-slate-500 uppercase">SCORE</span>
+        <span id="score-display" class="text-sm font-black font-mono-math text-amber-400 leading-none">0</span>
+      </div>
+      <div class="flex items-center space-x-1.5 bg-slate-950 px-2.5 py-1 rounded-lg border border-slate-800">
+        <span class="text-xs">⏱</span>
+        <span id="timer-display" class="font-mono-math font-black text-xs text-amber-400">50s</span>
+      </div>
+      <button id="mute-btn" class="px-2 py-1 text-xs font-mono-math font-bold rounded-lg border border-cyan-500/40 bg-cyan-950/40 text-cyan-400 hover:bg-cyan-900/60 cursor-pointer">
+        🔊
+      </button>
+    </div>
+  </header>
+
+  <!-- ==================== DUAL GENERATORS CONTROL DECK ==================== -->
+  <section class="w-full bg-slate-900/90 border border-slate-800 rounded-2xl p-2.5 shadow-xl my-1 flex items-center justify-between gap-3">
+    <!-- Generator A Interactive Button -->
+    <button id="btn-wave-a" type="button" class="flex-1 bg-cyan-950/40 hover:bg-cyan-900/50 border-2 border-cyan-500/70 hover:border-cyan-400 rounded-xl p-2.5 flex items-center justify-between shadow-lg transition-all cursor-pointer hover:scale-[1.02] active:scale-95 group text-left">
+      <div class="flex items-center space-x-2.5">
+        <span class="w-4 h-4 rounded-full bg-cyan-400 shadow glow-cyan group-hover:scale-110 transition-transform"></span>
+        <div>
+          <div class="text-[10px] font-mono-math font-black text-cyan-400 uppercase tracking-wider flex items-center gap-1.5">
+            <span>WAVE ALPHA</span>
+            <span class="text-[9px] bg-cyan-500/20 text-cyan-300 px-1.5 py-0.5 rounded border border-cyan-500/40 animate-pulse">CLICK TO PULSE ⚡</span>
+          </div>
+          <div class="text-xs text-slate-300">Pulses every <strong id="gen-a-value" class="text-cyan-300 font-mono-math text-sm">4</strong> tiles</div>
+        </div>
+      </div>
+      <div id="gen-a-seq" class="text-xs font-mono-math font-bold text-cyan-300/90 bg-cyan-950 px-2.5 py-1 rounded-lg border border-cyan-800">
+        4, 8, 12, 16...
+      </div>
+    </button>
+
+    <!-- Center Target / Status Pill -->
+    <div class="flex flex-col items-center justify-center px-2 shrink-0">
+      <div class="text-[9px] font-mono-math font-bold text-slate-500 uppercase">COLLISION POINT</div>
+      <div id="target-tile-pill" class="text-xs font-mono-math font-black px-3 py-1 rounded-lg bg-slate-950 border border-slate-700 text-slate-400">
+        TARGET: ???
+      </div>
+    </div>
+
+    <!-- Generator B Interactive Button -->
+    <button id="btn-wave-b" type="button" class="flex-1 bg-amber-950/40 hover:bg-amber-900/50 border-2 border-amber-500/70 hover:border-amber-400 rounded-xl p-2.5 flex items-center justify-between shadow-lg transition-all cursor-pointer hover:scale-[1.02] active:scale-95 group text-left">
+      <div id="gen-b-seq" class="text-xs font-mono-math font-bold text-amber-300/90 bg-amber-950 px-2.5 py-1 rounded-lg border border-amber-800">
+        6, 12, 18, 24...
+      </div>
+      <div class="flex items-center space-x-2.5 text-right">
+        <div>
+          <div class="text-[10px] font-mono-math font-black text-amber-400 uppercase tracking-wider flex items-center justify-end gap-1.5">
+            <span class="text-[9px] bg-amber-500/20 text-amber-300 px-1.5 py-0.5 rounded border border-amber-500/40 animate-pulse">CLICK TO PULSE ⚡</span>
+            <span>WAVE BETA</span>
+          </div>
+          <div class="text-xs text-slate-300">Pulses every <strong id="gen-b-value" class="text-amber-300 font-mono-math text-sm">6</strong> tiles</div>
+        </div>
+        <span class="w-4 h-4 rounded-full bg-amber-400 shadow glow-amber group-hover:scale-110 transition-transform"></span>
+      </div>
+    </button>
+
+    <!-- Optional Tri-Phase Generator C Interactive Button -->
+    <button id="gen-c-card" type="button" class="hidden flex-1 bg-emerald-950/40 hover:bg-emerald-900/50 border-2 border-emerald-500/70 hover:border-emerald-400 rounded-xl p-2.5 items-center justify-between shadow-lg transition-all cursor-pointer hover:scale-[1.02] active:scale-95 group text-left">
+      <div class="flex items-center space-x-2.5">
+        <span class="w-4 h-4 rounded-full bg-emerald-400 shadow glow-emerald group-hover:scale-110 transition-transform"></span>
+        <div>
+          <div class="text-[10px] font-mono-math font-black text-emerald-400 uppercase tracking-wider flex items-center gap-1.5">
+            <span>WAVE GAMMA</span>
+            <span class="text-[9px] bg-emerald-500/20 text-emerald-300 px-1.5 py-0.5 rounded border border-emerald-500/40 animate-pulse">PULSE ⚡</span>
+          </div>
+          <div class="text-xs text-slate-300">Pulses every <strong id="gen-c-value" class="text-emerald-300 font-mono-math text-sm">8</strong> tiles</div>
+        </div>
+      </div>
+      <div id="gen-c-seq" class="text-xs font-mono-math font-bold text-emerald-300/90 bg-emerald-950 px-2.5 py-1 rounded-lg border border-emerald-800">
+        8, 16, 24...
+      </div>
+    </button>
+  </section>
+
+  <!-- ==================== MAIN 100-GRID PLAYFIELD ==================== -->
+  <main id="game-root" class="w-full flex-1 flex flex-col justify-between my-1 min-h-0 relative">
+
+    <!-- Action Prompt & Status Banner -->
+    <div id="action-bar" class="w-full bg-slate-900/90 border border-slate-800 rounded-xl px-4 py-1.5 mb-1.5 flex items-center justify-between shadow-md">
+      <div class="flex items-center space-x-2 overflow-hidden">
+        <span id="action-icon" class="text-base">🎯</span>
+        <span id="action-msg" class="text-xs sm:text-sm font-mono-math font-bold text-cyan-300 truncate">
+          Click any tile on the 100-grid to place your Breaker and trigger the pulse race!
+        </span>
+      </div>
+
+      <!-- Quick manual typing option -->
+      <div class="flex items-center space-x-2 shrink-0">
+        <span class="text-[10px] font-mono-math text-slate-400 hidden sm:inline">TYPE TILE:</span>
+        <input
+          id="tile-input"
+          type="text"
+          placeholder="e.g. 12"
+          class="w-16 bg-slate-950 border border-slate-700 rounded-lg px-2 py-0.5 text-center text-xs font-mono-math font-black text-cyan-300 focus:outline-none focus:border-cyan-400"
+        />
+        <button id="quick-fire-btn" class="px-3 py-1 bg-cyan-600 hover:bg-cyan-500 text-slate-950 rounded-lg font-mono-math font-black text-xs uppercase cursor-pointer transition-all hover:scale-105 active:scale-95 shadow">
+          FIRE ⚡
+        </button>
+      </div>
+    </div>
+
+    <!-- 10x10 Number Grid (Strictly constrained square container: no overlapping cards!) -->
+    <div class="flex-1 w-full flex items-center justify-center min-h-0 py-1">
+      <div class="h-full aspect-square max-w-full bg-slate-900/95 border border-slate-800 rounded-2xl p-2.5 shadow-2xl flex flex-col justify-center">
+        <div id="grid-100" class="w-full h-full grid grid-cols-10 grid-rows-10 gap-1 sm:gap-1.5">
+          <!-- 100 discrete square tiles injected via JS -->
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- ==================== DIAGNOSTIC FAILURE OVERLAY (<1.5s FAST LOOP) ==================== -->
+  <div id="fail-modal" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-gray-950 border-2 border-rose-500 rounded-3xl max-w-sm w-full p-5 text-center shadow-2xl glow-rose">
+      <div class="text-4xl mb-1">🚨</div>
+      <h3 id="fail-title" class="text-base font-black text-rose-400 tracking-wider uppercase font-mono-math">
+        CIRCUIT BREACHED!
+      </h3>
+      <p id="fail-msg" class="text-xs text-slate-200 my-3 leading-relaxed">
+        <!-- Injected diagnosis -->
+      </p>
+
+      <button id="fail-retry-btn" class="w-full py-3 bg-gradient-to-r from-rose-600 via-amber-500 to-rose-600 text-white font-black text-xs uppercase tracking-wider rounded-xl shadow-lg transition-all hover:scale-102 active:scale-95 cursor-pointer">
+        ⚡ RETRY ROUND [SPACE / ENTER]
+      </button>
+    </div>
+  </div>
+
+  <!-- ==================== SUCCESS CLEAR OVERLAY ==================== -->
+  <div id="success-modal" class="hidden fixed inset-0 z-50 bg-black/85 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-gray-950 border-2 border-emerald-400 rounded-3xl max-w-sm w-full p-5 text-center shadow-2xl glow-emerald">
+      <div class="text-4xl mb-1">⚡🏆</div>
+      <h3 class="text-lg font-black text-emerald-400 tracking-wider uppercase font-mono-math">
+        PERFECT INTERCEPTION!
+      </h3>
+      <p id="success-msg" class="text-xs text-slate-300 my-3 font-mono-math leading-relaxed">
+        <!-- Injected summary -->
+      </p>
+
+      <button id="success-next-btn" class="w-full py-3 bg-gradient-to-r from-emerald-500 via-cyan-400 to-emerald-500 text-slate-950 font-black text-xs uppercase tracking-wider rounded-xl shadow-lg transition-all hover:scale-102 active:scale-95 cursor-pointer glow-emerald">
+        NEXT WAVE ➔ [SPACE / ENTER]
+      </button>
+    </div>
+  </div>
+
+  <!-- ES Module Main Script -->
+  <script type="module" src="./js/game.js"></script>
+</body>
+</html>

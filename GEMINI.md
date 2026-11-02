@@ -14,3 +14,10 @@
 3. Verification Gate: Before touching or modifying files, present an Implementation Plan. Always test math input parsing with multiple formats ($15, 15, 15.00).
 4. No PII: All student state uses an anonymous 4-digit PIN. Private roster mapping is kept in teacher's external Google Sheet only.
 5. Offline Resilience: Always fallback to `localStorage` when network or endpoints are unreachable.
+
+## Core Game Design Pillars
+1. **Natural Genre-to-Lesson Fit:** The mathematical concept dictates the game genre (e.g., percents -> tactical multipliers/mitigation; scale/ratios -> crane/balancing; exponents -> combo/scaling progression). Never pause gameplay for disconnected pop-up quiz cards.
+2. **Real Stakes & Failure States:** Games must have tangible tension via timers, turn limits, countdowns, health pools, or failure states. Failure must deliver rapid diagnostic feedback and an instant (<2 sec) retry loop.
+3. **Reinforce & Extend (Not an Instructional Tutorial):** Games assume students have already received direct instruction. The goal is to challenge and reinforce from novel angles, culminating in higher-order thinking dilemmas/boss phases.
+4. **Authentic Video Game DNA (Anti-Sandbox):** Immediate objective clarity within 10 seconds (What am I controlling? What is stopping me? How do I win?). High tactile juice (screen shake, crisp SFX, punchy animations) without feeling like a math simulation or spreadsheet.
+5. **Chromebook-Native Station Flow:** Strict 1366x768 viewport fit with zero vertical scrolling; bite-sized 3-6 minute runs tailored for classroom station rotations.

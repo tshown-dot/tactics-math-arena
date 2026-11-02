@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>Term Popper - Combining Like Terms (Lesson 3-7)</title>
+  <!-- Tailwind CSS via CDN (Zero build tools) -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&family=JetBrains+Mono:wght@700&display=swap');
+    body {
+      font-family: 'Inter', system-ui, sans-serif;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+    .font-mono {
+      font-family: 'JetBrains Mono', monospace;
+    }
+    @keyframes cardShake {
+      0%, 100% { transform: translateX(0); }
+      20%, 60% { transform: translateX(-8px); }
+      40%, 80% { transform: translateX(8px); }
+    }
+    .animate-shake {
+      animation: cardShake 0.4s ease-in-out;
+    }
+  </style>
+</head>
+<body class="h-screen w-screen overflow-hidden bg-slate-950 text-slate-100 flex flex-col justify-between p-2 md:p-3">
+
+  <!-- TOP HUD -->
+  <header class="w-full max-w-5xl mx-auto flex items-center justify-between bg-slate-900/95 border border-slate-800 rounded-xl px-4 py-2 shadow-lg backdrop-blur shrink-0">
+    <!-- Left: Lesson Info, Wave Tracker & Cluster Progress -->
+    <div class="flex items-center space-x-3">
+      <div class="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center shadow-md shadow-indigo-500/20">
+        <span class="text-white text-base font-black">🎯</span>
+      </div>
+      <div>
+        <div class="flex items-center space-x-2">
+          <span class="text-xs font-bold uppercase tracking-wider text-indigo-400 bg-indigo-950/80 px-2 py-0.5 rounded border border-indigo-800/60">Lesson 3-7</span>
+          <span id="hudWave" class="text-xs font-mono font-bold text-sky-400 bg-slate-800 px-2 py-0.5 rounded border border-slate-700">Wave: [1/3]</span>
+          <div class="flex flex-col">
+            <span id="hudDropCounter" class="text-xs font-mono font-bold text-emerald-400 bg-slate-800 px-2 py-0.5 rounded border border-slate-700">Row drop in: 25s</span>
+            <!-- Threat Gauge Bar -->
+            <div class="w-full bg-slate-950 rounded-full h-1 mt-1 overflow-hidden border border-slate-800">
+              <div id="hudTimerBar" class="h-full bg-emerald-400 rounded-full transition-all duration-100" style="width: 100%;"></div>
+            </div>
+          </div>
+        </div>
+        <div class="flex items-center space-x-2 mt-1">
+          <p id="hudTarget" class="text-[11px] font-semibold text-slate-300">Clusters: 0/10</p>
+          <!-- 10-Pip Cluster Progress Indicator -->
+          <div id="hudPips" class="flex items-center space-x-1"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Center: Dynamic Warning / Alert Banner -->
+    <div class="flex-1 flex justify-center px-4">
+      <div id="hudWarning" class="text-xs font-semibold px-3.5 py-1 rounded-full bg-slate-800 text-slate-300 border border-slate-700 transition-all text-center max-w-md truncate shadow-sm">
+        Aim at like terms: Need 4+ to burst!
+      </div>
+    </div>
+
+    <!-- Right: Score Display -->
+    <div class="flex items-center space-x-3">
+      <div class="bg-slate-800/90 border border-slate-700/70 rounded-lg px-3.5 py-1 text-center min-w-[75px] shadow-sm">
+        <div class="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Score</div>
+        <div id="hudScore" class="text-sm font-mono font-bold text-amber-400">0</div>
+      </div>
+    </div>
+  </header>
+
+  <!-- CENTER PLAYFIELD -->
+  <main class="relative flex-1 flex items-center justify-center my-1 overflow-hidden">
+    <div class="relative max-h-full flex items-center justify-center">
+      <!-- 800x600 Logical Canvas scaled via CSS to fit Chromebook screens -->
+      <canvas
+        id="gameCanvas"
+        width="800"
+        height="600"
+        class="bg-slate-900 rounded-xl shadow-2xl border border-slate-800 cursor-crosshair max-h-[73vh] md:max-h-[75vh] w-auto aspect-[4/3] block mx-auto">
+      </canvas>
+
+      <!-- WAVE CLEARED INTERSTITIAL BANNER -->
+      <div id="waveBanner" class="absolute inset-0 bg-slate-950/70 backdrop-blur-sm rounded-xl flex flex-col items-center justify-center p-6 text-center transition-opacity duration-300 opacity-0 pointer-events-none z-10">
+        <div class="w-12 h-12 rounded-full bg-indigo-500/20 border border-indigo-400 flex items-center justify-center text-2xl mb-2">
+          ⚡
+        </div>
+        <h3 id="waveBannerTitle" class="text-2xl font-black text-white tracking-wide mb-1">Wave Cleared!</h3>
+        <p id="waveBannerDesc" class="text-xs font-medium text-slate-300 max-w-sm">Preparing next algebraic challenge...</p>
+      </div>
+
+      <!-- DEFEAT / BREACH OVERLAY -->
+      <div id="defeatOverlay" class="absolute inset-0 bg-slate-950/92 backdrop-blur-md rounded-xl flex flex-col items-center justify-center p-6 text-center hidden z-20">
+        <div class="w-16 h-16 rounded-full bg-rose-500/20 border-2 border-rose-500 flex items-center justify-center text-3xl mb-3 shadow-lg shadow-rose-500/30 animate-pulse">
+          ⚠️
+        </div>
+        <h2 class="text-2xl font-black text-rose-400 tracking-wide mb-1">CORE OVERLOAD - TERMS UNSTABILIZED</h2>
+        <p class="text-sm text-slate-300 font-semibold mb-2">The cluster reached the danger line.</p>
+        <p class="text-xs text-slate-400 max-w-md mb-6">
+          Uncombined terms crowded the chamber. Remember: like terms require both the exact same variable base and exponent, and you need a cluster of 4 or more to burst them!
+        </p>
+        <button
+          id="retryWaveBtn"
+          class="px-6 py-2.5 rounded-lg bg-rose-600 hover:bg-rose-500 text-white font-bold text-sm shadow-lg shadow-rose-600/30 transition-transform active:scale-95 flex items-center space-x-2">
+          <span>🔄</span>
+          <span>Retry Wave</span>
+        </button>
+      </div>
+
+      <!-- CORE STABILIZATION TERMINAL (BOSS CHALLENGE) -->
+      <div id="bossTerminalOverlay" class="absolute inset-0 bg-slate-950/95 backdrop-blur-md rounded-xl flex flex-col justify-between p-4 md:p-6 text-center hidden z-20">
+        <div id="bossTerminalCard" class="flex-1 flex flex-col justify-between max-w-2xl mx-auto w-full transition-transform">
+          <!-- Terminal Header -->
+          <div>
+            <div class="flex items-center justify-center space-x-2 mb-1">
+              <span class="text-rose-400 font-mono text-xs md:text-sm tracking-widest font-black uppercase flex items-center gap-1.5 animate-pulse">
+                <span>🚨</span> CRITICAL WARNING: CORE DE-STABILIZED <span>🚨</span>
+              </span>
+            </div>
+            <div class="flex items-center justify-center space-x-2 mt-0.5">
+              <span id="bossProblemCount" class="text-xs font-mono font-bold text-amber-400 bg-amber-950/80 px-2.5 py-0.5 rounded border border-amber-800">Problem 1/3</span>
+              <p class="text-xs text-slate-300 font-medium">Combine all terms to lock the reactor core.</p>
+            </div>
+            <p id="bossInstruction" class="text-[11px] text-slate-400 mt-1">Combine like terms with identical variable base and exponent.</p>
+          </div>
+
+          <!-- Visual Chain: [ 5x ] + [ 3y ] + [ 2x ] - [ y ] + [ 4 ] -->
+          <div class="my-3 p-3.5 rounded-xl bg-slate-900/90 border border-slate-800 shadow-inner">
+            <div class="flex items-center justify-between mb-2">
+              <span class="text-[10px] uppercase font-bold text-slate-500 tracking-wider">Unstabilized Energy Chain</span>
+              <span class="text-[10px] text-sky-400 font-medium">💡 Click any term to isolate like terms</span>
+            </div>
+            <div id="bossChainContainer" class="flex flex-wrap items-center justify-center gap-2">
+              <!-- Dynamically populated bubble nodes & operators -->
+            </div>
+          </div>
+
+          <!-- Misconception Feedback Area -->
+          <div id="bossFeedback" class="text-xs font-semibold px-4 py-2 rounded-lg bg-slate-900 text-slate-300 border border-slate-700 transition-all min-h-[38px] flex items-center justify-center max-w-lg mx-auto w-full">
+            Terminal online. Combine all like terms and enter simplified form.
+          </div>
+
+          <!-- Input & Chromebook Helper Buttons -->
+          <div class="mt-3 max-w-md mx-auto w-full space-y-2.5">
+            <!-- Helper symbol buttons for Chromebook accessibility -->
+            <div class="flex items-center justify-center gap-1.5 flex-wrap">
+              <span class="text-[10px] uppercase font-bold text-slate-400 mr-1">Symbols:</span>
+              <button type="button" class="boss-key px-2.5 py-1 text-xs font-mono font-bold bg-slate-800 hover:bg-slate-700 text-slate-200 rounded border border-slate-700 active:scale-95 transition-all" data-insert="x²">x²</button>
+              <button type="button" class="boss-key px-2.5 py-1 text-xs font-mono font-bold bg-slate-800 hover:bg-slate-700 text-slate-200 rounded border border-slate-700 active:scale-95 transition-all" data-insert="y²">y²</button>
+              <button type="button" class="boss-key px-2.5 py-1 text-xs font-mono font-bold bg-slate-800 hover:bg-slate-700 text-slate-200 rounded border border-slate-700 active:scale-95 transition-all" data-insert="x³">x³</button>
+              <button type="button" class="boss-key px-2.5 py-1 text-xs font-mono font-bold bg-slate-800 hover:bg-slate-700 text-slate-200 rounded border border-slate-700 active:scale-95 transition-all" data-insert=" + ">+</button>
+              <button type="button" class="boss-key px-2.5 py-1 text-xs font-mono font-bold bg-slate-800 hover:bg-slate-700 text-slate-200 rounded border border-slate-700 active:scale-95 transition-all" data-insert=" - ">-</button>
+              <button type="button" class="boss-key px-2.5 py-1 text-xs font-mono font-bold bg-slate-800 hover:bg-slate-700 text-slate-200 rounded border border-slate-700 active:scale-95 transition-all" data-insert="x">x</button>
+              <button type="button" class="boss-key px-2.5 py-1 text-xs font-mono font-bold bg-slate-800 hover:bg-slate-700 text-slate-200 rounded border border-slate-700 active:scale-95 transition-all" data-insert="y">y</button>
+            </div>
+
+            <!-- Terminal Prompt Input -->
+            <div class="relative">
+              <input
+                id="bossInput"
+                type="text"
+                autocomplete="off"
+                spellcheck="false"
+                placeholder="> Enter simplified expression..."
+                class="w-full bg-slate-900 border-2 border-slate-700 focus:border-amber-400 focus:ring-2 focus:ring-amber-400/20 rounded-xl px-4 py-2.5 text-center font-mono text-base md:text-lg text-amber-300 placeholder-slate-500 outline-none transition-all shadow-lg"
+              />
+            </div>
+
+            <!-- Submit Button -->
+            <button
+              id="bossSubmitBtn"
+              type="button"
+              class="w-full py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-sm shadow-lg shadow-amber-500/20 active:scale-95 transition-all flex items-center justify-center space-x-2">
+              <span>⚡</span>
+              <span>Stabilize Core</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- COMPLETION / VICTORY OVERLAY -->
+      <div id="completionOverlay" class="absolute inset-0 bg-slate-950/90 backdrop-blur-sm rounded-xl flex flex-col items-center justify-center p-6 text-center hidden z-20">
+        <div class="w-16 h-16 rounded-full bg-emerald-500/20 border-2 border-emerald-400 flex items-center justify-center text-3xl mb-3 shadow-lg shadow-emerald-500/30">
+          🏆
+        </div>
+        <h2 class="text-2xl font-black text-white tracking-wide mb-1">REACTOR CORE STABILIZED!</h2>
+        <p class="text-sm text-emerald-400 font-semibold mb-2">Lesson 3-7 Mastered: Combining Like Terms</p>
+        <p class="text-xs text-slate-400 max-w-md mb-5">
+          Outstanding work! You demonstrated complete mastery of combining like terms across variables, powers, and terminal stabilization challenges. Result logged to classroom gradebook (Score: 10/10).
+        </p>
+        <button
+          id="restartBtn"
+          class="px-5 py-2.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-sm shadow-lg shadow-indigo-600/30 transition-transform active:scale-95 flex items-center space-x-2">
+          <span>🔄</span>
+          <span>Play Again</span>
+        </button>
+      </div>
+    </div>
+  </main>
+
+  <!-- FOOTER: Pedagogical Rule Reminder & Controls (Zero Color-Coding) -->
+  <footer class="w-full max-w-5xl mx-auto flex items-center justify-between bg-slate-900/70 border border-slate-800/80 rounded-lg px-4 py-1.5 text-xs text-slate-400 shrink-0">
+    <!-- Math & Challenge Rule Reminder -->
+    <div class="flex items-center space-x-2 truncate">
+      <span class="font-bold text-slate-300">Rules:</span>
+      <span class="text-slate-400">Burst clusters of <span class="text-sky-300 font-semibold">4+ like terms</span>. Non-burst shots lower the ceiling toward the <span class="text-rose-400 font-semibold">Danger Line</span>!</span>
+    </div>
+
+    <!-- Controls tip -->
+    <div class="flex items-center space-x-2 text-slate-400 font-medium shrink-0 ml-4">
+      <span class="bg-slate-800 px-2 py-0.5 rounded text-[11px] font-mono border border-slate-700">Aim: Mouse / Touch</span>
+      <span class="text-slate-600">|</span>
+      <span class="bg-slate-800 px-2 py-0.5 rounded text-[11px] font-mono border border-slate-700">Fire: Click or ␣ Space</span>
+    </div>
+  </footer>
+
+  <!-- Core Module Script with explicit .js extension -->
+  <script type="module" src="./js/game.js"></script>
+</body>
+</html>
