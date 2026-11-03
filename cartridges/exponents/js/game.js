@@ -47,6 +47,9 @@ class ExponentReactorGame {
     // Diagnostic HUD Timer
     this.hudClearTimeout = null;
 
+    // Briefing & Start State
+    this.hasStarted = false;
+
     // Canvas & Particle Engine
     this.canvas = null;
     this.ctx = null;
@@ -57,7 +60,7 @@ class ExponentReactorGame {
     this.initDOM();
     this.initCanvas();
     this.bindEvents();
-    this.startWave();
+    this.setupInitialDisplay();
     this.animateCanvas();
   }
 
@@ -125,6 +128,9 @@ class ExponentReactorGame {
     this.modalFieldGuide = document.getElementById('modal-field-guide');
     this.closeFieldGuideBtn = document.getElementById('close-field-guide-btn');
 
+    this.modalBriefing = document.getElementById('modal-briefing');
+    this.briefingStartBtn = document.getElementById('briefing-start-btn');
+
     this.updateAudioIcon();
   }
 
@@ -188,11 +194,23 @@ class ExponentReactorGame {
       });
     });
 
+    // Briefing Start Button
+    if (this.briefingStartBtn) {
+      this.briefingStartBtn.addEventListener('click', () => this.startGameFromBriefing());
+    }
+
     // Fire / Discharge Button
     this.dischargeBtn.addEventListener('click', () => this.handleDischarge());
 
-    // Keyboard Shortcuts: Space or Enter to discharge!
+    // Keyboard Shortcuts: Space or Enter to start or discharge!
     window.addEventListener('keydown', e => {
+      if (!this.hasStarted) {
+        if (e.code === 'Space' || e.code === 'Enter') {
+          e.preventDefault();
+          this.startGameFromBriefing();
+        }
+        return;
+      }
       if (this.isPaused || this.isGameOver) return;
       if (e.code === 'Space' || e.code === 'Enter') {
         e.preventDefault();
@@ -233,6 +251,40 @@ class ExponentReactorGame {
 
   updateAudioIcon() {
     this.audioIcon.textContent = soundManager.getMuted() ? '🔇' : '🔊';
+  }
+
+  // ==========================================
+  // BRIEFING & INITIAL SETUP
+  // ==========================================
+  startGameFromBriefing() {
+    if (this.hasStarted) return;
+    this.hasStarted = true;
+    soundManager.playClick();
+    soundManager.playSuccessChord();
+    if (this.modalBriefing) {
+      this.modalBriefing.classList.add('hidden');
+    }
+    this.shiftStartTime = Date.now();
+    this.startWave();
+  }
+
+  setupInitialDisplay() {
+    const sector = CURRICULUM_SECTORS[this.sectorIndex];
+    const problem = sector.problems[this.waveIndex];
+
+    this.sectorBadge.textContent = sector.badge;
+    this.sectorTitle.textContent = `${sector.name} (${sector.tagline})`;
+    this.waveCounter.textContent = `${this.waveIndex + 1} / ${sector.problems.length}`;
+
+    this.targetMWDisplay.textContent = problem.targetMW.toLocaleString();
+    this.hintText.textContent = problem.hint;
+    this.hintStrip.classList.add('hidden');
+
+    this.timerDisplay.textContent = `${sector.waveTimeLimit}s`;
+    this.timerBar.style.width = '100%';
+
+    this.updateRibbon();
+    this.updateConsoleOutput();
   }
 
   // ==========================================

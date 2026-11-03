@@ -327,6 +327,84 @@
   </main>
 
   <!-- ========================================== -->
+  <!-- MODAL 0: MISSION BRIEFING (On Game Load)   -->
+  <!-- ========================================== -->
+  <div id="modal-briefing" class="fixed inset-0 bg-black/90 backdrop-blur-md z-50 flex items-center justify-center p-4">
+    <div class="bg-gray-950 border border-cyan-500/70 rounded-3xl w-full max-w-2xl p-6 shadow-2xl flex flex-col glow-cyan max-h-[92vh] overflow-y-auto">
+      <!-- Header -->
+      <div class="flex items-center space-x-3 pb-3 border-b border-gray-800">
+        <div class="w-12 h-12 rounded-2xl bg-gradient-to-tr from-cyan-600 to-blue-500 flex items-center justify-center text-2xl font-black text-white shadow-lg shadow-cyan-500/30">
+          ⚡
+        </div>
+        <div>
+          <h2 class="text-base font-black uppercase text-white tracking-wider flex items-center space-x-2">
+            <span>MISSION BRIEFING: EXPONENT REACTOR</span>
+            <span class="px-2 py-0.5 rounded text-[10px] font-mono-math bg-cyan-950 border border-cyan-700 text-cyan-300">GRID DEFENSE</span>
+          </h2>
+          <p class="text-xs text-gray-400">Tactical Math Station &bull; Grade 6/7 Exponents (enVision 2.0 Topic 3)</p>
+        </div>
+      </div>
+
+      <!-- 3 Key Directives -->
+      <div class="grid grid-cols-3 gap-3 my-4">
+        <!-- Card 1: Objective -->
+        <div class="bg-gray-900/90 border border-cyan-900/50 p-3.5 rounded-2xl flex flex-col justify-between">
+          <div>
+            <div class="w-8 h-8 rounded-xl bg-cyan-950 border border-cyan-500/50 flex items-center justify-center text-base mb-2">🎯</div>
+            <h3 class="text-xs font-black uppercase text-cyan-300 tracking-wide">1. Incoming Surges</h3>
+            <p class="text-[11px] text-gray-300 mt-1 leading-relaxed">
+              Energy waves (e.g. <strong class="text-white font-mono-math">64 MW</strong>) threaten to breach the grid. You must match the exact wattage before the <strong class="text-amber-400">Surge Timer</strong> hits zero!
+            </p>
+          </div>
+          <div class="mt-2 text-[10px] font-bold text-cyan-400 bg-cyan-950/60 px-2 py-1 rounded">5 Waves per Sector</div>
+        </div>
+
+        <!-- Card 2: Controls -->
+        <div class="bg-gray-900/90 border border-amber-900/50 p-3.5 rounded-2xl flex flex-col justify-between">
+          <div>
+            <div class="w-8 h-8 rounded-xl bg-amber-950 border border-amber-500/50 flex items-center justify-center text-base mb-2">⚙️</div>
+            <h3 class="text-xs font-black uppercase text-amber-300 tracking-wide">2. Core Controls</h3>
+            <p class="text-[11px] text-gray-300 mt-1 leading-relaxed">
+              Dial the <strong class="text-cyan-400">Base (b)</strong> as the repeated factor and the <strong class="text-amber-400">Exponent (x)</strong> as how many times it multiplies.
+            </p>
+          </div>
+          <div class="mt-2 text-[10px] font-mono-math font-bold text-amber-300 bg-amber-950/60 px-2 py-1 rounded text-center">bˣ = b × b × ... × b</div>
+        </div>
+
+        <!-- Card 3: The Trap Warning -->
+        <div class="bg-gray-900/90 border border-rose-900/50 p-3.5 rounded-2xl flex flex-col justify-between">
+          <div>
+            <div class="w-8 h-8 rounded-xl bg-rose-950 border border-rose-500/50 flex items-center justify-center text-base mb-2">⚠️</div>
+            <h3 class="text-xs font-black uppercase text-rose-300 tracking-wide">3. Avoid The Trap!</h3>
+            <p class="text-[11px] text-gray-300 mt-1 leading-relaxed">
+              <strong class="text-rose-400">Never multiply base by exponent!</strong><br>
+              <span class="text-rose-300 font-mono-math font-bold">4³ ≠ 4 × 3 (12)</span><br>
+              <span class="text-emerald-300 font-mono-math font-bold">4³ = 4 × 4 × 4 = 64</span>
+            </p>
+          </div>
+          <div class="mt-2 text-[10px] font-bold text-rose-400 bg-rose-950/60 px-2 py-1 rounded">Traps damage Core Health (-20%)</div>
+        </div>
+      </div>
+
+      <!-- Quick Shortcuts & Flow banner -->
+      <div class="bg-indigo-950/40 border border-indigo-800/40 p-3 rounded-2xl flex items-center justify-between text-xs mb-4">
+        <div class="flex items-center space-x-2">
+          <span class="text-lg">⌨️</span>
+          <span class="text-gray-300">
+            Press <kbd class="px-2 py-0.5 bg-gray-800 border border-gray-700 rounded font-mono-math font-bold text-white">Space</kbd> or <kbd class="px-2 py-0.5 bg-gray-800 border border-gray-700 rounded font-mono-math font-bold text-white">Enter</kbd> to discharge. Consecutive hits scale your combo (<strong class="text-indigo-300 font-mono-math">x2, x4, x8, x16</strong>)!
+          </span>
+        </div>
+      </div>
+
+      <!-- Action Button -->
+      <button id="briefing-start-btn" class="w-full py-3.5 bg-gradient-to-r from-cyan-600 via-blue-600 to-indigo-600 hover:from-cyan-500 hover:to-indigo-500 text-white rounded-2xl font-black text-sm uppercase tracking-wider shadow-lg shadow-cyan-600/40 active:scale-98 transition-all flex items-center justify-center space-x-2 cursor-pointer">
+        <span class="text-base">⚡</span>
+        <span>BEGIN STATION SHIFT (START GAME)</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- ========================================== -->
   <!-- MODAL 1: STATION SHIFT DEBRIEF (End of Run) -->
   <!-- ========================================== -->
   <div id="modal-debrief" class="fixed inset-0 bg-black/85 backdrop-blur-md z-50 flex items-center justify-center p-4 hidden">
