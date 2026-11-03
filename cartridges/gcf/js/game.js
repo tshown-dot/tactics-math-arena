@@ -59,6 +59,7 @@ class VaultBreakerGame {
     this.timerInterval = null;
     this.alarmLevel = 0; // 0 to 100%
     this.isLockdown = false;
+    this.isBriefingOpen = true; // Mission briefing modal on game start
 
     // Juice & Progression
     this.score = 0;
@@ -91,12 +92,16 @@ class VaultBreakerGame {
     this.dom.fieldGuideModal = document.getElementById('field-guide-modal');
     this.dom.closeGuideBtn = document.getElementById('close-guide-btn');
 
-    // Phase Containers
+    // Phase Containers & Modals
     this.dom.phase1Container = document.getElementById('phase-1-container');
     this.dom.phase2Container = document.getElementById('phase-2-container');
     this.dom.phase3Container = document.getElementById('phase-3-container');
     this.dom.phase4Container = document.getElementById('phase-4-container');
     this.dom.lockdownModal = document.getElementById('lockdown-modal');
+    this.dom.missionBriefingModal = document.getElementById('mission-briefing-modal');
+    this.dom.startMissionBtn = document.getElementById('start-mission-btn');
+    this.dom.closeBriefingXBtn = document.getElementById('close-briefing-x-btn');
+    this.dom.briefingBtn = document.getElementById('briefing-btn');
 
     // Phase 1 Lock A
     this.dom.lockACard = document.getElementById('lock-a-card');
@@ -161,6 +166,17 @@ class VaultBreakerGame {
   }
 
   bindEvents() {
+    // Mission Briefing
+    if (this.dom.startMissionBtn) {
+      this.dom.startMissionBtn.addEventListener('click', () => this.dismissBriefing());
+    }
+    if (this.dom.closeBriefingXBtn) {
+      this.dom.closeBriefingXBtn.addEventListener('click', () => this.dismissBriefing());
+    }
+    if (this.dom.briefingBtn) {
+      this.dom.briefingBtn.addEventListener('click', () => this.openBriefing());
+    }
+
     // Audio Toggle
     this.dom.audioToggleBtn.addEventListener('click', () => {
       const muted = soundEngine.toggleMuted();
@@ -254,6 +270,14 @@ class VaultBreakerGame {
 
     // Physical Keyboard Listener
     window.addEventListener('keydown', (e) => {
+      if (this.isBriefingOpen) {
+        if (e.key === 'Enter' || e.key === ' ' || e.key === 'Escape') {
+          e.preventDefault();
+          this.dismissBriefing();
+        }
+        return;
+      }
+
       if (this.isLockdown) {
         if (e.key === 'Enter' || e.key === ' ') {
           e.preventDefault();
@@ -348,8 +372,28 @@ class VaultBreakerGame {
     this.showPhaseContainer(1);
     this.dom.lockdownModal.classList.add('hidden');
 
-    // Start timer
+    // Start timer only if briefing modal is closed
+    if (!this.isBriefingOpen) {
+      this.startTimer();
+    }
+  }
+
+  dismissBriefing() {
+    this.isBriefingOpen = false;
+    if (this.dom.missionBriefingModal) {
+      this.dom.missionBriefingModal.classList.add('hidden');
+    }
+    soundEngine.playTumblerLock();
     this.startTimer();
+  }
+
+  openBriefing() {
+    this.isBriefingOpen = true;
+    if (this.timerInterval) clearInterval(this.timerInterval);
+    if (this.dom.missionBriefingModal) {
+      this.dom.missionBriefingModal.classList.remove('hidden');
+    }
+    soundEngine.playClick();
   }
 
   showPhaseContainer(phaseNumber) {

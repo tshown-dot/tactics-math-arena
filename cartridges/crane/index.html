@@ -232,6 +232,10 @@
         <span>🔧</span>
         <span class="hidden sm:inline">Sandbox</span>
       </button>
+      <button id="btnBriefing" title="Operator Mission Briefing" class="px-2.5 py-1 text-xs font-semibold rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 transition-all flex items-center gap-1 active:scale-95">
+        <span>📋</span>
+        <span class="hidden sm:inline">Briefing</span>
+      </button>
       <button id="btnRules" title="Demolition Code / Rules" class="px-2.5 py-1 text-xs font-semibold rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition-all flex items-center gap-1 active:scale-95">
         <span>📖</span>
         <span class="hidden sm:inline">Rules</span>
@@ -401,6 +405,111 @@
   </footer>
 
   <!-- ==================== MODALS ==================== -->
+
+  <!-- MISSION BRIEFING MODAL (EXPLANATION & CONTROLS SCREEN ON INITIAL LOAD) -->
+  <div id="briefingModal" class="fixed inset-0 z-50 flex items-center justify-center p-3 md:p-4 bg-slate-950/90 backdrop-blur-md">
+    <div class="w-full max-w-2xl bg-slate-900 border-2 border-amber-500 rounded-2xl shadow-[0_0_50px_rgba(245,158,11,0.25)] overflow-hidden flex flex-col">
+      <!-- Hazard Stripe & Strobe Header -->
+      <div class="hazard-stripes h-2.5 w-full"></div>
+      <div class="px-5 py-3 bg-slate-950 border-b border-slate-800 flex items-center justify-between">
+        <div class="flex items-center gap-2.5">
+          <span class="w-2.5 h-2.5 rounded-full bg-amber-400 animate-beacon"></span>
+          <span class="text-[11px] font-mono font-bold tracking-widest text-amber-400 uppercase">DEMOLITION CRANE PROTOCOL</span>
+        </div>
+        <span class="text-[10px] font-mono text-slate-400 bg-slate-800 px-2 py-0.5 rounded border border-slate-700">enVision 6th Grade • Topic 3-3</span>
+      </div>
+
+      <!-- Main Content Body -->
+      <div class="p-5 md:p-6 space-y-4">
+        <!-- Title & Mission Objective -->
+        <div>
+          <h2 class="text-xl md:text-2xl font-black text-slate-100 tracking-tight flex items-center gap-2">
+            <span>🏗️</span>
+            <span>Welcome, Site Operator!</span>
+          </h2>
+          <p class="text-xs md:text-sm text-slate-300 mt-1 leading-relaxed">
+            Your mission is to safely demolish compound algebraic & numeric girder expressions down to their single core value using the gantry wrecking ball.
+          </p>
+        </div>
+
+        <!-- 3 Core Pillars Cards -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-2.5">
+          <!-- Pillar 1: Objective -->
+          <div class="bg-slate-950/80 border border-slate-800 rounded-xl p-3 flex flex-col justify-between">
+            <div>
+              <div class="flex items-center gap-1.5 text-sky-400 font-bold text-xs mb-1">
+                <span>🎯</span>
+                <span>The Mission</span>
+              </div>
+              <p class="text-[11px] text-slate-300 leading-normal">
+                Strike operators in exact <strong class="text-amber-300">Order of Operations (PEMDAS)</strong> order. Each hit evaluates that step.
+              </p>
+            </div>
+            <div class="mt-2 text-[10px] font-mono text-slate-400 border-t border-slate-800/80 pt-1.5">
+              Parentheses ➔ Powers ➔ × / ÷ ➔ + / −
+            </div>
+          </div>
+
+          <!-- Pillar 2: Controls -->
+          <div class="bg-slate-950/80 border border-slate-800 rounded-xl p-3 flex flex-col justify-between">
+            <div>
+              <div class="flex items-center gap-1.5 text-emerald-400 font-bold text-xs mb-1">
+                <span>🎮</span>
+                <span>The Controls</span>
+              </div>
+              <ul class="text-[11px] text-slate-300 space-y-1">
+                <li><strong class="text-slate-100">Aim:</strong> Mouse or <kbd class="px-1 py-0.2 bg-slate-800 rounded border border-slate-700 font-mono text-[10px]">◄</kbd> <kbd class="px-1 py-0.2 bg-slate-800 rounded border border-slate-700 font-mono text-[10px]">►</kbd> keys</li>
+                <li><strong class="text-slate-100">Drop:</strong> Click or press <kbd class="px-1 py-0.2 bg-slate-800 rounded border border-slate-700 font-mono text-[10px]">Space</kbd></li>
+                <li><strong class="text-slate-100">Hint:</strong> Tap <span class="text-sky-300 font-mono">📡 Radar</span></li>
+              </ul>
+            </div>
+            <div class="mt-2 text-[10px] font-mono text-emerald-400/90 border-t border-slate-800/80 pt-1.5">
+              Instant tactile wrecking ball
+            </div>
+          </div>
+
+          <!-- Pillar 3: Stakes & Failure -->
+          <div class="bg-slate-950/80 border border-slate-800 rounded-xl p-3 flex flex-col justify-between">
+            <div>
+              <div class="flex items-center gap-1.5 text-rose-400 font-bold text-xs mb-1">
+                <span>⚠️</span>
+                <span>Real Stakes</span>
+              </div>
+              <p class="text-[11px] text-slate-300 leading-normal">
+                An illegal hit causes a <strong class="text-rose-400">Structural Collapse</strong>! Failed expressions go to your repair queue.
+              </p>
+            </div>
+            <div class="mt-2 text-[10px] font-mono text-rose-400/90 border-t border-slate-800/80 pt-1.5">
+              3 defects = Safety Lockout
+            </div>
+          </div>
+        </div>
+
+        <!-- PEMDAS Pizza Blueprint Feature Highlight -->
+        <div class="bg-sky-950/40 border border-sky-800/60 rounded-xl p-2.5 flex items-center gap-3">
+          <span class="text-2xl shrink-0">🍕</span>
+          <div class="text-[11px] text-sky-200 leading-tight">
+            <span class="font-bold text-amber-400 font-mono">PEMDAS Pizza Window:</span>
+            Watch each successful demolition reduce the expression width slice-by-slice, forming an upside-down triangle funneling directly into the final solution!
+          </div>
+        </div>
+
+        <!-- Action CTA Button -->
+        <div class="flex flex-col sm:flex-row items-center gap-3 pt-1">
+          <button
+            id="btnStartGame"
+            class="w-full sm:flex-1 py-3 px-6 rounded-xl bg-gradient-to-r from-amber-500 to-amber-400 hover:from-amber-400 hover:to-amber-300 text-slate-950 font-black text-sm uppercase tracking-wider shadow-lg shadow-amber-500/30 active:scale-98 transition-all flex items-center justify-center gap-2 cursor-pointer group">
+            <span>🚀</span>
+            <span>Begin Mission</span>
+            <span class="font-mono text-xs font-normal text-slate-900 group-hover:translate-x-1 transition-transform">➔</span>
+          </button>
+          <span class="text-[11px] font-mono text-slate-400 text-center sm:text-left">
+            (or press <kbd class="px-1.5 py-0.5 bg-slate-800 rounded border border-slate-700 text-slate-300">Space</kbd> / <kbd class="px-1.5 py-0.5 bg-slate-800 rounded border border-slate-700 text-slate-300">Enter</kbd> to start)
+          </span>
+        </div>
+      </div>
+    </div>
+  </div>
 
   <!-- ZONE CAPSTONE REACTOR BOSS MODAL -->
   <div id="bossModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/95 backdrop-blur-md hidden">
@@ -626,7 +735,7 @@
           S
         </div>
 
-        <h2 class="text-2xl md:text-3xl font-black text-slate-100 tracking-tight">Demolition Complete!</h2>
+        <h2 id="victoryModalTitle" class="text-2xl md:text-3xl font-black text-slate-100 tracking-tight">Demolition Complete!</h2>
         <p id="stationDebriefSubtitle" class="text-xs md:text-sm text-slate-400 mt-0.5 font-mono">
           Station rotation run report logged to gradebook.
         </p>

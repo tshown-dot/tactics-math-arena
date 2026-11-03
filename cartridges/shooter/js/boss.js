@@ -204,7 +204,10 @@ export function validateBossAnswer(studentInput, challenge) {
     }
   }
 
-  const targetParsed = parseExpressionToMap(challenge.targetExpression);
+  const targetExpr = (typeof challenge === "string")
+    ? challenge
+    : (Array.isArray(challenge) ? challenge[0] : challenge?.targetExpression);
+  const targetParsed = parseExpressionToMap(targetExpr);
   if (!targetParsed) {
     return { correct: false, feedback: "Internal challenge error." };
   }

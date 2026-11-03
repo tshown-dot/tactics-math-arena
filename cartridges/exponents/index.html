@@ -118,6 +118,16 @@
         </div>
         <span id="health-text" class="text-xs font-mono-math font-bold text-cyan-300">100%</span>
       </div>
+
+      <!-- Backup Cores (Sector Retries / Lives) -->
+      <div class="flex items-center space-x-1.5 bg-gray-900/90 border border-gray-800 px-2.5 py-1 rounded-xl" title="Emergency Backup Cores: 3 sector retries before full station reset">
+        <span class="text-[10px] uppercase font-extrabold text-gray-400 tracking-wider">Cores:</span>
+        <div id="lives-container" class="flex items-center space-x-1 text-xs">
+          <span class="core-life-icon transition-all duration-300">🔋</span>
+          <span class="core-life-icon transition-all duration-300">🔋</span>
+          <span class="core-life-icon transition-all duration-300">🔋</span>
+        </div>
+      </div>
     </div>
 
     <!-- Right: Combo Multiplier & Score -->
@@ -387,9 +397,15 @@
       </div>
 
       <!-- Quick Shortcuts & Flow banner -->
-      <div class="bg-indigo-950/40 border border-indigo-800/40 p-3 rounded-2xl flex items-center justify-between text-xs mb-4">
+      <div class="bg-indigo-950/40 border border-indigo-800/40 p-3 rounded-2xl flex flex-col gap-1.5 text-xs mb-4">
         <div class="flex items-center space-x-2">
-          <span class="text-lg">⌨️</span>
+          <span class="text-base">🔋</span>
+          <span class="text-gray-300">
+            <strong>3 Backup Cores:</strong> If your Core Health collapses, you have <strong>3 sector retries</strong> to reboot the sector without starting over at Sector 1!
+          </span>
+        </div>
+        <div class="flex items-center space-x-2">
+          <span class="text-base">⌨️</span>
           <span class="text-gray-300">
             Press <kbd class="px-2 py-0.5 bg-gray-800 border border-gray-700 rounded font-mono-math font-bold text-white">Space</kbd> or <kbd class="px-2 py-0.5 bg-gray-800 border border-gray-700 rounded font-mono-math font-bold text-white">Enter</kbd> to discharge. Consecutive hits scale your combo (<strong class="text-indigo-300 font-mono-math">x2, x4, x8, x16</strong>)!
           </span>

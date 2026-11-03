@@ -41,7 +41,10 @@ class DemolitionCraneGame {
     // Station Shift Clock (3-Minute Classroom Station Rotation)
     this.stationTimerSeconds = 180;
     this.stationStartTime = Date.now();
-    this.isStationTimerRunning = true;
+    this.isStationTimerRunning = false; // Paused until student clicks Begin Mission
+
+    // Mission Briefing Explanation Screen
+    this.isBriefingOpen = true;
 
     // Expression & Tokens
     this.tokens = [];
@@ -120,10 +123,15 @@ class DemolitionCraneGame {
       btnSkip: document.getElementById('btnSkip'),
       btnRadar: document.getElementById('btnRadar'),
       btnRules: document.getElementById('btnRules'),
+      btnBriefing: document.getElementById('btnBriefing'),
       btnSandbox: document.getElementById('btnSandbox'),
       btnZoneSelect: document.getElementById('btnZoneSelect'),
       btnPizzaToggle: document.getElementById('btnPizzaToggle'),
       btnBossDilemma: document.getElementById('btnBossDilemma'),
+
+      // Mission Briefing Explanation Modal
+      briefingModal: document.getElementById('briefingModal'),
+      btnStartGame: document.getElementById('btnStartGame'),
 
       // PEMDAS Pizza Blueprint Window
       pizzaWindow: document.getElementById('pemdasPizzaWindow'),
@@ -167,6 +175,8 @@ class DemolitionCraneGame {
 
       // Victory & Debrief Modal
       victoryModal: document.getElementById('victoryModal'),
+      victoryModalTitle: document.getElementById('victoryModalTitle'),
+      stationDebriefSubtitle: document.getElementById('stationDebriefSubtitle'),
       stationRankBadge: document.getElementById('stationRankBadge'),
       victoryResult: document.getElementById('victoryResult'),
       victoryPrecision: document.getElementById('victoryPrecision'),
@@ -701,7 +711,7 @@ class DemolitionCraneGame {
   }
 
   dropCrane() {
-    if (this.isDropping || !this.activeOperatorId) return;
+    if (this.isBriefingOpen || this.isDropping || !this.activeOperatorId) return;
 
     this.isDropping = true;
     this.totalAttemptsInSession++;
@@ -855,6 +865,26 @@ class DemolitionCraneGame {
     this.dom.lockoutModal.classList.remove('hidden');
   }
 
+  openBriefing() {
+    this.isBriefingOpen = true;
+    if (this.dom.briefingModal) {
+      this.dom.briefingModal.classList.remove('hidden');
+    }
+  }
+
+  closeBriefing() {
+    this.isBriefingOpen = false;
+    if (this.dom.briefingModal) {
+      this.dom.briefingModal.classList.add('hidden');
+    }
+    this.isStationTimerRunning = true;
+    soundEngine.playHydraulicHiss();
+    this.setTeleprompter(
+      'Site online! Aim with mouse or Arrow keys, then drop on the highest priority operator.',
+      'info'
+    );
+  }
+
   openBossDilemma() {
     const challenge = getBossChallengeForZone(this.currentZoneId);
     if (!challenge) return;
@@ -933,7 +963,40 @@ class DemolitionCraneGame {
       }, 1400);
 
     } else {
-      this.triggerVictory(finalValue);
+      const currentZone = this.getCurrentZone();
+      const totalLevels = currentZone.levels.length;
+
+      // Check if more levels remain in this zone
+      if (this.currentLevelIndex < totalLevels - 1) {
+        soundEngine.playVictory();
+        this.triggerSparks(window.innerWidth / 2, window.innerHeight / 2, 'victory');
+        const nextLevelNum = this.currentLevelIndex + 2;
+
+        this.setTeleprompter(
+          'success',
+          `BEAM ${this.currentLevelIndex + 1} CLEARED!`,
+          `Core value: ${finalValue}. Advancing to Beam ${nextLevelNum} of ${totalLevels}...`
+        );
+
+        setTimeout(() => {
+          this.loadLevel(this.currentZoneId, this.currentLevelIndex + 1);
+        }, 1200);
+
+      } else {
+        // All beam levels of the current zone completed! Launch the Zone Boss Reactor Dilemma
+        soundEngine.playVictory();
+        this.triggerSparks(window.innerWidth / 2, window.innerHeight / 2, 'victory');
+
+        this.setTeleprompter(
+          'success',
+          `ZONE ${this.currentZoneId} BEAMS CLEARED!`,
+          `Zone demolition targets destroyed. Initiating Reactor Core Dilemma...`
+        );
+
+        setTimeout(() => {
+          this.openBossDilemma();
+        }, 1200);
+      }
     }
   }
 
@@ -942,7 +1005,7 @@ class DemolitionCraneGame {
     this.triggerSparks(window.innerWidth / 2, window.innerHeight / 2, 'victory');
 
     const currentZone = this.getCurrentZone();
-    const totalLevels = currentZone.levels.length;
+    const hasNextZone = this.currentZoneId < CURRICULUM_ZONES.length;
 
     // Compute Arcade Station Debrief Rating
     const precisionRate =
@@ -976,6 +1039,33 @@ class DemolitionCraneGame {
       this.dom.stationRankBadge.className = `w-16 h-16 rounded-2xl bg-gradient-to-br ${rankColor} font-black text-3xl flex items-center justify-center mb-3 border-2`;
     }
 
+    if (this.dom.victoryModalTitle) {
+      this.dom.victoryModalTitle.textContent = hasNextZone
+        ? `Zone ${this.currentZoneId} Stabilized!`
+        : `Demolition Mastered!`;
+    }
+
+    if (this.dom.stationDebriefSubtitle) {
+      this.dom.stationDebriefSubtitle.textContent = hasNextZone
+        ? `${currentZone.title} cleared! Ready for Zone ${this.currentZoneId + 1}.`
+        : `All 5 Industrial Zones Cleared! Core Integrity 100%.`;
+    }
+
+    if (this.dom.victoryNextBtn) {
+      if (hasNextZone) {
+        const nextZone = CURRICULUM_ZONES.find((z) => z.id === this.currentZoneId + 1);
+        this.dom.victoryNextBtn.innerHTML = `<span>Proceed to Zone ${this.currentZoneId + 1}: ${nextZone ? nextZone.title : ''}</span> <span>➔</span>`;
+      } else {
+        this.dom.victoryNextBtn.innerHTML = `<span>Complete Mission & Return</span> <span>🏆</span>`;
+      }
+    }
+
+    if (this.dom.victoryReplayBtn) {
+      this.dom.victoryReplayBtn.innerHTML = hasNextZone
+        ? `<span>Complete Run & Save</span>`
+        : `<span>Replay Zone</span>`;
+    }
+
     // Elapsed Station Shift Time
     const elapsedSecs = Math.max(1, Math.round((Date.now() - this.stationStartTime) / 1000));
     const elapsedMins = Math.floor(elapsedSecs / 60);
@@ -986,25 +1076,29 @@ class DemolitionCraneGame {
     if (this.dom.victoryTime) this.dom.victoryTime.textContent = elapsedStr;
     if (this.dom.victoryStreak) this.dom.victoryStreak.textContent = `${this.highestStreak}x`;
 
-    try {
-      window.parent.postMessage(
-        {
-          type: 'CARTRIDGE_COMPLETE',
-          payload: {
-            lessonId: 'G06_U03_L03',
-            zoneId: this.currentZoneId,
-            levelIndex: this.currentLevelIndex,
-            score: this.score,
-            total: totalLevels,
-            finalValue: finalValue,
-            rank: rank,
-            precision: precisionRate,
+    // Only send CARTRIDGE_COMPLETE when all zones are finished
+    if (!hasNextZone) {
+      try {
+        window.parent.postMessage(
+          {
+            type: 'CARTRIDGE_COMPLETE',
+            payload: {
+              lessonId: 'G06_U03_L03',
+              zoneId: this.currentZoneId,
+              levelIndex: this.currentLevelIndex,
+              score: this.score,
+              total: 20,
+              finalValue: finalValue,
+              rank: rank,
+              precision: precisionRate,
+              bossDefeated: true,
+            },
           },
-        },
-        '*'
-      );
-    } catch {
-      // ignore
+          '*'
+        );
+      } catch {
+        // ignore
+      }
     }
 
     this.dom.victoryResult.textContent = finalValue;
@@ -1040,6 +1134,15 @@ class DemolitionCraneGame {
 
   bindEvents() {
     window.addEventListener('keydown', (e) => {
+      // If briefing modal is open, hitting Space or Enter starts the game
+      if (this.isBriefingOpen) {
+        if (e.key === ' ' || e.key === 'Enter') {
+          e.preventDefault();
+          this.closeBriefing();
+        }
+        return;
+      }
+
       // If collapse banner is open, hitting Space or Enter dismisses it
       if (this.isCollapseBannerOpen && (e.key === ' ' || e.key === 'Enter')) {
         e.preventDefault();
@@ -1167,6 +1270,18 @@ class DemolitionCraneGame {
       });
     }
 
+    if (this.dom.btnBriefing) {
+      this.dom.btnBriefing.addEventListener('click', () => {
+        this.openBriefing();
+      });
+    }
+
+    if (this.dom.btnStartGame) {
+      this.dom.btnStartGame.addEventListener('click', () => {
+        this.closeBriefing();
+      });
+    }
+
     if (this.dom.btnZoneSelect) {
       this.dom.btnZoneSelect.addEventListener('click', () => {
         this.renderZoneList();
@@ -1214,12 +1329,27 @@ class DemolitionCraneGame {
     if (this.dom.victoryNextBtn) {
       this.dom.victoryNextBtn.addEventListener('click', () => {
         this.dom.victoryModal.classList.add('hidden');
-        const zone = this.getCurrentZone();
-        if (this.currentLevelIndex < zone.levels.length - 1) {
-          this.loadLevel(this.currentZoneId, this.currentLevelIndex + 1);
+        if (this.currentZoneId < CURRICULUM_ZONES.length) {
+          // Advance to next industrial zone!
+          this.loadLevel(this.currentZoneId + 1, 0);
         } else {
-          const nextZoneId = (this.currentZoneId % CURRICULUM_ZONES.length) + 1;
-          this.loadLevel(nextZoneId, 0);
+          // All 5 zones completed!
+          try {
+            window.parent.postMessage(
+              {
+                type: 'CARTRIDGE_COMPLETE',
+                payload: {
+                  lessonId: 'G06_U03_L03',
+                  zoneId: this.currentZoneId,
+                  levelIndex: this.currentLevelIndex,
+                  score: this.score,
+                  total: 20,
+                  bossDefeated: true,
+                },
+              },
+              '*'
+            );
+          } catch {}
         }
       });
     }
@@ -1227,7 +1357,27 @@ class DemolitionCraneGame {
     if (this.dom.victoryReplayBtn) {
       this.dom.victoryReplayBtn.addEventListener('click', () => {
         this.dom.victoryModal.classList.add('hidden');
-        this.loadLevel(this.currentZoneId, this.currentLevelIndex);
+        // Save current progress and complete shift
+        if (this.currentZoneId < CURRICULUM_ZONES.length) {
+          try {
+            window.parent.postMessage(
+              {
+                type: 'CARTRIDGE_COMPLETE',
+                payload: {
+                  lessonId: 'G06_U03_L03',
+                  zoneId: this.currentZoneId,
+                  levelIndex: this.currentLevelIndex,
+                  score: this.score,
+                  total: this.currentZoneId * 4,
+                  bossDefeated: true,
+                },
+              },
+              '*'
+            );
+          } catch {}
+        } else {
+          this.loadLevel(this.currentZoneId, 0);
+        }
       });
     }
 

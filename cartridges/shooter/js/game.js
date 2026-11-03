@@ -347,6 +347,11 @@ export class TermPopperGame {
     this.restartBtn = document.getElementById('restartBtn');
     this.retryWaveBtn = document.getElementById('retryWaveBtn');
 
+    // Mission Briefing / Start Overlay
+    this.startOverlay = document.getElementById('startOverlay');
+    this.startBtn = document.getElementById('startBtn');
+    this.hasStarted = false;
+
     // Boss Terminal Elements
     this.bossTerminalOverlay = document.getElementById('bossTerminalOverlay');
     this.bossTerminalCard = document.getElementById('bossTerminalCard');
@@ -433,6 +438,7 @@ export class TermPopperGame {
     });
 
     this.canvas.addEventListener('click', () => {
+      if (!this.hasStarted) return;
       this.sfx.init();
       this.fireBullet();
     });
@@ -445,13 +451,14 @@ export class TermPopperGame {
 
     this.canvas.addEventListener('touchend', (e) => {
       e.preventDefault();
+      if (!this.hasStarted) return;
       this.sfx.init();
       this.fireBullet();
     });
 
     // Spacebar to fire (Chromebook trackpad accessibility)
     window.addEventListener('keydown', (e) => {
-      if (e.code === 'Space' && !this.isDefeated && !this.isCompleted && !this.isBossPhase && !this.isTransitioning) {
+      if (e.code === 'Space' && !this.isDefeated && !this.isCompleted && !this.isBossPhase && !this.isTransitioning && this.hasStarted) {
         // Only if target is not an input
         if (document.activeElement && document.activeElement.tagName === 'INPUT') return;
         e.preventDefault();
@@ -459,6 +466,13 @@ export class TermPopperGame {
         this.fireBullet();
       }
     });
+
+    if (this.startBtn) {
+      this.startBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        this.startGame();
+      });
+    }
 
     if (this.restartBtn) {
       this.restartBtn.addEventListener('click', () => {
@@ -516,6 +530,25 @@ export class TermPopperGame {
         }
       });
     }
+  }
+
+  startGame() {
+    if (this.hasStarted) return;
+    this.hasStarted = true;
+    this.sfx.init();
+
+    if (this.startOverlay) {
+      this.startOverlay.classList.add('opacity-0', 'pointer-events-none');
+      setTimeout(() => {
+        if (this.startOverlay) this.startOverlay.classList.add('hidden');
+      }, 300);
+    }
+
+    this.rowDropTimer = ROW_DROP_SECONDS;
+    this.lastTime = performance.now();
+    const config = this.getCurrentWaveConfig();
+    this.showWaveBanner(`Wave ${config.waveNumber}`, config.title);
+    this.updateHUD();
   }
 
   getCurrentWaveConfig() {
@@ -580,7 +613,9 @@ export class TermPopperGame {
     // Update HUD & show wave banner
     this.setWarning(config.description, "neutral");
     this.updateHUD();
-    this.showWaveBanner(`Wave ${config.waveNumber}`, config.title);
+    if (this.hasStarted) {
+      this.showWaveBanner(`Wave ${config.waveNumber}`, config.title);
+    }
   }
 
   showWaveBanner(mainText, subText) {
@@ -619,7 +654,7 @@ export class TermPopperGame {
   }
 
   fireBullet() {
-    if (this.activeBullet || this.isTransitioning || this.isDefeated || this.isCompleted || this.isBossPhase) return;
+    if (this.activeBullet || this.isTransitioning || this.isDefeated || this.isCompleted || this.isBossPhase || !this.hasStarted) return;
 
     // Tactile Juice: Laser Sound + Turret Recoil + Muzzle Sparks
     this.sfx.playLaser();
@@ -1240,7 +1275,7 @@ export class TermPopperGame {
   }
 
   update(dt = 0.016) {
-    if (this.isDefeated || this.isCompleted || this.isBossPhase) return;
+    if (this.isDefeated || this.isCompleted || this.isBossPhase || !this.hasStarted) return;
 
     // Camera trauma decay
     if (this.trauma > 0) {
@@ -1399,7 +1434,7 @@ export class TermPopperGame {
   }
 
   drawTrajectory() {
-    if (this.activeBullet || this.isTransitioning || this.isDefeated || this.isCompleted || this.isBossPhase) return;
+    if (this.activeBullet || this.isTransitioning || this.isDefeated || this.isCompleted || this.isBossPhase || !this.hasStarted) return;
 
     const ctx = this.ctx;
     ctx.save();
@@ -1546,7 +1581,7 @@ export class TermPopperGame {
     // Turret Barrel with Recoil Kickback
     ctx.save();
     ctx.translate(this.turretX, this.turretY);
-    ctx.rotate(this.turretAngle - Math.PI / 2);
+    ctx.rotate(Math.PI / 2 - this.turretAngle);
 
     const kick = this.recoil || 0;
     ctx.translate(0, kick);

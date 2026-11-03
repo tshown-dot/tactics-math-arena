@@ -39,7 +39,8 @@ class PulseInterceptorGame {
 
     // Flags
     this.isFiring = false;
-    this.isModalOpen = false;
+    this.isModalOpen = true;
+    this.isBriefingOpen = true;
 
     // DOM references
     this.dom = {};
@@ -60,6 +61,7 @@ class PulseInterceptorGame {
     this.dom.scoreDisplay = document.getElementById('score-display');
     this.dom.streakBadge = document.getElementById('streak-badge');
     this.dom.timerDisplay = document.getElementById('timer-display');
+    this.dom.helpBtn = document.getElementById('help-btn');
     this.dom.muteBtn = document.getElementById('mute-btn');
 
     // Generator Displays & Buttons
@@ -84,6 +86,9 @@ class PulseInterceptorGame {
     this.dom.quickFireBtn = document.getElementById('quick-fire-btn');
 
     // Modals
+    this.dom.briefingModal = document.getElementById('briefing-modal');
+    this.dom.briefingStartBtn = document.getElementById('briefing-start-btn');
+
     this.dom.failModal = document.getElementById('fail-modal');
     this.dom.failTitle = document.getElementById('fail-title');
     this.dom.failMsg = document.getElementById('fail-msg');
@@ -119,7 +124,15 @@ class PulseInterceptorGame {
       }
     });
 
-    // Modal buttons
+    // Modal & Briefing buttons
+    this.dom.briefingStartBtn?.addEventListener('click', () => {
+      this.closeBriefing();
+    });
+
+    this.dom.helpBtn?.addEventListener('click', () => {
+      this.openBriefing();
+    });
+
     this.dom.failRetryBtn?.addEventListener('click', () => {
       this.closeModals();
       this.loadRound(this.sectorIndex, this.roundInSector);
@@ -143,7 +156,9 @@ class PulseInterceptorGame {
       if (this.isModalOpen) {
         if (e.key === ' ' || e.key === 'Enter') {
           e.preventDefault();
-          if (!this.dom.successModal.classList.contains('hidden')) {
+          if (this.isBriefingOpen) {
+            this.closeBriefing();
+          } else if (!this.dom.successModal?.classList.contains('hidden')) {
             this.advanceWave();
           } else {
             this.closeModals();
@@ -153,6 +168,8 @@ class PulseInterceptorGame {
       } else if (e.key === 'm' || e.key === 'M') {
         const isMuted = soundEngine.toggleMute();
         this.updateMuteUI(isMuted);
+      } else if (e.key === '?' || e.key === 'h' || e.key === 'H') {
+        this.openBriefing();
       }
     });
   }
@@ -250,8 +267,12 @@ class PulseInterceptorGame {
     // Reset clean grid styles
     this.resetGridTiles();
 
-    // Start round timer
-    this.startTimer(sector.timeLimit);
+    // Start round timer if briefing is not blocking
+    this.timeRemaining = sector.timeLimit;
+    this.updateTimerUI(this.timeRemaining);
+    if (!this.isBriefingOpen) {
+      this.startTimer(sector.timeLimit);
+    }
   }
 
   sendSingleWavePulse(waveType) {
@@ -508,8 +529,32 @@ class PulseInterceptorGame {
     this.dom.failModal?.classList.remove('hidden');
   }
 
+  openBriefing() {
+    this.isBriefingOpen = true;
+    this.isModalOpen = true;
+    clearInterval(this.timerInterval);
+    if (this.dom.briefingStartBtn) {
+      this.dom.briefingStartBtn.textContent = 'RESUME MISSION ➔ [SPACE / ENTER]';
+    }
+    this.dom.briefingModal?.classList.remove('hidden');
+  }
+
+  closeBriefing() {
+    this.isBriefingOpen = false;
+    this.isModalOpen = false;
+    this.dom.briefingModal?.classList.add('hidden');
+    soundEngine.playSuccessHarmonic();
+
+    // Start or resume timer
+    if (this.timeRemaining > 0) {
+      this.startTimer(this.timeRemaining);
+    }
+  }
+
   closeModals() {
     this.isModalOpen = false;
+    this.isBriefingOpen = false;
+    this.dom.briefingModal?.classList.add('hidden');
     this.dom.successModal?.classList.add('hidden');
     this.dom.failModal?.classList.add('hidden');
   }

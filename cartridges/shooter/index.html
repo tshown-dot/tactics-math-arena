@@ -82,6 +82,100 @@
         class="bg-slate-900 rounded-xl shadow-2xl border border-slate-800 cursor-crosshair max-h-[73vh] md:max-h-[75vh] w-auto aspect-[4/3] block mx-auto">
       </canvas>
 
+      <!-- PRE-GAME MISSION BRIEFING MODAL -->
+      <div id="startOverlay" class="absolute inset-0 bg-slate-950/95 backdrop-blur-md rounded-xl flex flex-col justify-between p-4 md:p-6 text-center z-30 transition-opacity duration-300">
+        <div class="max-w-xl mx-auto w-full flex-1 flex flex-col justify-between">
+          <!-- Header -->
+          <div class="space-y-1">
+            <div class="inline-flex items-center space-x-2 bg-indigo-950/80 border border-indigo-800/80 px-3 py-1 rounded-full text-indigo-300 text-xs font-mono font-bold uppercase tracking-wider">
+              <span>🎯</span>
+              <span>Topic 3 / Lesson 3-7</span>
+              <span>•</span>
+              <span>Core Reactor Defense</span>
+            </div>
+            <h2 class="text-2xl md:text-3xl font-black text-white tracking-wide mt-1">TERM POPPER</h2>
+            <p class="text-xs md:text-sm text-sky-400 font-semibold">Mission: Combine Like Terms & Stabilize the Core</p>
+          </div>
+
+          <!-- 3 Pedagogical & Arcade Guidance Cards -->
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-2.5 my-3 text-left">
+            <!-- Card 1: Math Rule -->
+            <div class="bg-slate-900/90 border border-slate-800 rounded-lg p-3 flex flex-col justify-between shadow-inner">
+              <div>
+                <div class="flex items-center space-x-1.5 text-xs font-bold text-sky-400 mb-1">
+                  <span>📐</span>
+                  <span>1. The Math Rule</span>
+                </div>
+                <p class="text-[11px] text-slate-300 leading-snug">
+                  Terms combine <span class="font-bold text-white">only</span> if both the <span class="text-sky-300 font-semibold">variable base & exponent match</span>!
+                </p>
+              </div>
+              <div class="mt-2 text-[10px] font-mono bg-slate-950/80 p-1.5 rounded border border-slate-800/60 space-y-0.5">
+                <div class="text-emerald-400">✓ 3x + (-2x) = x</div>
+                <div class="text-emerald-400">✓ x² + 3x² = 4x²</div>
+                <div class="text-rose-400">✗ x² & 4x (No match!)</div>
+                <div class="text-rose-400">✗ 3x & 2y (No match!)</div>
+              </div>
+            </div>
+
+            <!-- Card 2: 4+ Burst Rule -->
+            <div class="bg-slate-900/90 border border-slate-800 rounded-lg p-3 flex flex-col justify-between shadow-inner">
+              <div>
+                <div class="flex items-center space-x-1.5 text-xs font-bold text-amber-400 mb-1">
+                  <span>💥</span>
+                  <span>2. Burst Rule (4+)</span>
+                </div>
+                <p class="text-[11px] text-slate-300 leading-snug">
+                  Launch terms into the grid. Clusters <span class="font-bold text-white">only burst</span> when you connect <span class="text-amber-300 font-semibold">4 or more</span> like terms!
+                </p>
+              </div>
+              <div class="mt-2 text-[10px] text-slate-400 bg-slate-950/80 p-1.5 rounded border border-slate-800/60">
+                ⚠️ Mismatches or clusters under 4 will stick and clutter your chamber.
+              </div>
+            </div>
+
+            <!-- Card 3: Danger Line & Clock -->
+            <div class="bg-slate-900/90 border border-slate-800 rounded-lg p-3 flex flex-col justify-between shadow-inner">
+              <div>
+                <div class="flex items-center space-x-1.5 text-xs font-bold text-rose-400 mb-1">
+                  <span>⏱️</span>
+                  <span>3. Danger Clock</span>
+                </div>
+                <p class="text-[11px] text-slate-300 leading-snug">
+                  Every <span class="font-bold text-white">25 seconds</span>, the ceiling descends! Prevent terms from crossing the <span class="text-rose-400 font-semibold">Shield Danger Line</span>.
+                </p>
+              </div>
+              <div class="mt-2 text-[10px] text-slate-400 bg-slate-950/80 p-1.5 rounded border border-slate-800/60">
+                Clear 10 clusters per wave to reach the final Reactor Terminal.
+              </div>
+            </div>
+          </div>
+
+          <!-- Controls bar -->
+          <div class="flex items-center justify-center space-x-4 text-xs text-slate-400 font-medium">
+            <span class="flex items-center space-x-1.5">
+              <span class="bg-slate-800 px-2 py-0.5 rounded font-mono text-[11px] text-slate-200 border border-slate-700">Aim</span>
+              <span>Mouse / Touch</span>
+            </span>
+            <span class="text-slate-600">•</span>
+            <span class="flex items-center space-x-1.5">
+              <span class="bg-slate-800 px-2 py-0.5 rounded font-mono text-[11px] text-slate-200 border border-slate-700">Fire</span>
+              <span>Click or Spacebar</span>
+            </span>
+          </div>
+
+          <!-- Action Button -->
+          <div class="mt-3">
+            <button
+              id="startBtn"
+              class="w-full md:w-auto px-8 py-2.5 rounded-xl bg-gradient-to-r from-indigo-500 via-sky-500 to-indigo-500 hover:from-indigo-400 hover:via-sky-400 hover:to-indigo-400 text-white font-black text-sm md:text-base shadow-xl shadow-sky-500/20 transition-all active:scale-95 flex items-center justify-center space-x-2 mx-auto cursor-pointer">
+              <span>🚀</span>
+              <span>BEGIN MISSION</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
       <!-- WAVE CLEARED INTERSTITIAL BANNER -->
       <div id="waveBanner" class="absolute inset-0 bg-slate-950/70 backdrop-blur-sm rounded-xl flex flex-col items-center justify-center p-6 text-center transition-opacity duration-300 opacity-0 pointer-events-none z-10">
         <div class="w-12 h-12 rounded-full bg-indigo-500/20 border border-indigo-400 flex items-center justify-center text-2xl mb-2">
