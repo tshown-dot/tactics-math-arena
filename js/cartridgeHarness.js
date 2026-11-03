@@ -88,13 +88,14 @@ export class CartridgeHarness {
 
     hubAudio.playCartridgeLaunch();
 
-    // Show container and point iframe to cartridge
+    // Show container and point iframe to cartridge with cache-buster
     if (this.container) {
       this.container.classList.remove('hidden');
     }
     if (this.iframe) {
-      // Force reload iframe with relative path
-      this.iframe.src = node.cartridgeUrl;
+      // Append timestamp query parameter to bypass browser caching of cartridge scripts
+      const separator = node.cartridgeUrl.includes('?') ? '&' : '?';
+      this.iframe.src = `${node.cartridgeUrl}${separator}_v=${Date.now()}`;
       this.iframe.focus();
     }
   }
