@@ -23,6 +23,7 @@ class NumeriaHub {
       // Login elements
       loginForm: document.getElementById('loginForm'),
       pinInput: document.getElementById('pinInput'),
+      passcodeInput: document.getElementById('passcodeInput'),
       loginBtn: document.getElementById('loginBtn'),
       quickPin1042: document.getElementById('quickPin1042'),
       quickPin7777: document.getElementById('quickPin7777'),
@@ -80,8 +81,9 @@ class NumeriaHub {
 
     // Check if player was previously logged in
     const lastPin = localStorage.getItem('numeria_active_pin');
-    if (lastPin && /^[0-9]{4}$/.test(lastPin)) {
-      this.loginWithPin(lastPin);
+    const lastPasscode = localStorage.getItem('numeria_active_passcode');
+    if (lastPin && /^[0-9]{4}$/.test(lastPin) && lastPasscode) {
+      this.loginWithCredentials(lastPin, lastPasscode);
     }
   }
 
@@ -141,37 +143,51 @@ class NumeriaHub {
       this.dom.switchUserBtn.addEventListener('click', () => {
         hubAudio.playSelect();
         localStorage.removeItem('numeria_active_pin');
+        localStorage.removeItem('numeria_active_passcode');
         this.dom.worldScreen.classList.add('hidden');
         this.dom.loginScreen.classList.remove('hidden');
         if (this.dom.pinInput) {
           this.dom.pinInput.value = '';
           this.dom.pinInput.focus();
         }
+        if (this.dom.passcodeInput) {
+          this.dom.passcodeInput.value = '';
+        }
       });
     }
 
-    // PIN Login Form
+    // PIN & Passcode Login Form
     if (this.dom.loginForm) {
       this.dom.loginForm.addEventListener('submit', (e) => {
         e.preventDefault();
-        const pin = this.dom.pinInput.value.trim();
-        if (/^[0-9]{4}$/.test(pin)) {
-          this.loginWithPin(pin);
-        } else {
+        const pin = this.dom.pinInput ? this.dom.pinInput.value.trim() : '';
+        const passcode = this.dom.passcodeInput ? this.dom.passcodeInput.value.trim() : '';
+
+        if (!/^[0-9]{4}$/.test(pin)) {
           this.showLoginError('Please enter a valid 4-digit PIN (e.g. 1042)');
+          return;
         }
+        if (!passcode) {
+          this.showLoginError('Please enter your secret passcode.');
+          return;
+        }
+        this.loginWithCredentials(pin, passcode);
       });
     }
 
     // Quick Login Demo Buttons
     if (this.dom.quickPin1042) {
       this.dom.quickPin1042.addEventListener('click', () => {
-        this.loginWithPin('1042');
+        if (this.dom.pinInput) this.dom.pinInput.value = '1042';
+        if (this.dom.passcodeInput) this.dom.passcodeInput.value = 'star6';
+        this.loginWithCredentials('1042', 'star6');
       });
     }
     if (this.dom.quickPin7777) {
       this.dom.quickPin7777.addEventListener('click', () => {
-        this.loginWithPin('7777');
+        if (this.dom.pinInput) this.dom.pinInput.value = '7777';
+        if (this.dom.passcodeInput) this.dom.passcodeInput.value = 'math6';
+        this.loginWithCredentials('7777', 'math6');
       });
     }
 
@@ -212,10 +228,17 @@ class NumeriaHub {
     }
   }
 
-  async loginWithPin(pin) {
+  async loginWithCredentials(pin, passcode) {
+    const result = await playerState.loadPlayer(pin, passcode);
+    if (!result || !result.success) {
+      hubAudio.playLockRattle();
+      this.showLoginError(result?.error || 'Invalid PIN or passcode.');
+      return;
+    }
+
     hubAudio.playSelect();
-    await playerState.loadPlayer(pin);
     localStorage.setItem('numeria_active_pin', pin);
+    localStorage.setItem('numeria_active_passcode', passcode);
 
     // Switch screen
     this.dom.loginScreen.classList.add('hidden');

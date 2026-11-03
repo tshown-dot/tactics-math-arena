@@ -94,11 +94,11 @@
           6th Grade Topic 3 Tactical Learning World: Numeric & Algebraic Expressions
         </p>
 
-        <!-- PIN Input Form -->
+        <!-- PIN & Passcode Input Form -->
         <form id="loginForm" class="mt-6 space-y-4" onsubmit="return false;">
           <div class="text-left">
-            <label for="pinInput" class="block text-xs font-bold text-amber-400/90 uppercase tracking-wider mb-2">
-              Enter 4-Digit Adventurer PIN
+            <label for="pinInput" class="block text-xs font-bold text-amber-400/90 uppercase tracking-wider mb-1.5">
+              4-Digit Adventurer PIN
             </label>
             <input
               type="text"
@@ -109,7 +109,21 @@
               placeholder="e.g. 1042"
               autocomplete="off"
               required
-              class="w-full text-center text-3xl font-black font-mono-math tracking-widest text-amber-300 bg-slate-950/80 py-3 px-4 rounded-2xl border-2 border-amber-600/50 focus:border-amber-400 focus:ring-4 focus:ring-amber-500/20 outline-none transition placeholder:text-slate-700"
+              class="w-full text-center text-2xl font-black font-mono-math tracking-widest text-amber-300 bg-slate-950/80 py-2.5 px-4 rounded-xl border-2 border-amber-600/50 focus:border-amber-400 focus:ring-4 focus:ring-amber-500/20 outline-none transition placeholder:text-slate-700"
+            />
+          </div>
+
+          <div class="text-left">
+            <label for="passcodeInput" class="block text-xs font-bold text-amber-400/90 uppercase tracking-wider mb-1.5">
+              Secret Passcode
+            </label>
+            <input
+              type="text"
+              id="passcodeInput"
+              placeholder="e.g. star6"
+              autocomplete="off"
+              required
+              class="w-full text-center text-lg font-bold font-mono tracking-wider text-slate-100 bg-slate-950/80 py-2.5 px-4 rounded-xl border-2 border-amber-600/50 focus:border-amber-400 focus:ring-4 focus:ring-amber-500/20 outline-none transition placeholder:text-slate-700"
             />
           </div>
 
@@ -136,14 +150,14 @@
               id="quickPin1042"
               class="py-2 px-3 rounded-xl bg-slate-800/80 hover:bg-slate-700/80 border border-slate-700 text-xs text-slate-300 font-semibold text-center transition flex items-center justify-center space-x-1.5"
             >
-              <span>🛡️ Student #1042</span>
+              <span>🛡️ #1042 (star6)</span>
             </button>
             <button
               type="button"
               id="quickPin7777"
               class="py-2 px-3 rounded-xl bg-indigo-950/80 hover:bg-indigo-900/80 border border-indigo-700 text-xs text-indigo-200 font-semibold text-center transition flex items-center justify-center space-x-1.5"
             >
-              <span>👑 Teacher Demo #7777</span>
+              <span>👑 #7777 (math6)</span>
             </button>
           </div>
         </div>

@@ -92,6 +92,30 @@ assert(player.calculateStars(10, 10) === 3, '10/10 awards 3 stars');
 assert(player.calculateStars(8, 10) === 2, '8/10 awards 2 stars');
 assert(player.calculateStars(5, 10) === 1, '5/10 awards 1 star');
 
+console.log('\n--- TEST 7: PIN + Passcode Two-Factor Authentication ---');
+const authPlayer = new PlayerState();
+
+// Empty passcode
+const emptyRes = await authPlayer.loadPlayer('1042', '');
+assert(emptyRes.success === false, 'Rejects empty passcode');
+
+// Teacher account PIN 7777 with invalid passcode
+const badTeacherRes = await authPlayer.loadPlayer('7777', 'wrongpass');
+assert(badTeacherRes.success === false, 'Rejects incorrect teacher passcode');
+
+// Teacher account PIN 7777 with math6
+const goodTeacherRes = await authPlayer.loadPlayer('7777', 'math6');
+assert(goodTeacherRes.success === true, 'Accepts valid teacher passcode math6');
+assert(authPlayer.isTeacherOverride === true, 'Activates teacher override mode');
+
+// Teacher account PIN 7777 case-insensitive
+const caseTeacherRes = await authPlayer.loadPlayer('7777', 'MATH6');
+assert(caseTeacherRes.success === true, 'Accepts case-insensitive MATH6');
+
+// Student PIN 1042 accepts star6 or star7
+const seedStudentRes = await authPlayer.loadPlayer('1042', 'star6');
+assert(seedStudentRes.success === true, 'Accepts star6 for PIN 1042');
+
 console.log(`\n================================`);
 console.log(`TEST SUMMARY: ${passed} Passed, ${failed} Failed`);
 console.log(`================================`);

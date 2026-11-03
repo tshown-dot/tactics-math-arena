@@ -10,6 +10,7 @@ import { REALM_NODES, getEffectivePrerequisite } from './nodes.js';
 export class PlayerState {
   constructor() {
     this.pin = '1042';
+    this.passcode = 'star6';
     this.characterClass = 'Arcane Paladin';
     this.level = 1;
     this.xp = 0;
@@ -23,16 +24,38 @@ export class PlayerState {
     return this.level * 100;
   }
 
-  async loadPlayer(pin, password = '') {
+  async loadPlayer(pin, passcode = '') {
     this.pin = pin.trim();
+    const cleanPass = String(passcode || '').trim().toLowerCase();
+
+    if (!cleanPass) {
+      return { success: false, error: 'Please enter your secret passcode.' };
+    }
+
     if (this.pin === '7777') {
+      if (cleanPass !== 'math6' && cleanPass !== 'math7') {
+        return { success: false, error: 'Incorrect Teacher Passcode. Use math6.' };
+      }
       this.isTeacherOverride = true;
+      this.passcode = cleanPass;
     } else {
       this.isTeacherOverride = false;
     }
 
     const saved = await fetchStudentProfile(this.pin);
     if (saved) {
+      const savedPass = String(saved.password || saved.passcode || '').trim().toLowerCase();
+      // Allow star6 or star7 for seed PIN 1042
+      const isSeed1042 = this.pin === '1042' && (cleanPass === 'star6' || cleanPass === 'star7');
+
+      if (savedPass && !isSeed1042 && cleanPass !== savedPass) {
+        return {
+          success: false,
+          error: `Incorrect secret passcode for PIN #${this.pin}. Check your math folder or ask teacher.`
+        };
+      }
+
+      this.passcode = cleanPass;
       this.level = saved.level || 1;
       this.xp = saved.xp || 0;
       this.coins = saved.coins !== undefined ? saved.coins : 50;
@@ -41,7 +64,8 @@ export class PlayerState {
         : ['node_3_1'];
       this.nodeRecords = saved.nodeRecords || {};
     } else {
-      // New adventurer profile
+      // New adventurer profile registered with entered passcode
+      this.passcode = cleanPass;
       this.level = 1;
       this.xp = 0;
       this.coins = 50;
@@ -49,11 +73,14 @@ export class PlayerState {
       this.nodeRecords = {};
       await this.save();
     }
+
+    return { success: true };
   }
 
   async save() {
     await saveStudentProfile({
       pin: this.pin,
+      password: this.passcode || 'star6',
       level: this.level,
       xp: this.xp,
       coins: this.coins,
