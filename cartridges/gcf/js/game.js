@@ -174,6 +174,7 @@ class VaultBreakerGame {
     this.dom.p4Summary = document.getElementById('p4-summary');
     this.dom.p4DilemmaContainer = document.getElementById('p4-dilemma-container');
     this.dom.p4NextBtn = document.getElementById('p4-next-btn');
+    this.dom.p4CompleteSaveBtn = document.getElementById('p4-complete-save-btn');
 
     // Lockdown retry
     this.dom.retryBtn = document.getElementById('lockdown-retry-btn');
@@ -349,6 +350,14 @@ class VaultBreakerGame {
       soundEngine.playClick();
       this.advanceToNextVault();
     });
+
+    // Phase 4 Save & Complete Run to Overworld Town
+    if (this.dom.p4CompleteSaveBtn) {
+      this.dom.p4CompleteSaveBtn.addEventListener('click', () => {
+        soundEngine.playClick();
+        this.completeCartridgeRun();
+      });
+    }
 
     // Instant Retry on Lockdown
     this.dom.retryBtn.addEventListener('click', () => {
@@ -1285,7 +1294,7 @@ class VaultBreakerGame {
       </div>
     `;
 
-    this.dom.p4NextBtn.textContent = 'COMPLETE MISSION CLEAR';
+    this.dom.p4NextBtn.textContent = '★ CLAIM VICTORY & RETURN TO TOWN';
     this.dom.p4NextBtn.disabled = true;
 
     document.querySelectorAll('.boss-opt-btn').forEach((btn) => {
@@ -1380,7 +1389,35 @@ class VaultBreakerGame {
     } else if (this.sectorIndex < CURRICULUM_SECTORS.length - 1) {
       this.loadSectorAndVault(this.sectorIndex + 1, 0);
     } else {
-      this.loadSectorAndVault(0, 0);
+      // Completed all 5 sectors and Dreadnought Boss! Save run to Town!
+      this.completeCartridgeRun();
+    }
+  }
+
+  completeCartridgeRun() {
+    clearInterval(this.timerInterval);
+    soundEngine.playVictoryFanfare();
+
+    const isBossCleared = this.sectorIndex >= CURRICULUM_SECTORS.length - 1;
+    const totalVaults = CURRICULUM_SECTORS.reduce((acc, s) => acc + s.vaults.length, 0);
+
+    try {
+      window.parent.postMessage(
+        {
+          type: 'CARTRIDGE_COMPLETE',
+          payload: {
+            lessonId: 'G06_U03_L02',
+            score: Math.max(1, this.score),
+            total: Math.max(10, totalVaults * 100),
+            sectorIndex: this.sectorIndex,
+            vaultIndex: this.vaultIndex,
+            bossDefeated: isBossCleared,
+          },
+        },
+        '*'
+      );
+    } catch (e) {
+      console.warn('Could not post CARTRIDGE_COMPLETE to parent:', e);
     }
   }
 }

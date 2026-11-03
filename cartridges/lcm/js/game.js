@@ -97,6 +97,7 @@ class PulseInterceptorGame {
     this.dom.successModal = document.getElementById('success-modal');
     this.dom.successMsg = document.getElementById('success-msg');
     this.dom.successNextBtn = document.getElementById('success-next-btn');
+    this.dom.successSaveBtn = document.getElementById('success-save-btn');
   }
 
   bindEvents() {
@@ -140,6 +141,10 @@ class PulseInterceptorGame {
 
     this.dom.successNextBtn?.addEventListener('click', () => {
       this.advanceWave();
+    });
+
+    this.dom.successSaveBtn?.addEventListener('click', () => {
+      this.completeCartridgeRun();
     });
 
     // Mute toggle
@@ -567,10 +572,32 @@ class PulseInterceptorGame {
     } else if (this.sectorIndex < CURRICULUM_SECTORS.length - 1) {
       this.loadRound(this.sectorIndex + 1, 1);
     } else {
-      alert(`🏆 SECTOR COMPLETE! City power grid stabilized. Final score: ${this.score.toLocaleString()}`);
-      this.score = 0;
-      this.streak = 0;
-      this.loadRound(0, 1);
+      // Completed all sectors! Post victory to town overworld
+      this.completeCartridgeRun();
+    }
+  }
+
+  completeCartridgeRun() {
+    this.closeModals();
+    clearInterval(this.timerInterval);
+    soundManager.playSuccessChord();
+
+    try {
+      window.parent.postMessage(
+        {
+          type: 'CARTRIDGE_COMPLETE',
+          payload: {
+            lessonId: 'G06_U03_L04',
+            score: Math.max(1, this.score),
+            total: 10,
+            sectorIndex: this.sectorIndex,
+            bossDefeated: this.sectorIndex >= CURRICULUM_SECTORS.length - 1,
+          },
+        },
+        '*'
+      );
+    } catch (e) {
+      console.warn('Could not post CARTRIDGE_COMPLETE to parent:', e);
     }
   }
 

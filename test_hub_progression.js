@@ -70,6 +70,13 @@ unlocked.push('node_3_2');
 assert(isNodeUnlocked('node_3_2', unlocked) === true, 'Node 3-2 unlocks after 3-1');
 assert(isNodeUnlocked('node_3_3', unlocked) === false, 'Node 3-3 remains locked');
 
+// Test PlayerState processCartridgeCompletion from 3-2 unlocking both 3-3 and 3-4 (LCM)
+const gcfTestPlayer = new PlayerState();
+gcfTestPlayer.unlockedNodes = ['node_3_1', 'node_3_2'];
+await gcfTestPlayer.processCartridgeCompletion('node_3_2', { score: 10, total: 10 });
+assert(gcfTestPlayer.isNodeUnlocked('node_3_3') === true, 'Node 3-3 (Crane) unlocks after 3-2');
+assert(gcfTestPlayer.isNodeUnlocked('node_3_4') === true, 'Node 3-4 (LCM) unlocks after 3-2');
+
 // Test PlayerState processCartridgeCompletion from 3-4 skipping WIP 3-6 to unlock 3-7
 const testPlayer = new PlayerState();
 testPlayer.unlockedNodes = ['node_3_1', 'node_3_2', 'node_3_3', 'node_3_4'];

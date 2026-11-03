@@ -168,6 +168,12 @@ export class PlayerState {
       }
     }
 
+    // Curriculum Bridge: Clearing 3-2 (GCF) also unlocks 3-4 (LCM Substation Grid)
+    // so students can proceed along either the PEMDAS or Factors/Multiples pathway!
+    if (nodeId === 'node_3_2') {
+      this.unlockNode('node_3_4');
+    }
+
     // Save and log session
     await this.save();
     await logCartridgeSession({
