@@ -9,6 +9,8 @@ import {
   diagnoseSubmission,
   prepareSteps,
   CURRICULUM_SECTORS,
+  isBaseLocked,
+  getGivenBase,
 } from './js/curriculum.js';
 
 let totalTests = 0;
@@ -121,6 +123,32 @@ for (let i = 0; i < expectedCombos.length; i++) {
   combo = Math.min(16, combo === 1 ? 2 : combo * 2);
   assert(combo === expectedCombos[i], `Combo step ${i + 1} scaled to x${expectedCombos[i]}`);
 }
+
+// 8. Base Locking for High Cognitive Load Mitigation (>200 MW non-multiples of 10)
+console.log('\n8. Testing Base Locking Engine (>200 MW non-tens)');
+const s2_5 = CURRICULUM_SECTORS[1].problems.find(p => p.id === 's2-5'); // 216 MW
+const boss_2 = CURRICULUM_SECTORS[4].problems.find(p => p.id === 'boss-2'); // 243 MW
+const boss_3 = CURRICULUM_SECTORS[4].problems.find(p => p.id === 'boss-3'); // 256 MW
+const boss_4 = CURRICULUM_SECTORS[4].problems.find(p => p.id === 'boss-4'); // 1,000,000 MW (multiple of 10)
+const boss_5 = CURRICULUM_SECTORS[4].problems.find(p => p.id === 'boss-5'); // 512 MW
+const s1_1 = CURRICULUM_SECTORS[0].problems[0]; // 8 MW (< 200)
+const s3_3 = CURRICULUM_SECTORS[2].problems.find(p => p.targetMW === 10000); // 10,000 MW (multiple of 10)
+
+assert(isBaseLocked(s2_5) === true, 's2-5 (216 MW) base is locked');
+assert(getGivenBase(s2_5) === 6, 's2-5 locked base is 6');
+
+assert(isBaseLocked(boss_2) === true, 'boss-2 (243 MW) base is locked');
+assert(getGivenBase(boss_2) === 3, 'boss-2 locked base is 3');
+
+assert(isBaseLocked(boss_3) === true, 'boss-3 (256 MW) base is locked');
+assert(getGivenBase(boss_3) === 4, 'boss-3 locked base is 4');
+
+assert(isBaseLocked(boss_5) === true, 'boss-5 (512 MW) base is locked');
+assert(getGivenBase(boss_5) === 8, 'boss-5 locked base is 8');
+
+assert(isBaseLocked(boss_4) === false, 'boss-4 (1,000,000 MW) base is NOT locked (power of 10)');
+assert(isBaseLocked(s1_1) === false, 's1-1 (8 MW) base is NOT locked (<= 200 MW)');
+assert(isBaseLocked(s3_3) === false, 's3-3 (10,000 MW) base is NOT locked (power of 10)');
 
 console.log(`\n========================================`);
 console.log(`Results: ${passedTests}/${totalTests} tests passed`);

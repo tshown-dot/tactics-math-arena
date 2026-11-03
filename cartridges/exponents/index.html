@@ -271,8 +271,11 @@
         <!-- 1. BASE SELECTOR (b) -->
         <div class="bg-gray-900/70 border border-cyan-900/40 rounded-xl p-2.5">
           <div class="flex items-center justify-between mb-1.5">
-            <span class="text-xs font-extrabold uppercase text-cyan-300 tracking-wider">Base Selector (b)</span>
-            <span class="text-[10px] text-gray-400 font-medium">Repeated Factor</span>
+            <div class="flex items-center space-x-1.5">
+              <span class="text-xs font-extrabold uppercase text-cyan-300 tracking-wider">Base Selector (b)</span>
+              <span id="base-locked-badge" class="hidden px-2 py-0.5 rounded text-[9px] font-black uppercase bg-cyan-950 border border-cyan-500 text-cyan-300 animate-pulse">🔒 BASE LOCKED</span>
+            </div>
+            <span id="base-subtext" class="text-[10px] text-gray-400 font-medium">Repeated Factor</span>
           </div>
 
           <div class="flex items-center justify-center space-x-3 py-1">
@@ -549,6 +552,6 @@
   </div>
 
   <!-- SCRIPT BOOTSTRAP (Cache-busted for student Chromebooks) -->
-  <script type="module" src="js/game.js?v=2.2"></script>
+  <script type="module" src="js/game.js?v=2.4"></script>
 </body>
 </html>

@@ -13,6 +13,8 @@ import {
   calculatePower,
   diagnoseSubmission,
   prepareSteps,
+  isBaseLocked,
+  getGivenBase,
 } from './curriculum.js';
 
 import { soundManager } from './audio.js';
@@ -27,6 +29,7 @@ class ExponentReactorGame {
     this.base = 2;
     this.exponent = 3;
     this.isDischarging = false;
+    this.isBaseLocked = false;
 
     // High Stakes & Health Metrics
     this.coreHealth = 100; // 0..100%
@@ -109,6 +112,8 @@ class ExponentReactorGame {
     this.baseDecBtn = document.getElementById('base-dec-btn');
     this.baseIncBtn = document.getElementById('base-inc-btn');
     this.basePresetBtns = document.querySelectorAll('.base-preset-btn');
+    this.baseLockedBadge = document.getElementById('base-locked-badge');
+    this.baseSubtext = document.getElementById('base-subtext');
 
     this.expNumberDisplay = document.getElementById('exp-number-display');
     this.expDecBtn = document.getElementById('exp-dec-btn');
@@ -376,6 +381,49 @@ class ExponentReactorGame {
       this.equationDisplayCard.className = 'z-10 bg-gray-950/90 border-2 border-cyan-500/60 px-6 py-2.5 rounded-2xl shadow-2xl backdrop-blur flex flex-col items-center justify-center transition-all duration-300 mb-1.5 glow-cyan';
     }
 
+    // Base Locking for large non-ten surges (>200 MW) to eliminate cognitive strain
+    const locked = isBaseLocked(problem);
+    this.isBaseLocked = locked;
+    if (locked) {
+      const givenBase = getGivenBase(problem);
+      this.setBase(givenBase, true);
+      if (this.baseLockedBadge) this.baseLockedBadge.classList.remove('hidden');
+      if (this.baseSubtext) {
+        this.baseSubtext.textContent = 'GIVEN BASE';
+        this.baseSubtext.className = 'text-[10px] text-cyan-400 font-black tracking-wider';
+      }
+      if (this.baseDecBtn) {
+        this.baseDecBtn.disabled = true;
+        this.baseDecBtn.classList.add('opacity-30', 'cursor-not-allowed', 'pointer-events-none');
+      }
+      if (this.baseIncBtn) {
+        this.baseIncBtn.disabled = true;
+        this.baseIncBtn.classList.add('opacity-30', 'cursor-not-allowed', 'pointer-events-none');
+      }
+      this.basePresetBtns.forEach(btn => {
+        btn.disabled = true;
+        btn.classList.add('opacity-30', 'cursor-not-allowed', 'pointer-events-none');
+      });
+    } else {
+      if (this.baseLockedBadge) this.baseLockedBadge.classList.add('hidden');
+      if (this.baseSubtext) {
+        this.baseSubtext.textContent = 'Repeated Factor';
+        this.baseSubtext.className = 'text-[10px] text-gray-400 font-medium';
+      }
+      if (this.baseDecBtn) {
+        this.baseDecBtn.disabled = false;
+        this.baseDecBtn.classList.remove('opacity-30', 'cursor-not-allowed', 'pointer-events-none');
+      }
+      if (this.baseIncBtn) {
+        this.baseIncBtn.disabled = false;
+        this.baseIncBtn.classList.remove('opacity-30', 'cursor-not-allowed', 'pointer-events-none');
+      }
+      this.basePresetBtns.forEach(btn => {
+        btn.disabled = false;
+        btn.classList.remove('opacity-30', 'cursor-not-allowed', 'pointer-events-none');
+      });
+    }
+
     if (sector.isBossSector) {
       this.threatBadge.className = 'text-[9px] font-black uppercase px-2 py-0.5 rounded-full bg-rose-950 border border-rose-600 text-rose-300 animate-pulse';
       this.threatBadge.textContent = 'SINGULARITY BOSS CORE';
@@ -488,7 +536,9 @@ class ExponentReactorGame {
   // ==========================================
   // DIAL CONTROLS & RIBBON
   // ==========================================
-  setBase(val) {
+  setBase(val, force = false) {
+    if (this.isBaseLocked && !force) return;
+
     this.base = val;
     this.baseNumberDisplay.textContent = val;
     const depBase = this.deployedBase || document.getElementById('deployed-base');
@@ -909,6 +959,7 @@ class ExponentReactorGame {
     this.trapHits = 0;
     this.isGameOver = false;
     this.isDischarging = false;
+    this.isBaseLocked = false;
     this.shiftStartTime = Date.now();
 
     this.scoreDisplay.textContent = '0';

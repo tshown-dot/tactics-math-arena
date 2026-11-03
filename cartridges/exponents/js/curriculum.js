@@ -102,8 +102,9 @@ export const CURRICULUM_SECTORS = [
       {
         id: 's2-5',
         targetMW: 216,
+        givenBase: 6,
         validSolutions: [{ base: 6, exponent: 3 }],
-        hint: '6 used as a factor 3 times: 36 × 6 = 216.',
+        hint: 'Base is locked to 6. What exponent gives 216 (36 × 6)?',
         trapWarning: '6 × 3 = 18 is a trap! 6³ = 216.',
         conceptNote: '6³ = 6 × 6 × 6 = 216 MW',
       },
@@ -248,22 +249,24 @@ export const CURRICULUM_SECTORS = [
       {
         id: 'boss-2',
         targetMW: 243,
+        givenBase: 3,
         validSolutions: [{ base: 3, exponent: 5 }],
-        bossDilemma: 'Hyper-scaling: 3 multiplied by itself 5 times!',
-        hint: '3 to the 5th power: 3 × 3 × 3 × 3 × 3 = 243.',
+        bossDilemma: 'Hyper-scaling: Base 3 locked! What power of 3 reaches 243?',
+        hint: 'Base is locked to 3. 3⁴ is 81. Multiply by 3 one more time: 3⁵ = 243.',
         conceptNote: '3⁵ = 243 MW',
       },
       {
         id: 'boss-3',
         targetMW: 256,
+        givenBase: 4,
         validSolutions: [
           { base: 4, exponent: 4 },
           { base: 2, exponent: 8 },
           { base: 16, exponent: 2 },
         ],
-        bossDilemma: 'Multi-Core Resonance: 4⁴ = 256 or 2⁸ = 256 or 16² = 256.',
-        hint: 'Try Base 4 to exponent 4 (4 × 4 × 4 × 4) or Base 2 to exponent 8.',
-        conceptNote: 'Equivalence: 4⁴ = 2⁸ = 256 MW',
+        bossDilemma: 'Multi-Core Resonance: Base 4 locked! What power of 4 reaches 256?',
+        hint: 'Base is locked to 4. 4³ is 64. Multiply 64 × 4 = 256.',
+        conceptNote: '4⁴ = 256 MW',
       },
       {
         id: 'boss-4',
@@ -280,13 +283,14 @@ export const CURRICULUM_SECTORS = [
       {
         id: 'boss-5',
         targetMW: 512,
+        givenBase: 8,
         validSolutions: [
           { base: 8, exponent: 3 },
           { base: 2, exponent: 9 },
         ],
-        bossDilemma: 'Core Singularity Finale: Balance the catastrophic 512 MW surge!',
-        hint: '8 cubed (8 × 8 × 8) or 2 to the 9th power.',
-        conceptNote: '8³ = 2⁹ = 512 MW',
+        bossDilemma: 'Core Singularity Finale: Base 8 locked! What power of 8 reaches 512?',
+        hint: 'Base is locked to 8. 8² is 64. 64 × 8 = 512.',
+        conceptNote: '8³ = 512 MW',
       },
     ],
   },
@@ -428,3 +432,27 @@ export function diagnoseSubmission(base, exponent, targetMW) {
     correctFormula: `Current: ${studentResult.toLocaleString()} MW ≠ Target: ${targetMW.toLocaleString()} MW`,
   };
 }
+
+/**
+ * Determines whether a problem has a locked base.
+ * Criteria: Explicit problem.givenBase OR targetMW > 200 and not a multiple of 10.
+ * Reduces excessive student cognitive load for non-tens large surges.
+ */
+export function isBaseLocked(problem) {
+  if (!problem) return false;
+  if (problem.givenBase !== undefined) return true;
+  return problem.targetMW > 200 && (problem.targetMW % 10 !== 0);
+}
+
+/**
+ * Returns the locked base for a problem if applicable.
+ */
+export function getGivenBase(problem) {
+  if (!problem) return null;
+  if (problem.givenBase !== undefined) return problem.givenBase;
+  if (problem.targetMW > 200 && (problem.targetMW % 10 !== 0)) {
+    return problem.validSolutions && problem.validSolutions[0] ? problem.validSolutions[0].base : null;
+  }
+  return null;
+}
+
