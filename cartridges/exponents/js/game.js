@@ -41,7 +41,7 @@ class ExponentReactorGame {
 
     // Run / Station Timer
     this.shiftStartTime = Date.now();
-    this.waveTimeRemaining = 22;
+    this.waveTimeRemaining = 30;
     this.waveTimerInterval = null;
     this.isPaused = false;
     this.isGameOver = false;
@@ -491,6 +491,10 @@ class ExponentReactorGame {
   setBase(val) {
     this.base = val;
     this.baseNumberDisplay.textContent = val;
+    const depBase = this.deployedBase || document.getElementById('deployed-base');
+    if (depBase) depBase.textContent = val;
+    if (this.formulaBase) this.formulaBase.textContent = val;
+
     this.basePresetBtns.forEach(btn => {
       const bVal = parseInt(btn.dataset.val, 10);
       btn.className = bVal === val
@@ -504,6 +508,10 @@ class ExponentReactorGame {
   setExponent(val) {
     this.exponent = val;
     this.expNumberDisplay.textContent = val;
+    const depExp = this.deployedExp || document.getElementById('deployed-exp');
+    if (depExp) depExp.textContent = val;
+    if (this.formulaExp) this.formulaExp.textContent = val;
+
     this.expPresetBtns.forEach(btn => {
       const eVal = parseInt(btn.dataset.val, 10);
       btn.className = eVal === val
@@ -555,13 +563,13 @@ class ExponentReactorGame {
   }
 
   updateConsoleOutput() {
-    this.formulaBase.textContent = this.base;
-    this.formulaExp.textContent = this.exponent;
+    if (this.formulaBase) this.formulaBase.textContent = this.base;
+    if (this.formulaExp) this.formulaExp.textContent = this.exponent;
 
-    if (this.deployedBase) {
-      this.deployedBase.textContent = this.base;
-      this.deployedExp.textContent = this.exponent;
-    }
+    const depBase = this.deployedBase || document.getElementById('deployed-base');
+    const depExp = this.deployedExp || document.getElementById('deployed-exp');
+    if (depBase) depBase.textContent = this.base;
+    if (depExp) depExp.textContent = this.exponent;
 
     // While student is adjusting dials before discharge, reset reveal & comparison
     if (!this.isDischarging) {

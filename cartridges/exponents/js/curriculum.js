@@ -10,7 +10,7 @@ export const CURRICULUM_SECTORS = [
     tagline: 'Squares & Cubes',
     badge: 'CORE-I',
     description: 'Master powers of small integers. Learn that 2³ means 2 × 2 × 2 (8), not 2 × 3.',
-    waveTimeLimit: 22,
+    waveTimeLimit: 30,
     problems: [
       {
         id: 's1-1',
@@ -58,7 +58,7 @@ export const CURRICULUM_SECTORS = [
     tagline: 'Trap Evasion Protocol',
     badge: 'CORE-II',
     description: 'Reject multiplying base by exponent! Overcome 4 × 3 = 12 and calibrate 4³ = 64.',
-    waveTimeLimit: 20,
+    waveTimeLimit: 30,
     problems: [
       {
         id: 's2-1',
@@ -115,7 +115,7 @@ export const CURRICULUM_SECTORS = [
     tagline: 'Zero Trajectory',
     badge: 'CORE-III',
     description: '10ⁿ always has 1 followed by exactly n zeros. Match massive grid surges with precision.',
-    waveTimeLimit: 18,
+    waveTimeLimit: 30,
     problems: [
       {
         id: 's3-1',
@@ -160,7 +160,7 @@ export const CURRICULUM_SECTORS = [
     tagline: 'Quantum Identity',
     badge: 'CORE-IV',
     description: 'b⁰ = 1 for any non-zero base! And b¹ = b. Handle quantum identity fluctuations.',
-    waveTimeLimit: 18,
+    waveTimeLimit: 30,
     problems: [
       {
         id: 's4-1',
@@ -230,7 +230,7 @@ export const CURRICULUM_SECTORS = [
     tagline: 'Higher-Order Equivalence',
     badge: 'BOSS-CORE',
     description: 'BOSS PHASE: High-voltage dilemmas with multiple equivalent exponential pathways!',
-    waveTimeLimit: 16,
+    waveTimeLimit: 30,
     isBossSector: true,
     problems: [
       {

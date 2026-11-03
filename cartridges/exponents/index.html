@@ -103,7 +103,7 @@
       <div class="flex items-center space-x-2 bg-gray-900/90 border border-gray-800 px-3 py-1 rounded-xl">
         <span class="text-xs">⏱️</span>
         <span class="text-[10px] uppercase font-extrabold text-gray-400 tracking-wider">Surge In:</span>
-        <span id="timer-display" class="text-sm font-mono-math font-black text-amber-300">22s</span>
+        <span id="timer-display" class="text-sm font-mono-math font-black text-amber-300">30s</span>
         <div class="w-16 h-2 bg-gray-800 rounded-full overflow-hidden p-0.5">
           <div id="timer-bar" class="h-full bg-amber-400 rounded-full transition-all duration-300" style="width: 100%;"></div>
         </div>
@@ -548,7 +548,7 @@
     </div>
   </div>
 
-  <!-- SCRIPT BOOTSTRAP -->
-  <script type="module" src="js/game.js"></script>
+  <!-- SCRIPT BOOTSTRAP (Cache-busted for student Chromebooks) -->
+  <script type="module" src="js/game.js?v=2.2"></script>
 </body>
 </html>
