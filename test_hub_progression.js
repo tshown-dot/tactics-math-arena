@@ -123,6 +123,21 @@ assert(caseTeacherRes.success === true, 'Accepts case-insensitive MATH6');
 const seedStudentRes = await authPlayer.loadPlayer('1042', 'star6');
 assert(seedStudentRes.success === true, 'Accepts star6 for PIN 1042');
 
+console.log('\n--- TEST 8: Full Access Column Verification ---');
+const fullAccessPlayer = new PlayerState();
+fullAccessPlayer.isFullAccess = true;
+assert(fullAccessPlayer.isNodeUnlocked('node_3_1') === true, 'Node 3-1 unlocked with full access');
+assert(fullAccessPlayer.isNodeUnlocked('node_3_2') === true, 'Node 3-2 unlocked with full access');
+assert(fullAccessPlayer.isNodeUnlocked('node_3_3') === true, 'Node 3-3 unlocked with full access');
+assert(fullAccessPlayer.isNodeUnlocked('node_3_4') === true, 'Node 3-4 unlocked with full access');
+assert(fullAccessPlayer.isNodeUnlocked('node_3_7') === true, 'Node 3-7 unlocked with full access');
+assert(fullAccessPlayer.isNodeUnlocked('node_apex') === true, 'Node Apex Boss unlocked with full access');
+
+const normalPlayer = new PlayerState();
+normalPlayer.isFullAccess = false;
+normalPlayer.unlockedNodes = ['node_3_1'];
+assert(normalPlayer.isNodeUnlocked('node_3_4') === false, 'Node 3-4 remains locked without full access');
+
 console.log(`\n================================`);
 console.log(`TEST SUMMARY: ${passed} Passed, ${failed} Failed`);
 console.log(`================================`);

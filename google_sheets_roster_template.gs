@@ -11,7 +11,8 @@
  *    - Tab 1 named: "Roster"
  *    - Tab 2 named: "SessionLogs"
  * 3. In the "Roster" tab, set Row 1 headers:
- *    [A1: Name] | [B1: Period] | [C1: 4-Digit PIN] | [D1: Passcode] | [E1: Notes]
+ *    [A1: Name] | [B1: Period] | [C1: 4-Digit PIN] | [D1: Passcode] | [E1: Full Access] | [F1: Notes]
+ *    (If "Full Access" is set to "Yes", all town buildings unlock immediately for that student!)
  * 4. In the "SessionLogs" tab, set Row 1 headers:
  *    [A1: Timestamp] | [B1: PIN] | [C1: Student Name] | [D1: Lesson] | [E1: Score] | [F1: Total] | [G1: Accuracy %] | [H1: Boss Defeated] | [I1: XP]
  * 5. In Google Sheets menu, click: Extensions ➔ Apps Script.
@@ -25,6 +26,68 @@
  * 9. Paste this URL into `js/db.js` as `GAS_ENDPOINT_URL`.
  * ==============================================================================
  */
+
+function doGet(e) {
+  try {
+    const pin = e && e.parameter ? String(e.parameter.pin || '').trim() : '';
+    if (!pin) {
+      return ContentService.createTextOutput(JSON.stringify({
+        status: 'ok',
+        message: 'Numeria Gradebook Webhook is active'
+      })).setMimeType(ContentService.MimeType.JSON);
+    }
+
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const rosterSheet = ss.getSheetByName('Roster');
+    if (!rosterSheet) {
+      return ContentService.createTextOutput(JSON.stringify({
+        found: false,
+        error: 'Roster sheet not found'
+      })).setMimeType(ContentService.MimeType.JSON);
+    }
+
+    const data = rosterSheet.getDataRange().getValues();
+    if (data.length <= 1) {
+      return ContentService.createTextOutput(JSON.stringify({ found: false }))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+
+    // Inspect header names dynamically
+    const headers = data[0].map(h => String(h || '').trim().toLowerCase());
+    const pinCol = headers.findIndex(h => h.includes('pin'));
+    const passCol = headers.findIndex(h => h.includes('pass'));
+    const fullAccessCol = headers.findIndex(h => (h.includes('full') && h.includes('access')) || h.includes('unlock') || h === 'all');
+
+    for (let i = 1; i < data.length; i++) {
+      const rowPin = String(data[i][pinCol >= 0 ? pinCol : 2] || '').trim();
+      if (rowPin === pin) {
+        let isFullAccess = false;
+        if (fullAccessCol >= 0) {
+          const val = String(data[i][fullAccessCol] || '').trim().toLowerCase();
+          isFullAccess = val === 'yes' || val === 'true' || val === 'y' || val === '1';
+        }
+
+        const passcode = passCol >= 0 ? String(data[i][passCol] || '').trim() : '';
+        return ContentService.createTextOutput(JSON.stringify({
+          found: true,
+          pin: pin,
+          passcode: passcode,
+          full_access: isFullAccess ? 'yes' : 'no',
+          fullAccess: isFullAccess
+        })).setMimeType(ContentService.MimeType.JSON);
+      }
+    }
+
+    return ContentService.createTextOutput(JSON.stringify({ found: false }))
+      .setMimeType(ContentService.MimeType.JSON);
+
+  } catch (err) {
+    return ContentService.createTextOutput(JSON.stringify({
+      status: 'error',
+      error: err.toString()
+    })).setMimeType(ContentService.MimeType.JSON);
+  }
+}
 
 function doPost(e) {
   try {

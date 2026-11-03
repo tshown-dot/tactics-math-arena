@@ -38,6 +38,9 @@ export function getSupabase() {
  * Fetch student profile by PIN.
  */
 export async function fetchStudentProfile(pin) {
+  let profile = null;
+
+  // 1. Try Supabase
   const client = getSupabase();
   if (client) {
     try {
@@ -48,25 +51,54 @@ export async function fetchStudentProfile(pin) {
         .single();
 
       if (!error && data) {
-        return data;
+        profile = data;
       }
     } catch (e) {
-      console.warn('[db.js] Remote profile fetch failed, using local fallback:', e);
+      console.warn('[db.js] Remote Supabase profile fetch failed:', e);
     }
   }
 
-  // Local storage fallback
-  const localKey = `numeria_student_${pin}`;
-  if (typeof localStorage !== 'undefined') {
-    const localData = localStorage.getItem(localKey);
-    if (localData) {
-      try {
-        return JSON.parse(localData);
-      } catch (e) {}
+  // 2. Try Google Sheets Webhook Roster (for real-time Full Access & Passcode sync)
+  if (GAS_ENDPOINT_URL && typeof fetch === 'function') {
+    try {
+      const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
+      const timeoutId = controller ? setTimeout(() => controller.abort(), 2000) : null;
+      const res = await fetch(`${GAS_ENDPOINT_URL}?action=lookup&pin=${encodeURIComponent(pin)}`, {
+        signal: controller ? controller.signal : undefined,
+      });
+      if (timeoutId) clearTimeout(timeoutId);
+
+      if (res.ok) {
+        const gasData = await res.json();
+        if (gasData && gasData.found) {
+          profile = {
+            ...(profile || {}),
+            pin: pin,
+            password: gasData.passcode || profile?.password,
+            full_access: gasData.full_access || (gasData.fullAccess ? 'yes' : 'no'),
+            fullAccess: gasData.fullAccess,
+          };
+        }
+      }
+    } catch (e) {
+      // Offline fallback
     }
   }
 
-  return null;
+  // 3. Local storage fallback if neither remote returned
+  if (!profile) {
+    const localKey = `numeria_student_${pin}`;
+    if (typeof localStorage !== 'undefined') {
+      const localData = localStorage.getItem(localKey);
+      if (localData) {
+        try {
+          profile = JSON.parse(localData);
+        } catch (e) {}
+      }
+    }
+  }
+
+  return profile;
 }
 
 /**
@@ -92,6 +124,7 @@ export async function saveStudentProfile(profile) {
         coins: profile.coins || 50,
         unlocked_lessons: profile.unlockedNodes || ['node_3_1'],
         badges: profile.badges || [],
+        full_access: profile.isFullAccess ? 'yes' : (profile.full_access || 'no'),
         last_active: new Date().toISOString(),
       };
 

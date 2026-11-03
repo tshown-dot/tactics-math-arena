@@ -18,6 +18,7 @@ export class PlayerState {
     this.unlockedNodes = ['node_3_1'];
     this.nodeRecords = {}; // { [nodeId]: { stars: 3, bestScore: 10, total: 10, cleared: true } }
     this.isTeacherOverride = false;
+    this.isFullAccess = false;
   }
 
   getXpForNextLevel() {
@@ -63,9 +64,30 @@ export class PlayerState {
         ? saved.unlocked_lessons
         : ['node_3_1'];
       this.nodeRecords = saved.nodeRecords || {};
+
+      // Check Full Access flag (from Google Sheets Roster, Supabase, or localStorage)
+      const rawFullAccess = saved.full_access 
+        ?? saved.fullAccess 
+        ?? saved['Full Access'] 
+        ?? saved['full access']
+        ?? saved.is_full_access;
+
+      const isFull = rawFullAccess === true 
+        || String(rawFullAccess || '').trim().toLowerCase() === 'yes'
+        || String(rawFullAccess || '').trim().toLowerCase() === 'true'
+        || String(rawFullAccess || '').trim().toLowerCase() === 'y'
+        || String(rawFullAccess || '').trim().toLowerCase() === '1';
+
+      if (isFull) {
+        this.isFullAccess = true;
+        this.unlockedNodes = REALM_NODES.map(n => n.id);
+      } else {
+        this.isFullAccess = false;
+      }
     } else {
       // New adventurer profile registered with entered passcode
       this.passcode = cleanPass;
+      this.isFullAccess = false;
       this.level = 1;
       this.xp = 0;
       this.coins = 50;
@@ -86,11 +108,13 @@ export class PlayerState {
       coins: this.coins,
       unlockedNodes: this.unlockedNodes,
       nodeRecords: this.nodeRecords,
+      full_access: this.isFullAccess ? 'yes' : 'no',
+      isFullAccess: this.isFullAccess,
     });
   }
 
   isNodeUnlocked(nodeId) {
-    if (this.isTeacherOverride) return true;
+    if (this.isTeacherOverride || this.isFullAccess) return true;
     const node = REALM_NODES.find(n => n.id === nodeId);
     if (!node || !node.requiredNodeId) return true;
 
