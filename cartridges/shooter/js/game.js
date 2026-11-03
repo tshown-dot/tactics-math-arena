@@ -350,7 +350,9 @@ export class TermPopperGame {
     // Mission Briefing / Start Overlay
     this.startOverlay = document.getElementById('startOverlay');
     this.startBtn = document.getElementById('startBtn');
+    this.btnBriefing = document.getElementById('btnBriefing');
     this.hasStarted = false;
+    this.isBriefingOpen = false;
 
     // Boss Terminal Elements
     this.bossTerminalOverlay = document.getElementById('bossTerminalOverlay');
@@ -470,7 +472,17 @@ export class TermPopperGame {
     if (this.startBtn) {
       this.startBtn.addEventListener('click', (e) => {
         e.preventDefault();
-        this.startGame();
+        if (!this.hasStarted) {
+          this.startGame();
+        } else {
+          this.closeBriefing();
+        }
+      });
+    }
+
+    if (this.btnBriefing) {
+      this.btnBriefing.addEventListener('click', () => {
+        this.openBriefing();
       });
     }
 
@@ -532,15 +544,43 @@ export class TermPopperGame {
     }
   }
 
+  openBriefing() {
+    this.isBriefingOpen = true;
+    if (this.startBtn) {
+      this.startBtn.innerHTML = '<span>🚀</span><span>RESUME MISSION</span>';
+    }
+    if (this.startOverlay) {
+      this.startOverlay.classList.remove('hidden');
+      requestAnimationFrame(() => {
+        if (this.startOverlay) {
+          this.startOverlay.classList.remove('opacity-0', 'pointer-events-none');
+        }
+      });
+    }
+  }
+
+  closeBriefing() {
+    this.isBriefingOpen = false;
+    if (this.startOverlay) {
+      this.startOverlay.classList.add('opacity-0', 'pointer-events-none');
+      setTimeout(() => {
+        if (this.startOverlay && !this.isBriefingOpen) {
+          this.startOverlay.classList.add('hidden');
+        }
+      }, 300);
+    }
+  }
+
   startGame() {
     if (this.hasStarted) return;
     this.hasStarted = true;
+    this.isBriefingOpen = false;
     this.sfx.init();
 
     if (this.startOverlay) {
       this.startOverlay.classList.add('opacity-0', 'pointer-events-none');
       setTimeout(() => {
-        if (this.startOverlay) this.startOverlay.classList.add('hidden');
+        if (this.startOverlay && !this.isBriefingOpen) this.startOverlay.classList.add('hidden');
       }, 300);
     }
 
@@ -1275,7 +1315,7 @@ export class TermPopperGame {
   }
 
   update(dt = 0.016) {
-    if (this.isDefeated || this.isCompleted || this.isBossPhase || !this.hasStarted) return;
+    if (this.isDefeated || this.isCompleted || this.isBossPhase || !this.hasStarted || this.isBriefingOpen) return;
 
     // Camera trauma decay
     if (this.trauma > 0) {

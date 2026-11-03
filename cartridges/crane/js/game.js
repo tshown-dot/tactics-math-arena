@@ -17,6 +17,7 @@ import {
   getLegalNextMove,
   tokensToText,
   findOperandsForOperator,
+  formatMathHtml,
 } from './expressionParser.js';
 import { soundEngine } from './audio.js';
 import { getBossChallengeForZone } from './boss.js';
@@ -454,7 +455,7 @@ class DemolitionCraneGame {
               <span>📐 Crust (Initial Model)</span>
             </div>
             <div class="font-mono-math font-bold text-xs md:text-sm text-sky-100 break-all select-all">
-              ${expr}
+              ${formatMathHtml(expr)}
             </div>
           </div>
         `;
@@ -466,7 +467,7 @@ class DemolitionCraneGame {
               <span>⚡ Core Solution Tip</span>
             </div>
             <div class="font-mono-math font-black text-xl md:text-2xl text-emerald-300">
-              ${expr}
+              ${formatMathHtml(expr)}
             </div>
           </div>
           <button
@@ -483,7 +484,7 @@ class DemolitionCraneGame {
               Step ${idx}
             </div>
             <div class="font-mono-math font-semibold text-xs text-sky-200 break-all">
-              ${expr}
+              ${formatMathHtml(expr)}
             </div>
           </div>
         `;
@@ -904,7 +905,7 @@ class DemolitionCraneGame {
       btn.innerHTML = `
         <div>
           <div class="font-mono-math font-bold text-sm text-slate-100 group-hover:text-amber-300">
-            ${opt.expression}
+            ${formatMathHtml(opt.expression)}
           </div>
           <div class="text-[10px] text-slate-400 font-sans mt-0.5">
             Output: <strong class="text-sky-300 font-mono">${opt.value}</strong>
@@ -1104,7 +1105,7 @@ class DemolitionCraneGame {
     this.dom.victoryResult.textContent = finalValue;
     this.dom.victoryLog.innerHTML = `
       <div class="text-[10px] font-mono uppercase tracking-wider text-slate-400 font-semibold mb-1">
-        Demolition Log (${this.initialExpression}):
+        Demolition Log (${formatMathHtml(this.initialExpression)}):
       </div>
       <div class="space-y-1.5">
         ${this.stepsHistory
@@ -1116,7 +1117,7 @@ class DemolitionCraneGame {
             </span>
             <div class="flex-1">
               <div class="flex items-center justify-between text-slate-200">
-                <span class="text-amber-400 font-bold">${s.subExpression}</span>
+                <span class="text-amber-400 font-bold">${formatMathHtml(s.subExpression)}</span>
                 <span>➔</span>
                 <span class="text-emerald-400 font-bold text-xs">${s.result}</span>
               </div>

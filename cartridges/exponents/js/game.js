@@ -30,6 +30,8 @@ class ExponentReactorGame {
 
     // High Stakes & Health Metrics
     this.coreHealth = 100; // 0..100%
+    this.maxLives = 3;     // 3 Emergency Backup Cores (Sector Retries)
+    this.lives = 3;
     this.score = 0;
     this.totalWattsMitigated = 0;
     this.combo = 1;        // Scaling combo: 1, 2, 4, 8, 16
@@ -73,6 +75,7 @@ class ExponentReactorGame {
     this.timerBar = document.getElementById('timer-bar');
     this.healthBar = document.getElementById('health-bar');
     this.healthText = document.getElementById('health-text');
+    this.livesContainer = document.getElementById('lives-container');
     this.comboMultiplierDisplay = document.getElementById('combo-multiplier-display');
     this.scoreDisplay = document.getElementById('score-display');
     this.audioToggleBtn = document.getElementById('audio-toggle-btn');
@@ -87,6 +90,15 @@ class ExponentReactorGame {
     this.hintText = document.getElementById('hint-text');
     this.coreStatusText = document.getElementById('core-status-text');
     this.corePowerCurveText = document.getElementById('core-power-curve-text');
+
+    // Equation Card Elements (Target Demand = a^b)
+    this.equationDisplayCard = document.getElementById('equation-display-card');
+    this.equationOperator = document.getElementById('equation-operator');
+    this.deployedBase = document.getElementById('deployed-base');
+    this.deployedExp = document.getElementById('deployed-exp');
+    this.dischargeResultContainer = document.getElementById('discharge-result-container');
+    this.dischargeEvaluatedMW = document.getElementById('discharge-evaluated-mw');
+    this.dischargeVerdictBadge = document.getElementById('discharge-verdict-badge');
 
     // Ribbon
     this.ribbonSummary = document.getElementById('ribbon-summary');
@@ -123,6 +135,7 @@ class ExponentReactorGame {
     this.debriefWatts = document.getElementById('debrief-watts');
     this.debriefCombo = document.getElementById('debrief-combo');
     this.debriefEvasion = document.getElementById('debrief-evasion');
+    this.debriefCores = document.getElementById('debrief-cores');
     this.debriefRestartBtn = document.getElementById('debrief-restart-btn');
 
     this.modalFieldGuide = document.getElementById('modal-field-guide');
@@ -130,8 +143,27 @@ class ExponentReactorGame {
 
     this.modalBriefing = document.getElementById('modal-briefing');
     this.briefingStartBtn = document.getElementById('briefing-start-btn');
+    this.briefingBtn = document.getElementById('briefing-btn');
+    this.isBriefingOpen = true;
 
     this.updateAudioIcon();
+    this.updateLivesDisplay();
+  }
+
+  updateLivesDisplay() {
+    if (!this.livesContainer) return;
+    this.livesContainer.innerHTML = '';
+    for (let i = 0; i < this.maxLives; i++) {
+      const span = document.createElement('span');
+      span.className = 'core-life-icon transition-all duration-300';
+      if (i < this.lives) {
+        span.textContent = '🔋';
+      } else {
+        span.textContent = '🪫';
+        span.classList.add('opacity-40');
+      }
+      this.livesContainer.appendChild(span);
+    }
   }
 
   initCanvas() {
@@ -199,6 +231,10 @@ class ExponentReactorGame {
       this.briefingStartBtn.addEventListener('click', () => this.startGameFromBriefing());
     }
 
+    if (this.briefingBtn) {
+      this.briefingBtn.addEventListener('click', () => this.openBriefing());
+    }
+
     // Fire / Discharge Button
     this.dischargeBtn.addEventListener('click', () => this.handleDischarge());
 
@@ -257,15 +293,38 @@ class ExponentReactorGame {
   // BRIEFING & INITIAL SETUP
   // ==========================================
   startGameFromBriefing() {
-    if (this.hasStarted) return;
-    this.hasStarted = true;
+    if (!this.hasStarted) {
+      this.hasStarted = true;
+      this.isBriefingOpen = false;
+      soundManager.playClick();
+      soundManager.playSuccessChord();
+      if (this.modalBriefing) {
+        this.modalBriefing.classList.add('hidden');
+      }
+      this.shiftStartTime = Date.now();
+      this.startWave();
+    } else {
+      this.closeBriefing();
+    }
+  }
+
+  openBriefing() {
+    this.isBriefingOpen = true;
     soundManager.playClick();
-    soundManager.playSuccessChord();
+    if (this.briefingStartBtn) {
+      this.briefingStartBtn.textContent = 'RESUME MISSION ➔';
+    }
+    if (this.modalBriefing) {
+      this.modalBriefing.classList.remove('hidden');
+    }
+  }
+
+  closeBriefing() {
+    this.isBriefingOpen = false;
+    soundManager.playClick();
     if (this.modalBriefing) {
       this.modalBriefing.classList.add('hidden');
     }
-    this.shiftStartTime = Date.now();
-    this.startWave();
   }
 
   setupInitialDisplay() {
@@ -304,6 +363,19 @@ class ExponentReactorGame {
     this.hintText.textContent = problem.hint;
     this.hintStrip.classList.add('hidden');
 
+    // Reset Equation Card Display
+    if (this.dischargeResultContainer) {
+      this.dischargeResultContainer.classList.add('hidden');
+      this.dischargeResultContainer.classList.remove('flex');
+    }
+    if (this.equationOperator) {
+      this.equationOperator.textContent = '=';
+      this.equationOperator.className = 'text-3xl font-black text-gray-400';
+    }
+    if (this.equationDisplayCard) {
+      this.equationDisplayCard.className = 'z-10 bg-gray-950/90 border-2 border-cyan-500/60 px-6 py-2.5 rounded-2xl shadow-2xl backdrop-blur flex flex-col items-center justify-center transition-all duration-300 mb-1.5 glow-cyan';
+    }
+
     if (sector.isBossSector) {
       this.threatBadge.className = 'text-[9px] font-black uppercase px-2 py-0.5 rounded-full bg-rose-950 border border-rose-600 text-rose-300 animate-pulse';
       this.threatBadge.textContent = 'SINGULARITY BOSS CORE';
@@ -322,7 +394,7 @@ class ExponentReactorGame {
     this.updateTimerDisplay();
 
     this.waveTimerInterval = setInterval(() => {
-      if (this.isPaused || this.isGameOver || this.isDischarging) return;
+      if (this.isPaused || this.isGameOver || this.isDischarging || this.isBriefingOpen) return;
 
       this.waveTimeRemaining--;
       this.updateTimerDisplay();
@@ -333,6 +405,7 @@ class ExponentReactorGame {
       }
 
       if (this.waveTimeRemaining <= 0) {
+        clearInterval(this.waveTimerInterval);
         this.handleSurgeTimeout();
       }
     }, 1000);
@@ -358,13 +431,58 @@ class ExponentReactorGame {
   }
 
   handleSurgeTimeout() {
-    // Surge breached firewall!
+    clearInterval(this.waveTimerInterval);
     soundManager.playStallBuzzer(false);
-    this.triggerCircuitBreach(
-      'SURGE BREACH! TIME EXPIRED',
-      'The incoming energy surge breached core shielding before power was matched.',
-      'Calibrate Base and Exponent faster before the surge timer elapses!'
+
+    // Screen shake
+    document.body.classList.add('shake-active');
+    setTimeout(() => document.body.classList.remove('shake-active'), 450);
+
+    // Reset combo to x1
+    this.combo = 1;
+    this.comboMultiplierDisplay.textContent = 'x1';
+    this.comboMultiplierDisplay.parentElement.className = 'flex items-center space-x-1.5 bg-indigo-950/70 border border-indigo-700/60 px-2.5 py-1 rounded-xl';
+
+    if (this.lives > 0) {
+      // Consume 1 backup core / life on timer expiration!
+      this.lives--;
+      this.updateLivesDisplay();
+
+      // Flash amber
+      document.body.classList.add('glow-amber');
+      setTimeout(() => document.body.classList.remove('glow-amber'), 600);
+
+      const coresLeftStr = this.lives === 1 ? '1 backup core remaining' : `${this.lives} backup cores remaining`;
+      this.showInlineDiagnostic(
+        false,
+        'SURGE BREACH! BACKUP CORE CONSUMED',
+        `Timer expired! Emergency core engaged to restore power and reset the wave timer.`,
+        `Timer Reset & Health 100% (${coresLeftStr})`
+      );
+
+      // Restore health to 100% and restart the wave with full timer
+      setTimeout(() => {
+        this.coreHealth = 100;
+        this.updateHealthBar();
+        this.isDischarging = false;
+        this.dischargeBtn.disabled = false;
+        this.dischargeBtn.classList.remove('opacity-50');
+        this.startWave(); // restarts wave timer and keeps player on current wave/sector!
+      }, 1500);
+      return;
+    }
+
+    // OUT OF LIVES: Total meltdown
+    this.coreHealth = 0;
+    this.updateHealthBar();
+    soundManager.playMeltdown();
+    this.showInlineDiagnostic(
+      false,
+      'SURGE BREACH! ZERO BACKUP CORES',
+      'The incoming energy surge breached core shielding and all backup cores are exhausted.',
+      'Core Meltdown Initiated'
     );
+    setTimeout(() => this.endGame(false), 900);
   }
 
   // ==========================================
@@ -439,6 +557,26 @@ class ExponentReactorGame {
   updateConsoleOutput() {
     this.formulaBase.textContent = this.base;
     this.formulaExp.textContent = this.exponent;
+
+    if (this.deployedBase) {
+      this.deployedBase.textContent = this.base;
+      this.deployedExp.textContent = this.exponent;
+    }
+
+    // While student is adjusting dials before discharge, reset reveal & comparison
+    if (!this.isDischarging) {
+      if (this.dischargeResultContainer) {
+        this.dischargeResultContainer.classList.add('hidden');
+        this.dischargeResultContainer.classList.remove('flex');
+      }
+      if (this.equationOperator) {
+        this.equationOperator.textContent = '=';
+        this.equationOperator.className = 'text-3xl font-black text-gray-400';
+      }
+      if (this.equationDisplayCard) {
+        this.equationDisplayCard.className = 'z-10 bg-gray-950/90 border-2 border-cyan-500/60 px-6 py-2.5 rounded-2xl shadow-2xl backdrop-blur flex flex-col items-center justify-center transition-all duration-300 mb-1.5 glow-cyan';
+      }
+    }
   }
 
   // ==========================================
@@ -469,6 +607,40 @@ class ExponentReactorGame {
       await new Promise(r => setTimeout(r, 90));
       if (node) {
         node.classList.remove('scale-105');
+      }
+    }
+
+    const evaluatedPower = calculatePower(this.base, this.exponent);
+
+    // REVEAL DISCHARGED POWER VALUE & EQUALITY COMPARISON
+    if (this.dischargeResultContainer && this.dischargeEvaluatedMW && this.equationOperator) {
+      this.dischargeResultContainer.classList.remove('hidden');
+      this.dischargeResultContainer.classList.add('flex');
+      this.dischargeEvaluatedMW.textContent = evaluatedPower.toLocaleString();
+
+      if (evaluatedPower === problem.targetMW) {
+        // MATCH: Target = a^b = Evaluated MW
+        this.equationOperator.textContent = '=';
+        this.equationOperator.className = 'text-3xl font-black text-emerald-400';
+        if (this.dischargeVerdictBadge) {
+          this.dischargeVerdictBadge.textContent = 'MATCH';
+          this.dischargeVerdictBadge.className = 'ml-1 text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-emerald-950 border border-emerald-500 text-emerald-300';
+        }
+        if (this.equationDisplayCard) {
+          this.equationDisplayCard.className = 'z-10 bg-gray-950/95 border-2 border-emerald-500 px-6 py-2.5 rounded-2xl shadow-2xl backdrop-blur flex flex-col items-center justify-center transition-all duration-300 mb-1.5 glow-emerald';
+        }
+      } else {
+        // MISMATCH: Target ≠ a^b = Evaluated MW
+        this.equationOperator.textContent = '≠';
+        this.equationOperator.className = 'text-3xl font-black text-rose-400';
+        const isOverload = evaluatedPower > problem.targetMW;
+        if (this.dischargeVerdictBadge) {
+          this.dischargeVerdictBadge.textContent = isOverload ? 'OVERLOAD' : 'UNDERPOWER';
+          this.dischargeVerdictBadge.className = 'ml-1 text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-rose-950 border border-rose-500 text-rose-300';
+        }
+        if (this.equationDisplayCard) {
+          this.equationDisplayCard.className = 'z-10 bg-gray-950/95 border-2 border-rose-500 px-6 py-2.5 rounded-2xl shadow-2xl backdrop-blur flex flex-col items-center justify-center transition-all duration-300 mb-1.5 glow-rose';
+        }
       }
     }
 
@@ -567,9 +739,41 @@ class ExponentReactorGame {
     // Show Rapid Inline Diagnostic HUD (No modal click required!)
     this.showInlineDiagnostic(false, title, explanation, formula);
 
-    // Check Meltdown Fail State
+    // Check Core Depletion / Meltdown State
     if (this.coreHealth <= 0) {
       clearInterval(this.waveTimerInterval);
+
+      if (this.lives > 0) {
+        // CONSUME 1 BACKUP CORE & REBOOT SECTOR!
+        this.lives--;
+        this.updateLivesDisplay();
+        soundManager.playStallBuzzer(true);
+
+        // Flash screen amber
+        document.body.classList.add('glow-amber');
+        setTimeout(() => document.body.classList.remove('glow-amber'), 600);
+
+        const coresLeftStr = this.lives === 1 ? '1 backup core remaining' : `${this.lives} backup cores remaining`;
+        this.showInlineDiagnostic(
+          false,
+          'EMERGENCY REBOOT ENGAGED!',
+          `Backup core consumed! Restoring 100% health for Sector ${this.sectorIndex + 1}.`,
+          `Rebooting sector at Wave 1 (${coresLeftStr})`
+        );
+
+        setTimeout(() => {
+          this.coreHealth = 100;
+          this.updateHealthBar();
+          this.waveIndex = 0; // restarts at Wave 1 of CURRENT sector
+          this.isDischarging = false;
+          this.dischargeBtn.disabled = false;
+          this.dischargeBtn.classList.remove('opacity-50');
+          this.startWave();
+        }, 1500);
+        return;
+      }
+
+      // OUT OF BACKUP CORES: TOTAL GRID MELTDOWN
       soundManager.playMeltdown();
       setTimeout(() => this.endGame(false), 900);
       return;
@@ -676,6 +880,9 @@ class ExponentReactorGame {
     this.debriefWatts.textContent = `${this.totalWattsMitigated.toLocaleString()} MW`;
     this.debriefCombo.textContent = `x${this.maxCombo} Combo`;
     this.debriefEvasion.textContent = `${evasionRate}%`;
+    if (this.debriefCores) {
+      this.debriefCores.textContent = `${this.lives} / ${this.maxLives}`;
+    }
 
     this.modalDebrief.classList.remove('hidden');
   }
@@ -684,6 +891,8 @@ class ExponentReactorGame {
     this.sectorIndex = 0;
     this.waveIndex = 0;
     this.coreHealth = 100;
+    this.lives = this.maxLives;
+    this.updateLivesDisplay();
     this.score = 0;
     this.totalWattsMitigated = 0;
     this.combo = 1;
@@ -716,9 +925,9 @@ class ExponentReactorGame {
 
     ctx.clearRect(0, 0, w, h);
 
-    // Background gradient glow
+    // Background gradient glow (orb centered at 38% height above the equation card)
     const cx = w * 0.5;
-    const cy = h * 0.5;
+    const cy = h * 0.38;
     const grad = ctx.createRadialGradient(cx, cy, 10, cx, cy, w * 0.5);
     grad.addColorStop(0, 'rgba(6, 182, 212, 0.12)');
     grad.addColorStop(0.5, 'rgba(6, 182, 212, 0.03)');

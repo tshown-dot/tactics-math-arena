@@ -10,7 +10,8 @@ import {
   validateMove,
   executeDemolitionStep,
   normalizeMathInput,
-  computeResult
+  computeResult,
+  formatMathHtml,
 } from './js/expressionParser.js';
 
 import { CURRICULUM_ZONES } from './js/curriculumLevels.js';
@@ -123,6 +124,41 @@ CURRICULUM_ZONES.forEach(zone => {
     );
   });
 });
+
+// 5. Blueprint Math Typography & Proper Superscript Formatting
+console.log('\n--- 5. Blueprint Math Typography & Superscript Formatting ---');
+assert(
+  formatMathHtml('3^2 + 4 × 5') === '3<sup class="math-sup">2</sup> + 4 × 5',
+  'formatMathHtml converts numerical power "3^2" to proper superscript HTML'
+);
+assert(
+  formatMathHtml('(15 - 9)^2 ÷ 4') === '(15 - 9)<sup class="math-sup">2</sup> ÷ 4',
+  'formatMathHtml converts parenthesized power "(15 - 9)^2" to proper superscript HTML'
+);
+assert(
+  formatMathHtml('2 × [18 - (4 + 2)^2 ÷ 6]') === '2 × [18 - (4 + 2)<sup class="math-sup">2</sup> ÷ 6]',
+  'formatMathHtml handles complex nested bracket powers'
+);
+assert(
+  formatMathHtml('5^2 - 4^2 + 2') === '5<sup class="math-sup">2</sup> - 4<sup class="math-sup">2</sup> + 2',
+  'formatMathHtml converts multiple powers in the same expression'
+);
+assert(
+  formatMathHtml('(3^2 + 7) / (5 - 1)') === '(3<sup class="math-sup">2</sup> + 7) / (5 - 1)',
+  'formatMathHtml converts fraction girder numerator power'
+);
+assert(
+  formatMathHtml('10^3') === '10<sup class="math-sup">3</sup>',
+  'formatMathHtml handles multi-digit and base-10 powers'
+);
+assert(
+  formatMathHtml('2 × 5^(2)') === '2 × 5<sup class="math-sup">2</sup>',
+  'formatMathHtml handles parenthesized exponent notation'
+);
+assert(
+  formatMathHtml('15 + 4 × 3') === '15 + 4 × 3',
+  'formatMathHtml leaves non-power expressions unchanged'
+);
 
 console.log('\n====================================================');
 console.log(`Test Results: ${passed}/${total} assertions passed.`);

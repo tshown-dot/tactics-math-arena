@@ -164,6 +164,16 @@ export function parseExpressionToTokens(rawInput) {
 }
 
 /**
+ * Formats a mathematical expression string for display in the holographic blueprint / DOM,
+ * converting caret notation (e.g., 3^2, (15 - 9)^2, [4 + 2]^2) into proper HTML superscripts.
+ */
+export function formatMathHtml(expr) {
+  if (!expr || typeof expr !== 'string') return expr || '';
+  // Convert ^(n) or ^n to <sup class="math-sup">n</sup>
+  return expr.replace(/\s*\^\s*\(?([0-9a-zA-Z]+)\)?/g, '<sup class="math-sup">$1</sup>');
+}
+
+/**
  * Returns string representation of token array for history logs.
  */
 export function tokensToText(tokens) {

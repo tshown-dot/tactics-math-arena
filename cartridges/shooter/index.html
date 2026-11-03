@@ -62,12 +62,17 @@
       </div>
     </div>
 
-    <!-- Right: Score Display -->
+    <!-- Right: Score Display & Briefing -->
     <div class="flex items-center space-x-3">
       <div class="bg-slate-800/90 border border-slate-700/70 rounded-lg px-3.5 py-1 text-center min-w-[75px] shadow-sm">
         <div class="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Score</div>
         <div id="hudScore" class="text-sm font-mono font-bold text-amber-400">0</div>
       </div>
+      <!-- Help / Briefing Button -->
+      <button id="btnBriefing" title="Operator Mission Briefing" class="px-2.5 py-1 text-xs font-semibold rounded-lg bg-indigo-500/20 hover:bg-indigo-500/30 text-indigo-300 border border-indigo-500/40 transition-all flex items-center gap-1 active:scale-95 cursor-pointer">
+        <span>📖</span>
+        <span class="hidden sm:inline">Briefing</span>
+      </button>
     </div>
   </header>
 
