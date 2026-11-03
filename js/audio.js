@@ -1,7 +1,7 @@
 /**
- * Realm of Numeria - Web Audio Synthesizer
+ * Expression Town - Retro 8-Bit SMB3 Web Audio Synthesizer
  * 
- * Lightweight, zero-asset Web Audio synthesizer for retro fantasy SFX.
+ * Lightweight, zero-asset Web Audio synthesizer for Super Mario Bros 3 style SFX.
  * Persists mute preference in localStorage.
  */
 
@@ -46,7 +46,7 @@ class HubAudioEngine {
     return this.isMuted;
   }
 
-  playTone(freq, type = 'sine', duration = 0.15, gainVal = 0.15, decay = 0.05) {
+  playTone(freq, type = 'square', duration = 0.12, gainVal = 0.1, decay = 0.04) {
     if (this.isMuted) return;
     this.unlockAudio();
     if (!this.ctx) return;
@@ -72,79 +72,83 @@ class HubAudioEngine {
     }
   }
 
+  // SMB3 Map tile movement blip
+  playStep() {
+    this.playTone(330, 'triangle', 0.05, 0.12);
+    setTimeout(() => {
+      this.playTone(440, 'triangle', 0.06, 0.1);
+    }, 35);
+  }
+
   playSelect() {
-    this.playTone(440, 'triangle', 0.08, 0.12);
+    this.playTone(587.33, 'square', 0.07, 0.08);
   }
 
   playNodeHover() {
-    this.playTone(523.25, 'sine', 0.06, 0.08); // C5
+    this.playTone(523.25, 'triangle', 0.05, 0.07);
   }
 
   playQuestOpen() {
     if (this.isMuted) return;
     this.unlockAudio();
-    if (!this.ctx) return;
-
-    // Arpeggiated parchment flourish: C4 -> E4 -> G4 -> C5
-    const notes = [261.63, 329.63, 392.00, 523.25];
+    const notes = [392.00, 523.25, 659.25];
     notes.forEach((freq, idx) => {
       setTimeout(() => {
-        this.playTone(freq, 'sine', 0.18, 0.1);
+        this.playTone(freq, 'square', 0.1, 0.08);
+      }, idx * 45);
+    });
+  }
+
+  // Classic Mario Stage Enter fanfare
+  playCartridgeLaunch() {
+    if (this.isMuted) return;
+    this.unlockAudio();
+    const chord = [523.25, 659.25, 783.99, 1046.50];
+    chord.forEach((freq, idx) => {
+      setTimeout(() => {
+        this.playTone(freq, 'square', 0.18, 0.1);
       }, idx * 60);
     });
   }
 
-  playCartridgeLaunch() {
-    if (this.isMuted) return;
-    this.unlockAudio();
-    if (!this.ctx) return;
-
-    // Heroic brass charge: D4 -> F#4 -> A4 -> D5
-    const chord = [293.66, 369.99, 440.00, 587.33];
-    chord.forEach((freq, idx) => {
-      setTimeout(() => {
-        this.playTone(freq, 'triangle', 0.3, 0.14);
-      }, idx * 75);
-    });
-  }
-
+  // Authentic Mario Coin (B5 -> E6)
   playCoinClink() {
     if (this.isMuted) return;
     this.unlockAudio();
-    // High double chime
-    this.playTone(987.77, 'sine', 0.08, 0.15); // B5
+    this.playTone(987.77, 'square', 0.08, 0.12); // B5
     setTimeout(() => {
-      this.playTone(1318.51, 'sine', 0.15, 0.18); // E6
-    }, 70);
+      this.playTone(1318.51, 'square', 0.25, 0.14); // E6
+    }, 75);
   }
 
+  // Classic 1-Up / Stage Clear Fanfare (E5 - G5 - E6 - C6 - D6 - G6)
   playLevelUp() {
     if (this.isMuted) return;
     this.unlockAudio();
-    // Regal fanfare
     const notes = [
-      { f: 392.0, d: 0.15 }, // G4
-      { f: 523.25, d: 0.15 }, // C5
-      { f: 659.25, d: 0.15 }, // E5
-      { f: 783.99, d: 0.4 },  // G5
+      { f: 659.25, d: 0.11 }, // E5
+      { f: 783.99, d: 0.11 }, // G5
+      { f: 1318.51, d: 0.11 }, // E6
+      { f: 1046.50, d: 0.11 }, // C6
+      { f: 1174.66, d: 0.11 }, // D6
+      { f: 1567.98, d: 0.30 }, // G6
     ];
     let time = 0;
     notes.forEach((note) => {
       setTimeout(() => {
-        this.playTone(note.f, 'triangle', note.d, 0.2);
+        this.playTone(note.f, 'square', note.d, 0.12);
       }, time);
-      time += note.d * 800;
+      time += 105;
     });
   }
 
   playLockRattle() {
     if (this.isMuted) return;
     this.unlockAudio();
-    // Low metallic thud
-    this.playTone(120, 'sawtooth', 0.12, 0.18);
+    this.playTone(130, 'sawtooth', 0.1, 0.15);
     setTimeout(() => {
-      this.playTone(90, 'sawtooth', 0.15, 0.2);
-    }, 90);
+      this.playTone(95, 'sawtooth', 0.14, 0.18);
+    }, 85);
   }
 }
 

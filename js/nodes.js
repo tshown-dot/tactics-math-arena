@@ -1,25 +1,60 @@
 /**
- * Realm of Numeria - Realm Nodes Registry
+ * Super Mario World Style Overworld - Town & Building Registry
  * 
- * Maps 6th Grade Topic 3 lessons (Numeric and Algebraic Expressions) to fantasy world regions.
- * Features linear progression gating with Lesson 3-6 reserved for Distributive Property.
+ * Maps 6th Grade Topic 3 lessons (Numeric and Algebraic Expressions) to buildings in "Expression Town".
+ * Designed with multi-town/chapter extensibility for future topics.
  */
+
+export const WORLD_CHAPTERS = [
+  {
+    id: 'topic_1',
+    worldLabel: 'WORLD 1',
+    title: 'Decimal Docks',
+    subtitle: 'Use Positive Rational Numbers',
+    isLockedChapter: true,
+  },
+  {
+    id: 'topic_2',
+    worldLabel: 'WORLD 2',
+    title: 'Integer Highlands',
+    subtitle: 'Integers and Rational Numbers',
+    isLockedChapter: true,
+  },
+  {
+    id: 'topic_3',
+    worldLabel: 'WORLD 3',
+    title: 'Expression Town',
+    subtitle: 'Numeric & Algebraic Expressions',
+    isLockedChapter: false,
+    isActive: true,
+  },
+  {
+    id: 'topic_4',
+    worldLabel: 'WORLD 4',
+    title: 'Equation Valley',
+    subtitle: 'Represent and Solve Equations & Inequalities',
+    isLockedChapter: true,
+  },
+];
 
 export const REALM_NODES = [
   {
     id: 'node_3_1',
     lessonId: 'G06_U03_L01',
     lessonCode: '3-1',
-    title: 'Spire of Powers',
-    regionName: 'The Celestial Peaks',
+    title: 'Power Plant',
+    buildingType: 'power_plant',
+    regionName: 'West Town Plaza',
     subtitle: 'Exponents & Repeated Multiplication',
-    description: 'Scale the high-voltage arcane spire. Channel surging lightning conduits by calculating exponential powers and avoiding circuit meltdowns.',
+    description: 'Step inside the Town Power Plant! Balance high-voltage surge waves by dialing bases and exponents before the generator overloads.',
     standard: 'enVision 2.0 Lesson 3-1: Understand and Apply Exponents',
     cartridgeUrl: './cartridges/exponents/index.html',
     icon: '⚡',
-    badgeName: 'Spire Spark',
-    mapCoords: { x: 120, y: 520 }, // Position on 1366x768 tactical map
-    requiredNodeId: null, // Always unlocked for new adventurers
+    roofColor: 'from-cyan-500 to-blue-700',
+    wallColor: 'bg-slate-800 border-cyan-400',
+    badgeName: 'Spark Badge',
+    mapCoords: { x: 145, y: 450 },
+    requiredNodeId: null, // Starting building - door is unlocked!
     xpReward: 150,
     coinsReward: 50,
     isWip: false,
@@ -29,15 +64,18 @@ export const REALM_NODES = [
     id: 'node_3_2',
     lessonId: 'G06_U03_L02',
     lessonCode: '3-2',
-    title: 'Vault of Divisors',
-    regionName: 'The Under-Keep',
+    title: 'Town Bank Vault',
+    buildingType: 'bank_vault',
+    regionName: 'Gold Street',
     subtitle: 'Greatest Common Factor (GCF)',
-    description: 'Infiltrate the dwarven bank vault. Turn the heavy tumblers and align factor pairs to breach ancient locking mechanisms before the alarm trips.',
+    description: 'Enter the Town Bank! Spin the heavy vault tumblers and pair up factors to crack the GCF security doors before the alarm sounds.',
     standard: 'enVision 2.0 Lesson 3-2: Find the Greatest Common Factor',
     cartridgeUrl: './cartridges/gcf/index.html',
-    icon: '🗝️',
-    badgeName: 'Master Locksmith',
-    mapCoords: { x: 330, y: 320 },
+    icon: '🏦',
+    roofColor: 'from-amber-400 to-yellow-600',
+    wallColor: 'bg-stone-800 border-amber-400',
+    badgeName: 'Vault Key',
+    mapCoords: { x: 335, y: 270 },
     requiredNodeId: 'node_3_1',
     xpReward: 200,
     coinsReward: 60,
@@ -48,15 +86,18 @@ export const REALM_NODES = [
     id: 'node_3_3',
     lessonId: 'G06_U03_L03',
     lessonCode: '3-3',
-    title: 'The Siege Works',
-    regionName: 'Ironhold Bastion',
-    subtitle: 'Order of Operations & Expressions',
-    description: 'Man the titan demolition crane. Calculate priority operations (Parentheses, Exponents, Multiplication/Division, Addition/Subtraction) to swing the wrecking ball and crack fortresses.',
+    title: 'Demolition Yard',
+    buildingType: 'crane_yard',
+    regionName: 'Ironworks Corner',
+    subtitle: 'Order of Operations (PEMDAS)',
+    description: 'Climb into the Demolition Crane cab! Swing the wrecking ball at mathematical operators in strict PEMDAS order to demolish girders.',
     standard: 'enVision 2.0 Lesson 3-3: Write and Evaluate Numerical Expressions',
     cartridgeUrl: './cartridges/crane/index.html',
     icon: '🏗️',
-    badgeName: 'Siege Engineer',
-    mapCoords: { x: 570, y: 490 },
+    roofColor: 'from-orange-500 to-amber-600',
+    wallColor: 'bg-zinc-800 border-orange-400',
+    badgeName: 'Hardhat Badge',
+    mapCoords: { x: 540, y: 460 },
     requiredNodeId: 'node_3_2',
     xpReward: 250,
     coinsReward: 75,
@@ -67,15 +108,18 @@ export const REALM_NODES = [
     id: 'node_3_4',
     lessonId: 'G06_U03_L04',
     lessonCode: '3-4',
-    title: 'Resonance Bastion',
-    regionName: 'The Arcane Dynamo',
+    title: 'Substation Grid',
+    buildingType: 'substation',
+    regionName: 'River Crossing',
     subtitle: 'Least Common Multiple (LCM)',
-    description: 'Restore harmonic equilibrium to the kingdom power grid. Synchronize overlapping power frequencies using least common multiples to prevent massive brownouts.',
+    description: 'Head into the Electric Substation! Align overlapping frequency cycles using Least Common Multiples to stop town blackouts.',
     standard: 'enVision 2.0 Lesson 3-4: Find the Least Common Multiple',
     cartridgeUrl: './cartridges/lcm/index.html',
-    icon: '🔮',
-    badgeName: 'Grid Harmonizer',
-    mapCoords: { x: 780, y: 280 },
+    icon: '🔋',
+    roofColor: 'from-emerald-500 to-teal-700',
+    wallColor: 'bg-slate-800 border-emerald-400',
+    badgeName: 'Grid Star',
+    mapCoords: { x: 745, y: 265 },
     requiredNodeId: 'node_3_3',
     xpReward: 250,
     coinsReward: 75,
@@ -86,35 +130,40 @@ export const REALM_NODES = [
     id: 'node_3_6',
     lessonId: 'G06_U03_L06',
     lessonCode: '3-6',
-    title: "The Alchemist's Forge",
-    regionName: 'The Grand Foundry',
+    title: 'The Town Forge',
+    buildingType: 'forge_wip',
+    regionName: 'Artisan Row',
     subtitle: 'The Distributive Property',
-    description: 'The Royal Alchemists are forging a new modular cartridge. Soon you will distribute terms across parenthesis barriers to brew ultimate tactical elixirs.',
+    description: 'UNDER CONSTRUCTION! The Town Carpenters are hammering together the Distributive Property workshop. You may walk right past to Building 3-7!',
     standard: 'enVision 2.0 Lesson 3-6: Generate Equivalent Expressions with the Distributive Property',
     cartridgeUrl: './cartridges/distributive/index.html',
-    icon: '⚒️',
-    badgeName: 'Alchemical Forgemaster',
-    mapCoords: { x: 970, y: 460 },
+    icon: '🚧',
+    roofColor: 'from-yellow-500 to-amber-700',
+    wallColor: 'bg-stone-800 border-yellow-500',
+    badgeName: 'Forge Hammer',
+    mapCoords: { x: 935, y: 465 },
     requiredNodeId: 'node_3_4',
     xpReward: 300,
     coinsReward: 85,
-    isWip: true, // Under construction! Will bridge 3-4 to 3-7 automatically
+    isWip: true, // Under construction! Bridges 3-4 -> 3-7
     bossName: 'Chimera of Distribution',
   },
   {
     id: 'node_3_7',
     lessonId: 'G06_U03_L07',
     lessonCode: '3-7',
-    title: 'Plains of Convergence',
-    regionName: 'The Shifting Dunes',
+    title: 'Target Arcade',
+    buildingType: 'arcade',
+    regionName: 'East Boardwalk',
     subtitle: 'Combining Like Terms',
-    description: 'Unleash tactical ballistics against rogue mathematical swarms. Target and combine like algebraic terms under pressure to clear the battlefield.',
+    description: 'Enter the Town Target Arcade! Aim your turret and pop matching algebraic terms to simplify expressions before the swarm reaches the door.',
     standard: 'enVision 2.0 Lesson 3-7: Simplify Algebraic Expressions by Combining Like Terms',
     cartridgeUrl: './cartridges/shooter/index.html',
     icon: '🎯',
-    badgeName: 'Marksman of Algebra',
-    mapCoords: { x: 1140, y: 310 },
-    // If 3-6 is WIP, requirement gracefully relaxes to 3-4 so game is unblocked!
+    roofColor: 'from-fuchsia-500 to-purple-700',
+    wallColor: 'bg-indigo-950 border-fuchsia-400',
+    badgeName: 'Sharpshooter Star',
+    mapCoords: { x: 1105, y: 270 },
     requiredNodeId: 'node_3_6',
     xpReward: 300,
     coinsReward: 90,
@@ -124,16 +173,19 @@ export const REALM_NODES = [
   {
     id: 'node_apex',
     lessonId: 'G06_U03_BOSS',
-    lessonCode: 'Apex Climax',
-    title: 'The Citadel of Expressions',
-    regionName: 'The Shadow Throne',
+    lessonCode: 'Bowser Keep',
+    title: 'Boss Castle',
+    buildingType: 'castle',
+    regionName: 'Citadel Peak',
     subtitle: 'Topic 3 Grand Master Climax',
-    description: 'The ultimate confrontation! Confront the Expression Colossus across a multi-phase tactical battle combining all unit principles: exponents, order of operations, factoring, and like terms.',
+    description: 'The final fortress of Expression Town! Enter the Boss Castle and prove your mastery over exponents, factors, PEMDAS, and algebraic terms!',
     standard: 'enVision 2.0 Topic 3 Climax: Numeric and Algebraic Expressions Mastery',
     cartridgeUrl: './cartridges/crane/index.html',
-    icon: '👑',
-    badgeName: 'Hero of Numeria',
-    mapCoords: { x: 1250, y: 530 },
+    icon: '🏰',
+    roofColor: 'from-rose-600 to-red-900',
+    wallColor: 'bg-stone-900 border-rose-500',
+    badgeName: 'Town Champion Crown',
+    mapCoords: { x: 1245, y: 465 },
     requiredNodeId: 'node_3_7',
     xpReward: 600,
     coinsReward: 250,
@@ -143,7 +195,7 @@ export const REALM_NODES = [
 ];
 
 /**
- * Returns effective prerequisite ID for a node, accounting for WIP nodes.
+ * Returns effective prerequisite ID for a node, accounting for WIP buildings.
  */
 export function getEffectivePrerequisite(nodeId) {
   const node = REALM_NODES.find(n => n.id === nodeId);
@@ -151,20 +203,19 @@ export function getEffectivePrerequisite(nodeId) {
 
   const prereq = REALM_NODES.find(n => n.id === node.requiredNodeId);
   if (prereq && prereq.isWip) {
-    // Skip the WIP node and check the WIP node's prerequisite
     return prereq.requiredNodeId;
   }
   return node.requiredNodeId;
 }
 
 /**
- * Checks if a node is unlocked based on unlocked node set or master override.
+ * Checks if a building door is unlocked based on unlocked node set or teacher override.
  */
 export function isNodeUnlocked(nodeId, unlockedNodeIds = [], isTeacherOverride = false) {
   if (isTeacherOverride) return true;
   const node = REALM_NODES.find(n => n.id === nodeId);
   if (!node) return false;
-  if (!node.requiredNodeId) return true; // Node 1 is always unlocked
+  if (!node.requiredNodeId) return true; // Building 3-1 is always open
 
   return unlockedNodeIds.includes(nodeId);
 }
