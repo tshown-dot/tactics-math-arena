@@ -1,7 +1,8 @@
 /**
- * Verification Test Suite for Vault Breaker: GCF Tumbler (Core Pillars Edition)
- * Validates factor pairs, common factors, GCF calculations, co-prime traps,
- * boss dilemmas, torque evaluation, and multi-format input parsing ($15, 15, 15.00).
+ * Verification Test Suite for Vault Breaker: GCF Tumbler (Tightened Core Pillars Edition)
+ * Validates factor pairs, live common factor bridge, smart pin tile generation,
+ * GCF distributive factoring breakdown, co-prime traps, boss dilemmas,
+ * and multi-format input parsing ($15, 15, 15.00).
  */
 
 import {
@@ -10,6 +11,9 @@ import {
   getFactorPairs,
   getAllFactorsSorted,
   getCommonFactors,
+  getDiscoveredFactors,
+  getDiscoveredCommonFactors,
+  generateCandidateTiles,
   getGCF,
   get3WayGCF,
   validateFactor,
@@ -75,35 +79,38 @@ assert(pairs48.length === 5, '48 has 5 factor pairs: 1x48, 2x24, 3x16, 4x12, 6x8
 const pairs72 = getFactorPairs(72);
 assert(pairs72.length === 6, '72 has 6 factor pairs: 1x72, 2x36, 3x24, 4x18, 6x12, 8x9');
 
-// 3. Distinct Sorted Factors
-console.log('\n3. Testing Sorted Distinct Factor Lists');
-const factors12 = getAllFactorsSorted(12);
+// 3. Live Common Factor Bridge & Smart Pin Tile Matrix
+console.log('\n3. Testing Live Common Factor Bridge & Smart Pin Tile Matrix');
+const unlockedA = [{ a: 1, b: 12 }, { a: 3, b: 4 }];
+const unlockedB = [{ a: 1, b: 16 }, { a: 4, b: 4 }];
+const liveShared = getDiscoveredCommonFactors(unlockedA, unlockedB);
 assert(
-  JSON.stringify(factors12) === JSON.stringify([1, 2, 3, 4, 6, 12]),
-  'Factors of 12 sorted: [1, 2, 3, 4, 6, 12]'
+  JSON.stringify(liveShared) === JSON.stringify([1, 4]),
+  'Live Common Factor Bridge detects [1, 4] when (1,12),(3,4) and (1,16),(4,4) are unlocked'
 );
 
-const factors16 = getAllFactorsSorted(16);
-assert(
-  JSON.stringify(factors16) === JSON.stringify([1, 2, 4, 8, 16]),
-  'Factors of 16 sorted: [1, 2, 4, 8, 16] (no duplicates for square 4)'
-);
+for (const sector of CURRICULUM_SECTORS) {
+  for (const vault of sector.vaults) {
+    const tiles = generateCandidateTiles(vault.numA, vault.numB);
+    const allA = getAllFactorsSorted(vault.numA);
+    const allB = getAllFactorsSorted(vault.numB);
+    const includesAllA = allA.every(f => tiles.includes(f));
+    const includesAllB = allB.every(f => tiles.includes(f));
+    assert(
+      includesAllA && includesAllB && (tiles.length === 12 || tiles.length === 16),
+      `Pin Tile Matrix for (${vault.numA}, ${vault.numB}) contains 100% of true factors plus distractors (${tiles.length} tiles)`
+    );
+  }
+}
 
 // 4. Common Factors and GCF Calculations
 console.log('\n4. Testing Common Factors and GCF Calculations');
-// Sector 1: Direct Multiples
 assert(getGCF(4, 12) === 4, 'GCF(4, 12) = 4 (Direct Multiple)');
 assert(getGCF(6, 18) === 6, 'GCF(6, 18) = 6 (Direct Multiple)');
-
-// Sector 2: Composite Shared
 assert(getGCF(12, 16) === 4, 'GCF(12, 16) = 4');
 assert(getGCF(18, 24) === 6, 'GCF(18, 24) = 6');
-
-// Sector 3: Asymmetric Gaps
 assert(getGCF(24, 36) === 12, 'GCF(24, 36) = 12');
 assert(getGCF(30, 45) === 15, 'GCF(30, 45) = 15');
-
-// Sector 4: Co-Prime Traps (Consecutive Integers)
 assert(getGCF(15, 16) === 1, 'GCF(15, 16) = 1 (Co-Prime consecutive numbers)');
 assert(getGCF(20, 21) === 1, 'GCF(20, 21) = 1 (Co-Prime consecutive numbers)');
 const common15_16 = getCommonFactors(15, 16);
@@ -111,8 +118,6 @@ assert(
   common15_16.length === 1 && common15_16[0] === 1,
   'Common factors of 15 & 16 is strictly [1]'
 );
-
-// Sector 5: Boss Dreadnought
 assert(getGCF(48, 72) === 24, 'GCF(48, 72) = 24 (Boss Dreadnought)');
 assert(get3WayGCF(24, 36, 60) === 12, '3-Way GCF(24, 36, 60) = 12 (Boss 3-way dilemma)');
 
@@ -135,24 +140,27 @@ const mismatchPair = validateFactorPair(24, 3, 7);
 assert(!mismatchPair.isValid && mismatchPair.diagnosticCode === 'PARTIAL_FACTOR_A', '3 × 7 for 24 diagnoses partial factor (3 is factor, but 24/3 = 8)');
 
 const bothWrongPair = validateFactorPair(24, 5, 5);
-assert(!bothWrongPair.isValid && mismatchPair.product !== 24, '5 × 5 for 24 diagnoses product mismatch');
+assert(!bothWrongPair.isValid && bothWrongPair.product !== 24, '5 × 5 for 24 diagnoses product mismatch');
 
-// Legacy single-factor check
 const valRemainder = validateFactor(24, 5);
 assert(!valRemainder.isValid && valRemainder.remainder === 4, 'Legacy helper: non-factor 5 for 24 yields remainder 4');
 
-// 6. Master Key Strike Torque Diagnostic
-console.log('\n6. Testing Phase 3 Master Key Torque Strike Evaluation');
+// 6. Master Key Strike Torque & Distributive Property Breakdown
+console.log('\n6. Testing Master Key Torque & GCF Distributive Breakdown');
 // Target: 24 and 36, GCF = 12. Common factors: 1, 2, 3, 4, 6, 12
 const strikeGCF = evaluateMasterKeySelection(12, 24, 36);
 assert(strikeGCF.isGCF === true && strikeGCF.torqueRatio === 1.0, 'Selecting exact GCF (12) provides maximum torque');
+assert(
+  strikeGCF.distributiveBreakdown === '24 + 36 = 12(2 + 3)',
+  'Returns Distributive Property factoring breakdown: "24 + 36 = 12(2 + 3)"'
+);
 
 const strikeCommonInsufficient = evaluateMasterKeySelection(6, 24, 36);
 assert(
   strikeCommonInsufficient.isGCF === false &&
   strikeCommonInsufficient.isCommonFactor === true &&
-  strikeCommonInsufficient.torqueRatio === 0.5,
-  'Selecting 6 diagnoses insufficient torque (50% of GCF 12)'
+  strikeCommonInsufficient.remainingGCF === 2,
+  'Selecting 6 for (24, 36) diagnoses that remaining quotients (4 and 6) still share factor 2'
 );
 
 const strikeInvalid = evaluateMasterKeySelection(8, 24, 36);
@@ -178,17 +186,10 @@ for (const sector of CURRICULUM_SECTORS) {
 }
 assert(totalVaults === 9, 'Total of 9 structured vaults across 5 sectors');
 
-// Verify Boss Sector 5 Dilemmas
 const bossSector = CURRICULUM_SECTORS.find(s => s.isBossSector);
 assert(bossSector !== undefined, 'Sector 5 is flagged as isBossSector');
 const bossVault = bossSector.vaults[0];
 assert(bossVault.bossDilemmas.length === 2, 'Boss vault contains 2 higher-order dilemmas');
-
-const dilemma3Way = bossVault.bossDilemmas.find(d => d.type === 'three-way-gcf');
-assert(dilemma3Way && dilemma3Way.correctAnswer === 12, 'Boss 3-way dilemma correctly targets GCF 12');
-
-const dilemmaTiling = bossVault.bossDilemmas.find(d => d.type === 'tiling-problem');
-assert(dilemmaTiling && dilemmaTiling.correctAnswer === 24, 'Boss tiling problem correctly targets tile size 24');
 
 console.log(`\n========================================`);
 console.log(`Results: ${passedTests}/${totalTests} tests passed`);

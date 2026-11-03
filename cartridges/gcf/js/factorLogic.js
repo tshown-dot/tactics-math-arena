@@ -1,6 +1,7 @@
 /**
  * Vault Breaker: GCF Tumbler - Mathematical Logic & Diagnostics Engine
- * Implements Factor Pairs / Rainbow method, Common Factors, GCF calculation,
+ * Implements Factor Pairs / Rainbow method, Live Common Factor Bridge,
+ * GCF Torque & Distributive Factoring Breakdown, Smart Pin Tile generation,
  * input format normalization ($15, 15, 15.00), and misconception diagnostics.
  */
 
@@ -98,6 +99,69 @@ export function getCommonFactors(a, b) {
   const factorsA = new Set(getAllFactorsSorted(a));
   const factorsB = getAllFactorsSorted(b);
   return factorsB.filter((f) => factorsA.has(f));
+}
+
+/**
+ * Extracts sorted distinct factors discovered so far from an array of unlocked pairs.
+ * @param {Array<{a: number, b: number}>} unlockedPairs
+ * @returns {number[]}
+ */
+export function getDiscoveredFactors(unlockedPairs = []) {
+  const set = new Set();
+  for (const p of unlockedPairs) {
+    if (p && typeof p.a === 'number') set.add(p.a);
+    if (p && typeof p.b === 'number') set.add(p.b);
+  }
+  return Array.from(set).sort((x, y) => x - y);
+}
+
+/**
+ * Returns common factors that have been unlocked on BOTH Lock A and Lock B so far.
+ * @param {Array<{a: number, b: number}>} unlockedPairsA
+ * @param {Array<{a: number, b: number}>} unlockedPairsB
+ * @returns {number[]}
+ */
+export function getDiscoveredCommonFactors(unlockedPairsA = [], unlockedPairsB = []) {
+  const setA = new Set(getDiscoveredFactors(unlockedPairsA));
+  const listB = getDiscoveredFactors(unlockedPairsB);
+  return listB.filter((f) => setA.has(f));
+}
+
+/**
+ * Generates a sorted array of candidate Pin Tiles for the Tactile Pin Deck.
+ * Always includes 100% of true factors of numA and numB, plus smart trap distractors
+ * so students can rapidly click pairs while still having to think and avoid non-factors.
+ * @param {number} numA
+ * @param {number} numB
+ * @returns {number[]}
+ */
+export function generateCandidateTiles(numA, numB) {
+  const factorsA = getAllFactorsSorted(numA);
+  const factorsB = getAllFactorsSorted(numB);
+  const tileSet = new Set([...factorsA, ...factorsB]);
+
+  const maxTarget = Math.max(parseMathInput(numA) || 12, parseMathInput(numB) || 12);
+  const targetCount = tileSet.size <= 10 ? 12 : 16;
+
+  // Candidate distractors that commonly tempt students (primes, near-factors, even/odd traps)
+  const candidateTraps = [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 14, 15, 16, 18, 20, 21, 25, 27, 32];
+  for (const trap of candidateTraps) {
+    if (tileSet.size >= targetCount) break;
+    if (trap < maxTarget && !tileSet.has(trap)) {
+      tileSet.add(trap);
+    }
+  }
+
+  // Fallback sequential fill if still below targetCount
+  let fallback = 2;
+  while (tileSet.size < targetCount && fallback < maxTarget) {
+    if (!tileSet.has(fallback)) {
+      tileSet.add(fallback);
+    }
+    fallback++;
+  }
+
+  return Array.from(tileSet).sort((a, b) => a - b);
 }
 
 /**
@@ -223,7 +287,7 @@ export function validateFactorPair(target, rawA, rawB, alreadyFoundPairs = []) {
     return {
       isValid: false,
       product,
-      message: `Mismatched Factors: Both ${a} and ${b} are factors of ${parsedTarget}, but their product is ${product} (not ${parsedTarget})!`,
+      message: `Mismatched Factors: Both ${a} and ${b} are factors of ${parsedTarget}, but ${a} × ${b} = ${product} (not ${parsedTarget})!`,
       diagnosticCode: 'MISMATCHED_FACTORS',
     };
   }
@@ -231,7 +295,7 @@ export function validateFactorPair(target, rawA, rawB, alreadyFoundPairs = []) {
   return {
     isValid: false,
     product,
-    message: `Mechanical Jam: ${a} × ${b} = ${product} ≠ ${parsedTarget}! Neither number is paired correctly.`,
+    message: `Mechanical Jam: ${a} × ${b} = ${product} ≠ ${parsedTarget}! Neither number pairs to ${parsedTarget}.`,
     diagnosticCode: 'PRODUCT_MISMATCH',
   };
 }
@@ -306,24 +370,19 @@ export function validateFactor(target, rawInput, alreadyFoundFactors = new Set()
 }
 
 /**
- * Evaluates student Master Key strike in Phase 3.
- * Diagnoses whether chosen key is GCF, just a common factor, or invalid.
+ * Evaluates student Master Key strike.
+ * Diagnoses whether chosen key is GCF, just a smaller common factor (with remaining common factor diagnosis), or invalid.
+ * Also returns the Distributive Property GCF factoring breakdown!
  * @param {string|number} rawKey
  * @param {number} targetA
  * @param {number} targetB
- * @returns {{
- *   isGCF: boolean,
- *   isCommonFactor: boolean,
- *   selectedKey: number,
- *   gcf: number,
- *   feedback: string,
- *   torqueRatio: number
- * }}
  */
 export function evaluateMasterKeySelection(rawKey, targetA, targetB) {
   const key = parseMathInput(rawKey);
-  const gcf = getGCF(targetA, targetB);
-  const commonFactors = getCommonFactors(targetA, targetB);
+  const a = parseMathInput(targetA);
+  const b = parseMathInput(targetB);
+  const gcf = getGCF(a, b);
+  const commonFactors = getCommonFactors(a, b);
 
   if (isNaN(key) || key <= 0) {
     return {
@@ -331,7 +390,7 @@ export function evaluateMasterKeySelection(rawKey, targetA, targetB) {
       isCommonFactor: false,
       selectedKey: 0,
       gcf,
-      feedback: 'Select a valid key to strike the hydraulic lock.',
+      feedback: 'Select a shared key to strike the hydraulic lock.',
       torqueRatio: 0,
     };
   }
@@ -340,25 +399,43 @@ export function evaluateMasterKeySelection(rawKey, targetA, targetB) {
   const isGCF = key === gcf;
 
   if (isGCF) {
+    const quotA = a / gcf;
+    const quotB = b / gcf;
+    const distributiveBreakdown = `${a} + ${b} = ${gcf}(${quotA} + ${quotB})`;
     return {
       isGCF: true,
       isCommonFactor: true,
       selectedKey: key,
       gcf,
-      feedback: `💥 MAXIMUM HYDRAULIC TORQUE CONFIRMED! ${gcf} is the Greatest Common Factor of ${targetA} and ${targetB}! Blast doors opening!`,
+      quotientA: quotA,
+      quotientB: quotB,
+      remainingGCF: 1,
+      factorizationA: `${a} = ${gcf} × ${quotA}`,
+      factorizationB: `${b} = ${gcf} × ${quotB}`,
+      distributiveBreakdown,
+      feedback: `💥 100% GCF TORQUE! ${a} = ${gcf}×${quotA} and ${b} = ${gcf}×${quotB} → ${distributiveBreakdown}. Blast doors breached!`,
       torqueRatio: 1.0,
     };
   }
 
   if (isCommon) {
-    const torqueRatio = Math.round((key / gcf) * 100);
+    const quotA = a / key;
+    const quotB = b / key;
+    const remainingGCF = getGCF(quotA, quotB);
+    const torqueRatio = Math.max(0.15, Math.min(0.85, key / gcf));
+    const torquePct = Math.round(torqueRatio * 100);
     return {
       isGCF: false,
       isCommonFactor: true,
       selectedKey: key,
       gcf,
-      feedback: `⚠️ INSUFFICIENT TORQUE (${torqueRatio}%): ${key} is a shared factor, but you need the GREATEST common factor (${gcf}) to overcome the blast lock!`,
-      torqueRatio: key / gcf,
+      quotientA: quotA,
+      quotientB: quotB,
+      remainingGCF,
+      factorizationA: `${a} = ${key} × ${quotA}`,
+      factorizationB: `${b} = ${key} × ${quotB}`,
+      feedback: `⚠️ INSUFFICIENT TORQUE (${torquePct}%): ${key} is a common factor (${a}=${key}×${quotA}, ${b}=${key}×${quotB}), but ${quotA} and ${quotB} STILL share a factor of ${remainingGCF}! Pick the GREATEST common factor!`,
+      torqueRatio,
     };
   }
 
@@ -367,7 +444,7 @@ export function evaluateMasterKeySelection(rawKey, targetA, targetB) {
     isCommonFactor: false,
     selectedKey: key,
     gcf,
-    feedback: `⛔ ACCESS DENIED: Key ${key} does not divide both ${targetA} and ${targetB} evenly!`,
+    feedback: `⛔ ACCESS DENIED: Key ${key} does not divide both ${a} and ${b} evenly!`,
     torqueRatio: 0,
   };
 }

@@ -42,6 +42,9 @@
     .glow-rose {
       box-shadow: 0 0 25px -4px rgba(244, 63, 94, 0.65), 0 0 12px rgba(244, 63, 94, 0.4);
     }
+    .glow-gold {
+      box-shadow: 0 0 30px -2px rgba(250, 204, 21, 0.7), 0 0 14px rgba(245, 158, 11, 0.5);
+    }
 
     /* Screen shake on jam or lockdown */
     @keyframes screenShake {
@@ -59,10 +62,20 @@
     /* Urgent Pulse */
     @keyframes pulseUrgent {
       0%, 100% { opacity: 1; transform: scale(1); }
-      50% { opacity: 0.6; transform: scale(1.06); }
+      50% { opacity: 0.65; transform: scale(1.05); }
     }
     .animate-urgent {
       animation: pulseUrgent 0.65s infinite ease-in-out;
+    }
+
+    /* Pop-in animation for newly discovered shared common factors */
+    @keyframes sharedKeyPop {
+      0% { transform: scale(0.4); opacity: 0; }
+      65% { transform: scale(1.18); opacity: 1; }
+      100% { transform: scale(1); opacity: 1; }
+    }
+    .animate-key-pop {
+      animation: sharedKeyPop 0.38s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
     }
 
     /* Industrial Blueprint Grid Background */
@@ -72,22 +85,15 @@
       background-size: 26px 26px;
       background-position: 0 0, 13px 13px;
     }
-
-    /* Laser beam animation */
-    @keyframes laserSweep {
-      0% { transform: translateY(-100%); opacity: 0.2; }
-      50% { transform: translateY(0%); opacity: 1; }
-      100% { transform: translateY(100%); opacity: 0.2; }
-    }
-    .animate-laser {
-      animation: laserSweep 1.8s infinite linear;
-    }
   </style>
 </head>
-<body id="game-root" class="flex flex-col h-screen w-screen overflow-hidden vault-grid-bg">
+<body id="game-root" class="flex flex-col h-screen w-screen overflow-hidden vault-grid-bg relative">
+
+  <!-- FULL-SCREEN PARTICLE & LASER FX CANVAS (Pointer Events None) -->
+  <canvas id="fx-canvas" class="fixed inset-0 pointer-events-none z-30"></canvas>
 
   <!-- TOP COMMAND & STATUS BAR (Strict 1366x768 Optimized) -->
-  <header class="h-14 border-b border-cyan-900/50 bg-gray-950/95 px-4 flex items-center justify-between z-20 shrink-0">
+  <header class="h-13 border-b border-cyan-900/50 bg-gray-950/95 px-4 py-1.5 flex items-center justify-between z-20 shrink-0">
     <!-- Left: Cartridge Title & Sector Badge -->
     <div class="flex items-center space-x-3">
       <div class="w-8 h-8 rounded-lg bg-gradient-to-tr from-cyan-600 to-amber-500 flex items-center justify-center font-black text-white text-base shadow-lg shadow-cyan-500/25">
@@ -95,7 +101,7 @@
       </div>
       <div>
         <div class="flex items-center space-x-2">
-          <h1 class="text-xs font-black tracking-wider text-cyan-400 uppercase">Vault Breaker</h1>
+          <h1 class="text-xs font-black tracking-wider text-cyan-400 uppercase">Vault Breaker: GCF</h1>
           <span id="sector-badge" class="px-1.5 py-0.5 rounded text-[10px] font-mono-math font-black bg-cyan-950 border border-cyan-800 text-cyan-300">CLEARANCE-I</span>
         </div>
         <p id="sector-title" class="text-[11px] font-bold text-gray-400 tracking-tight">Sector 1: Direct Multiples — Bronze Relay Vault</p>
@@ -103,10 +109,10 @@
     </div>
 
     <!-- Center: Real Stakes Dashboard (Countdown Timer, Alarm Threshold & Vault Progress) -->
-    <div class="flex items-center space-x-5">
-      <!-- Vault Progress -->
-      <div class="flex items-center space-x-1.5">
-        <span class="text-[10px] uppercase font-bold text-gray-500">Vault:</span>
+    <div class="flex items-center space-x-4">
+      <!-- Sector Selector / Vault Progress -->
+      <div class="flex items-center space-x-1.5 bg-gray-900/80 border border-gray-800 px-2.5 py-1 rounded-xl">
+        <span class="text-[10px] uppercase font-bold text-gray-400">Vault:</span>
         <span id="vault-progress" class="text-xs font-mono-math font-extrabold text-cyan-300">1 / 2</span>
       </div>
 
@@ -124,19 +130,19 @@
       <div class="flex items-center space-x-2 bg-gray-900/90 border border-gray-800 px-3 py-1 rounded-xl">
         <span class="text-xs">🚨</span>
         <span class="text-[10px] uppercase font-extrabold text-gray-400 tracking-wider">Alarm:</span>
-        <div class="w-20 h-2 bg-gray-800 rounded-full overflow-hidden p-0.5">
+        <div class="w-16 h-2 bg-gray-800 rounded-full overflow-hidden p-0.5">
           <div id="alarm-bar" class="h-full bg-emerald-500 rounded-full transition-all duration-300" style="width: 0%;"></div>
         </div>
         <span id="alarm-display" class="text-xs font-mono-math font-bold text-emerald-400">0%</span>
       </div>
     </div>
 
-    <!-- Right: Combo Multiplier, Score, Sound & Field Guide -->
-    <div class="flex items-center space-x-3">
+    <!-- Right: Combo Multiplier, Score, Sound & Help -->
+    <div class="flex items-center space-x-2.5">
       <!-- Combo Multiplier -->
-      <div class="flex items-center space-x-1.5 bg-indigo-950/70 border border-indigo-700/60 px-2.5 py-1 rounded-xl">
+      <div id="combo-badge-box" class="flex items-center space-x-1.5 bg-indigo-950/70 border border-indigo-700/60 px-2.5 py-1 rounded-xl transition-all">
         <span class="text-xs">⚡</span>
-        <span class="text-[10px] uppercase font-black text-indigo-300">Combo:</span>
+        <span class="text-[10px] uppercase font-black text-indigo-300">Streak:</span>
         <span id="combo-display" class="text-xs font-mono-math font-black text-indigo-200">x1</span>
       </div>
 
@@ -151,312 +157,285 @@
         <span id="audio-icon">🔊</span>
       </button>
 
-      <!-- Briefing Button -->
-      <button id="briefing-btn" class="px-2.5 py-1 text-xs font-bold text-amber-400 bg-amber-950/50 border border-amber-800/60 rounded-lg hover:bg-amber-900/60 transition-all flex items-center space-x-1 cursor-pointer" title="Review Mission Briefing">
-        <span>📋</span>
-        <span class="hidden sm:inline">Briefing</span>
+      <!-- Briefing Button (?) -->
+      <button id="briefing-btn" class="px-2.5 py-1 text-xs font-bold text-amber-400 bg-amber-950/50 border border-amber-800/60 rounded-lg hover:bg-amber-900/60 transition-all flex items-center space-x-1 cursor-pointer" title="Mission Briefing & Instructions">
+        <span>❓</span>
+        <span class="hidden sm:inline">How to Play</span>
       </button>
 
       <!-- Field Guide -->
       <button id="field-guide-btn" class="px-2.5 py-1 text-xs font-bold text-cyan-400 bg-cyan-950/50 border border-cyan-800/60 rounded-lg hover:bg-cyan-900/60 transition-all flex items-center space-x-1 cursor-pointer">
         <span>📖</span>
-        <span class="hidden sm:inline">Field Guide</span>
+        <span class="hidden sm:inline">GCF Guide</span>
       </button>
     </div>
   </header>
 
-  <!-- MAIN STAGE (STRICT 1366x768 NO-SCROLL CONTAINER) -->
-  <main class="flex-1 p-3 overflow-hidden flex flex-col justify-between max-w-7xl w-full mx-auto">
+  <!-- MAIN UNIFIED HEIST ARENA (STRICT 1366x768 NO-SCROLL CONTAINER) -->
+  <main class="flex-1 p-2.5 overflow-hidden flex flex-col justify-between max-w-7xl w-full mx-auto">
 
-    <!-- ==================== PHASE 1: DUAL LOCK FACTOR PAIR CRACKING ==================== -->
-    <div id="phase-1-container" class="h-full flex flex-col justify-between">
-      <!-- Feedback Banner -->
-      <div id="feedback-banner" class="p-2 rounded-xl border border-cyan-500/50 bg-slate-900/80 text-cyan-200 flex items-center space-x-2 text-xs font-bold shrink-0 mb-2">
-        <span id="feedback-icon">ℹ️</span>
-        <span id="feedback-text">Ready to crack Lock A and Lock B. Enter factors to align the tumblers!</span>
+    <!-- Live Tactical Feedback Banner -->
+    <div id="feedback-banner" class="p-2 rounded-xl border border-cyan-500/50 bg-slate-900/90 text-cyan-200 flex items-center justify-between text-xs font-bold shrink-0 mb-2 transition-all">
+      <div class="flex items-center space-x-2">
+        <span id="feedback-icon" class="text-sm">ℹ️</span>
+        <span id="feedback-text">Crack Dial A and Dial B factor pairs! Shared factors automatically lock into the Center GCF Bridge!</span>
       </div>
+      <span id="feedback-sub" class="text-[10px] font-mono-math text-slate-400 hidden sm:inline">2-Click Pin Tiles or Type 0-9 + Enter</span>
+    </div>
 
-      <!-- 3-Column Grid: Lock A | Arcade Keypad | Lock B -->
-      <div class="flex-1 grid grid-cols-12 gap-3 min-h-0">
+    <!-- 3-Column Unified Heist Stage: Lock A (Col 4) | Center GCF Vault Core & Pin Deck (Col 4) | Lock B (Col 4) -->
+    <div id="unified-heist-grid" class="flex-1 grid grid-cols-12 gap-2.5 min-h-0">
 
-        <!-- COLUMN 1: LOCK A (Col 4) -->
-        <div id="lock-a-card" class="col-span-4 bg-gray-950/90 border-2 border-cyan-400/80 rounded-2xl p-2.5 flex flex-col justify-between glow-cyan transition-all cursor-pointer overflow-hidden">
-          <div>
-            <!-- Header -->
-            <div class="flex items-center justify-between border-b border-cyan-900/50 pb-1 mb-1.5">
-              <div class="flex items-center space-x-2">
-                <span class="w-6 h-6 rounded-lg bg-cyan-500 text-slate-950 font-black text-xs flex items-center justify-center shadow">A</span>
-                <span class="text-xs font-black tracking-wider text-cyan-300 uppercase">Tumbler Dial A</span>
-              </div>
-              <span id="lock-a-progress" class="text-[10px] font-mono-math font-bold text-cyan-400">0 / 0 Pairs</span>
-            </div>
-
-            <!-- Rotary Dial Wheel -->
-            <div class="flex items-center justify-center my-1 relative">
-              <div id="lock-a-wheel" class="relative w-24 h-24 rounded-full border-4 border-cyan-400/80 bg-gradient-to-tr from-slate-950 via-slate-900 to-slate-800 flex items-center justify-center shadow-xl transition-transform duration-700 select-none">
-                <div class="absolute inset-1 rounded-full border border-dashed border-cyan-400/40 pointer-events-none"></div>
-                <div class="w-14 h-14 rounded-full bg-slate-950 border-2 border-cyan-400 flex flex-col items-center justify-center shadow-inner">
-                  <span class="text-[8px] uppercase font-bold text-slate-400 leading-none">TARGET</span>
-                  <span id="lock-a-number" class="text-xl font-mono-math font-black text-cyan-300 leading-tight">4</span>
-                  <span id="lock-a-dial-status" class="text-[8px] font-bold text-cyan-400 leading-none">0/2</span>
-                </div>
+      <!-- ==================== COLUMN 1: TUMBLER DIAL A (Col 4) ==================== -->
+      <div id="lock-a-card" class="col-span-4 bg-gray-950/95 border-2 border-cyan-400/80 rounded-2xl p-2.5 flex flex-col justify-between glow-cyan transition-all cursor-pointer overflow-hidden">
+        <div>
+          <!-- Header -->
+          <div class="flex items-center justify-between border-b border-cyan-900/50 pb-1.5 mb-1.5">
+            <div class="flex items-center space-x-2">
+              <span class="w-6 h-6 rounded-lg bg-cyan-500 text-slate-950 font-black text-xs flex items-center justify-center shadow">A</span>
+              <div>
+                <span class="text-xs font-black tracking-wider text-cyan-300 uppercase block leading-none">Tumbler Dial A</span>
+                <span id="lock-a-active-tag" class="text-[9px] font-mono-math font-bold text-emerald-400">● ACTIVE TARGET</span>
               </div>
             </div>
+            <span id="lock-a-progress" class="px-2 py-0.5 rounded-md bg-cyan-950 border border-cyan-700 text-[10px] font-mono-math font-black text-cyan-300">0 / 2 Pairs</span>
           </div>
 
-          <!-- Tumbler Pair Gates Rack -->
-          <div class="flex-1 overflow-y-auto space-y-1 pr-1 min-h-[70px] max-h-[130px]" id="lock-a-pairs">
-            <!-- Dynamically populated gates -->
-          </div>
-
-          <!-- Factor Rainbow Arches SVG -->
-          <div class="mt-1 pt-1 border-t border-slate-900/80">
-            <div class="flex items-center justify-between text-[9px] font-mono-math text-slate-400 mb-0.5">
-              <span class="font-bold uppercase tracking-wider text-cyan-400">Factor Rainbow Arches</span>
-              <span class="text-slate-500 text-[8px]">Pairs link to <span id="lock-a-rainbow-target">4</span></span>
+          <!-- Rotary Safe Wheel -->
+          <div class="flex items-center justify-center my-1 relative">
+            <div id="lock-a-wheel" class="relative w-24 h-24 rounded-full border-4 border-cyan-400/80 bg-gradient-to-tr from-slate-950 via-slate-900 to-slate-800 flex items-center justify-center shadow-xl transition-transform duration-700 select-none">
+              <div class="absolute inset-1 rounded-full border border-dashed border-cyan-400/40 pointer-events-none"></div>
+              <div class="w-14 h-14 rounded-full bg-slate-950 border-2 border-cyan-400 flex flex-col items-center justify-center shadow-inner">
+                <span class="text-[8px] uppercase font-bold text-slate-400 leading-none">DIAL A</span>
+                <span id="lock-a-number" class="text-xl font-mono-math font-black text-cyan-300 leading-tight">4</span>
+                <span id="lock-a-dial-status" class="text-[8px] font-bold text-cyan-400 leading-none">0/2</span>
+              </div>
             </div>
-            <div class="w-full flex justify-center bg-slate-950/80 rounded-xl p-1 border border-slate-900">
-              <svg id="lock-a-rainbow-svg" viewBox="0 0 300 65" class="w-full h-12 select-none"></svg>
-            </div>
-          </div>
-
-          <div class="text-[9px] text-center font-bold text-slate-500 border-t border-slate-900 pt-1 mt-0.5">
-            Click to focus Lock A
           </div>
         </div>
 
-        <!-- COLUMN 2: ARCADE KEYPAD CONSOLE (Col 4) -->
-        <div class="col-span-4 bg-gray-950/90 border border-slate-800 rounded-2xl p-3 flex flex-col justify-between shadow-2xl">
-          <!-- Lock Selection Tabs -->
-          <div class="flex items-center space-x-2 mb-2">
-            <button id="tab-lock-a" class="flex-1 py-1.5 px-3 rounded-xl font-black text-xs uppercase bg-cyan-500 text-slate-950 border-2 border-cyan-400 shadow-[0_0_15px_rgba(6,182,212,0.5)] transition-all cursor-pointer">
-              <span class="tab-label">Lock A (4)</span>
+        <!-- Tumbler Pair Gates Rack -->
+        <div class="flex-1 overflow-y-auto space-y-1 pr-1 min-h-[75px] max-h-[145px]" id="lock-a-pairs">
+          <!-- Dynamically populated gates -->
+        </div>
+
+        <!-- Live Factor Rainbow Arches SVG -->
+        <div class="mt-1.5 pt-1.5 border-t border-slate-900/80">
+          <div class="flex items-center justify-between text-[9px] font-mono-math text-slate-400 mb-0.5">
+            <span class="font-bold uppercase tracking-wider text-cyan-400">Factor Rainbow A</span>
+            <span class="text-amber-300 text-[8px] font-bold">★ Gold = Shared Factor</span>
+          </div>
+          <div class="w-full flex justify-center bg-slate-950/90 rounded-xl p-1 border border-slate-900">
+            <svg id="lock-a-rainbow-svg" viewBox="0 0 300 65" class="w-full h-12 select-none"></svg>
+          </div>
+        </div>
+      </div>
+
+      <!-- ==================== COLUMN 2: CENTER GCF VAULT CORE & PIN DECK (Col 4) ==================== -->
+      <div class="col-span-4 bg-gray-950/95 border-2 border-slate-800 rounded-2xl p-2.5 flex flex-col justify-between shadow-2xl overflow-hidden relative">
+
+        <!-- TOP: LIVE SHARED COMMON FACTORS BRIDGE (ALWAYS VISIBLE!) -->
+        <div id="shared-bridge-panel" class="bg-slate-900/95 border-2 border-amber-500/40 rounded-xl p-2.5 transition-all">
+          <div class="flex items-center justify-between mb-1.5">
+            <div class="flex items-center space-x-1.5">
+              <span class="text-xs">🔗</span>
+              <span class="text-[10px] font-black uppercase tracking-wider text-amber-300">Live Common Factor Bridge</span>
+            </div>
+            <span id="shared-count-badge" class="px-1.5 py-0.5 rounded bg-amber-950/80 border border-amber-600/60 text-[9px] font-mono-math font-black text-amber-300">
+              0 Shared
+            </span>
+          </div>
+
+          <!-- Shared Factor Keys Container -->
+          <div id="live-shared-keys" class="min-h-[44px] bg-slate-950/90 border border-slate-800 rounded-lg p-1.5 flex flex-wrap items-center justify-center gap-1.5">
+            <span class="text-[10px] text-slate-500 font-medium italic">Unlock matching factors on Dial A &amp; B to link shared keys...</span>
+          </div>
+
+          <!-- Live GCF Torque Meter & Factoring Preview -->
+          <div class="mt-2">
+            <div class="flex items-center justify-between text-[9px] font-mono-math font-bold text-slate-400 mb-0.5">
+              <span id="torque-status-label">VAULT TORQUE SYNCHRONIZATION</span>
+              <span id="p3-torque-text" class="text-amber-300 font-black">0%</span>
+            </div>
+            <div class="w-full h-2 bg-slate-950 rounded-full overflow-hidden p-0.5 border border-slate-800">
+              <div id="p3-torque-gauge" class="h-full bg-gradient-to-r from-cyan-500 via-amber-400 to-emerald-400 rounded-full transition-all duration-500" style="width: 0%;"></div>
+            </div>
+            <div id="gcf-factoring-readout" class="hidden mt-1.5 p-1.5 rounded-lg bg-slate-950 border border-amber-500/40 text-center font-mono-math text-[10px] text-amber-200 font-bold">
+              <!-- Live GCF distributive breakdown appears here -->
+            </div>
+          </div>
+        </div>
+
+        <!-- MIDDLE/BOTTOM MODE A: FACTOR PAIR BUILDER & TACTILE PIN TILES -->
+        <div id="pair-cracking-deck" class="flex-1 flex flex-col justify-between mt-2 min-h-0">
+          <!-- Lock Selector Switch -->
+          <div class="flex items-center space-x-1.5">
+            <button id="tab-lock-a" type="button" class="flex-1 py-1.5 px-2 rounded-xl font-black text-xs uppercase bg-cyan-500 text-slate-950 border-2 border-cyan-400 shadow-[0_0_12px_rgba(6,182,212,0.4)] transition-all cursor-pointer">
+              <span class="tab-label">Cracking Dial A (4)</span>
             </button>
-            <button id="tab-lock-b" class="flex-1 py-1.5 px-3 rounded-xl font-bold text-xs uppercase bg-slate-900 text-slate-400 border border-slate-800 hover:border-slate-700 transition-all cursor-pointer">
-              <span class="tab-label">Lock B (12)</span>
+            <button id="tab-lock-b" type="button" class="flex-1 py-1.5 px-2 rounded-xl font-bold text-xs uppercase bg-slate-900 text-slate-400 border border-slate-800 hover:border-slate-700 transition-all cursor-pointer">
+              <span class="tab-label">Cracking Dial B (12)</span>
             </button>
           </div>
 
-          <!-- Dual-Slot Factor Pair Input Display -->
-          <div class="bg-slate-900/90 border border-slate-800 rounded-xl p-2 flex items-center justify-between gap-2 mb-2">
-            <div class="flex items-center space-x-2 flex-1">
+          <!-- Dual-Slot Equation Builder: [ Factor 1 ] × [ Factor 2 ] = Target -->
+          <div class="bg-slate-900/95 border border-slate-800 rounded-xl p-2 my-1.5">
+            <div class="flex items-center justify-between text-[9px] font-bold uppercase text-slate-400 mb-1">
+              <span>Build Factor Pair (Click 2 Tiles or Type)</span>
+              <span id="live-product-preview" class="font-mono-math text-cyan-300">Target: 4</span>
+            </div>
+
+            <div class="flex items-center justify-between gap-1.5">
               <!-- Slot 1 -->
-              <button id="slot-1-btn" type="button" class="flex-1 py-1 px-2.5 rounded-lg border-2 border-amber-400 bg-amber-950/40 text-amber-300 font-mono-math font-black text-xl flex items-center justify-between glow-amber transition-all cursor-pointer">
-                <span class="text-[9px] uppercase font-bold text-slate-400 block">Factor 1</span>
-                <span id="slot-1-display" class="tracking-wider">_</span>
+              <button id="slot-1-btn" type="button" class="flex-1 py-1.5 px-2 rounded-lg border-2 border-amber-400 bg-amber-950/40 text-amber-300 font-mono-math font-black text-lg flex items-center justify-between glow-amber transition-all cursor-pointer">
+                <span class="text-[8px] uppercase font-bold text-slate-400">F1</span>
+                <span id="slot-1-display">_</span>
               </button>
 
-              <span class="text-lg font-black text-slate-400">×</span>
+              <span class="text-sm font-black text-slate-400">×</span>
 
               <!-- Slot 2 -->
-              <button id="slot-2-btn" type="button" class="flex-1 py-1 px-2.5 rounded-lg border border-slate-700 bg-slate-950 text-slate-400 font-mono-math font-black text-xl flex items-center justify-between transition-all cursor-pointer">
-                <span class="text-[9px] uppercase font-bold text-slate-400 block">Factor 2</span>
-                <span id="slot-2-display" class="tracking-wider">_</span>
+              <button id="slot-2-btn" type="button" class="flex-1 py-1.5 px-2 rounded-lg border border-slate-700 bg-slate-950 text-slate-400 font-mono-math font-black text-lg flex items-center justify-between transition-all cursor-pointer">
+                <span class="text-[8px] uppercase font-bold text-slate-400">F2</span>
+                <span id="slot-2-display">_</span>
               </button>
-            </div>
 
-            <div class="flex items-center space-x-1">
-              <button id="keypad-next-slot-btn" type="button" class="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-amber-300 rounded-lg text-xs font-bold transition-all cursor-pointer" title="Switch Factor Slot (Tab or x)">
-                ⇄ NEXT
-              </button>
-              <button id="keypad-backspace-btn" type="button" class="px-2 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-xs font-bold transition-all cursor-pointer" title="Backspace">
-                ⌫
+              <span class="text-sm font-black text-slate-400">=</span>
+
+              <!-- Target Badge -->
+              <div id="equation-target-badge" class="px-2.5 py-1.5 rounded-lg bg-cyan-950/80 border border-cyan-500/50 font-mono-math font-black text-base text-cyan-300">
+                4
+              </div>
+
+              <!-- Clear / Backspace -->
+              <button id="keypad-clear-btn" type="button" class="px-2 py-1.5 bg-rose-950/60 hover:bg-rose-900/70 border border-rose-800/60 text-rose-300 rounded-lg font-mono-math font-black text-[10px] transition-all cursor-pointer" title="Clear Slots (Backspace)">
+                CLR
               </button>
             </div>
           </div>
 
-          <!-- Quick Factor Pills (Top Common Divisors) -->
-          <div class="grid grid-cols-6 gap-1 mb-2">
-            <button class="factor-quick-pill py-1 bg-slate-900 hover:bg-cyan-950 border border-slate-800 hover:border-cyan-600 rounded-lg font-mono-math font-extrabold text-xs text-slate-300 transition-all cursor-pointer" data-val="1">1</button>
-            <button class="factor-quick-pill py-1 bg-slate-900 hover:bg-cyan-950 border border-slate-800 hover:border-cyan-600 rounded-lg font-mono-math font-extrabold text-xs text-slate-300 transition-all cursor-pointer" data-val="2">2</button>
-            <button class="factor-quick-pill py-1 bg-slate-900 hover:bg-cyan-950 border border-slate-800 hover:border-cyan-600 rounded-lg font-mono-math font-extrabold text-xs text-slate-300 transition-all cursor-pointer" data-val="3">3</button>
-            <button class="factor-quick-pill py-1 bg-slate-900 hover:bg-cyan-950 border border-slate-800 hover:border-cyan-600 rounded-lg font-mono-math font-extrabold text-xs text-slate-300 transition-all cursor-pointer" data-val="4">4</button>
-            <button class="factor-quick-pill py-1 bg-slate-900 hover:bg-cyan-950 border border-slate-800 hover:border-cyan-600 rounded-lg font-mono-math font-extrabold text-xs text-slate-300 transition-all cursor-pointer" data-val="5">5</button>
-            <button class="factor-quick-pill py-1 bg-slate-900 hover:bg-cyan-950 border border-slate-800 hover:border-cyan-600 rounded-lg font-mono-math font-extrabold text-xs text-slate-300 transition-all cursor-pointer" data-val="6">6</button>
-          </div>
+          <!-- TACTILE PIN TILE MATRIX (2-Click Instant Factor Pair Entry!) -->
+          <div class="flex-1 flex flex-col justify-between min-h-0">
+            <div class="flex items-center justify-between text-[9px] font-bold uppercase text-slate-400 mb-1">
+              <span>Tumbler Pin Tiles (Click 2 factors that multiply to target)</span>
+              <span class="font-mono-math text-[9px] text-amber-300">✓ = Paired</span>
+            </div>
 
-          <!-- Numpad Grid (0-9, Clear, Test Factor) -->
-          <div class="grid grid-cols-3 gap-1.5 flex-1 min-h-[150px]">
-            <button class="keypad-digit-btn bg-slate-900 hover:bg-slate-800 border border-slate-800 text-white rounded-xl font-mono-math font-black text-lg transition-all active:scale-95 cursor-pointer flex items-center justify-center" data-val="7">7</button>
-            <button class="keypad-digit-btn bg-slate-900 hover:bg-slate-800 border border-slate-800 text-white rounded-xl font-mono-math font-black text-lg transition-all active:scale-95 cursor-pointer flex items-center justify-center" data-val="8">8</button>
-            <button class="keypad-digit-btn bg-slate-900 hover:bg-slate-800 border border-slate-800 text-white rounded-xl font-mono-math font-black text-lg transition-all active:scale-95 cursor-pointer flex items-center justify-center" data-val="9">9</button>
+            <div id="pin-tiles-grid" class="grid grid-cols-4 gap-1.5 flex-1 min-h-[140px]">
+              <!-- Dynamically populated 12 or 16 smart factor tiles -->
+            </div>
 
-            <button class="keypad-digit-btn bg-slate-900 hover:bg-slate-800 border border-slate-800 text-white rounded-xl font-mono-math font-black text-lg transition-all active:scale-95 cursor-pointer flex items-center justify-center" data-val="4">4</button>
-            <button class="keypad-digit-btn bg-slate-900 hover:bg-slate-800 border border-slate-800 text-white rounded-xl font-mono-math font-black text-lg transition-all active:scale-95 cursor-pointer flex items-center justify-center" data-val="5">5</button>
-            <button class="keypad-digit-btn bg-slate-900 hover:bg-slate-800 border border-slate-800 text-white rounded-xl font-mono-math font-black text-lg transition-all active:scale-95 cursor-pointer flex items-center justify-center" data-val="6">6</button>
-
-            <button class="keypad-digit-btn bg-slate-900 hover:bg-slate-800 border border-slate-800 text-white rounded-xl font-mono-math font-black text-lg transition-all active:scale-95 cursor-pointer flex items-center justify-center" data-val="1">1</button>
-            <button class="keypad-digit-btn bg-slate-900 hover:bg-slate-800 border border-slate-800 text-white rounded-xl font-mono-math font-black text-lg transition-all active:scale-95 cursor-pointer flex items-center justify-center" data-val="2">2</button>
-            <button class="keypad-digit-btn bg-slate-900 hover:bg-slate-800 border border-slate-800 text-white rounded-xl font-mono-math font-black text-lg transition-all active:scale-95 cursor-pointer flex items-center justify-center" data-val="3">3</button>
-
-            <button id="keypad-clear-btn" class="bg-rose-950/50 hover:bg-rose-900/60 border border-rose-800/60 text-rose-300 rounded-xl font-mono-math font-extrabold text-xs transition-all active:scale-95 cursor-pointer flex items-center justify-center">CLR</button>
-            <button class="keypad-digit-btn bg-slate-900 hover:bg-slate-800 border border-slate-800 text-white rounded-xl font-mono-math font-black text-lg transition-all active:scale-95 cursor-pointer flex items-center justify-center" data-val="0">0</button>
-            <button id="keypad-test-btn" class="bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-slate-950 font-black text-xs uppercase tracking-wider rounded-xl transition-all shadow-lg active:scale-95 cursor-pointer flex items-center justify-center">
-              TEST PAIR ⏎
-            </button>
+            <!-- Manual Test / Switch Bar for Keyboard Users -->
+            <div class="flex items-center justify-between gap-2 mt-1.5 pt-1.5 border-t border-slate-900">
+              <button id="keypad-next-slot-btn" type="button" class="px-3 py-1.5 bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-300 rounded-lg text-[10px] font-bold transition-all cursor-pointer">
+                ⇄ Switch Slot (Tab)
+              </button>
+              <button id="keypad-test-btn" type="button" class="flex-1 py-1.5 bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-slate-950 font-black text-xs uppercase tracking-wider rounded-lg transition-all shadow active:scale-95 cursor-pointer">
+                LOCK PAIR ⏎
+              </button>
+            </div>
           </div>
         </div>
 
-        <!-- COLUMN 3: LOCK B (Col 4) -->
-        <div id="lock-b-card" class="col-span-4 bg-gray-950/90 border-2 border-slate-800 rounded-2xl p-2.5 flex flex-col justify-between transition-all cursor-pointer overflow-hidden">
+        <!-- MIDDLE/BOTTOM MODE B: MASTER GCF TORQUE STRIKE DECK (Activates in-place once Dials A & B are cracked!) -->
+        <div id="gcf-strike-deck" class="hidden flex-1 flex flex-col justify-between mt-2 bg-gradient-to-b from-amber-950/40 via-slate-950 to-slate-950 border-2 border-amber-400 rounded-xl p-3 text-center glow-amber">
           <div>
-            <!-- Header -->
-            <div class="flex items-center justify-between border-b border-amber-900/50 pb-1 mb-1.5">
-              <div class="flex items-center space-x-2">
-                <span class="w-6 h-6 rounded-lg bg-amber-400 text-slate-950 font-black text-xs flex items-center justify-center shadow">B</span>
-                <span class="text-xs font-black tracking-wider text-amber-300 uppercase">Tumbler Dial B</span>
-              </div>
-              <span id="lock-b-progress" class="text-[10px] font-mono-math font-bold text-amber-400">0 / 0 Pairs</span>
-            </div>
-
-            <!-- Rotary Dial Wheel -->
-            <div class="flex items-center justify-center my-1 relative">
-              <div id="lock-b-wheel" class="relative w-24 h-24 rounded-full border-4 border-amber-400/80 bg-gradient-to-tr from-slate-950 via-slate-900 to-slate-800 flex items-center justify-center shadow-xl transition-transform duration-700 select-none">
-                <div class="absolute inset-1 rounded-full border border-dashed border-amber-400/40 pointer-events-none"></div>
-                <div class="w-14 h-14 rounded-full bg-slate-950 border-2 border-amber-400 flex flex-col items-center justify-center shadow-inner">
-                  <span class="text-[8px] uppercase font-bold text-slate-400 leading-none">TARGET</span>
-                  <span id="lock-b-number" class="text-xl font-mono-math font-black text-amber-300 leading-tight">12</span>
-                  <span id="lock-b-dial-status" class="text-[8px] font-bold text-amber-400 leading-none">0/3</span>
-                </div>
-              </div>
-            </div>
+            <span class="px-2.5 py-0.5 rounded-full bg-amber-400 text-slate-950 font-black text-[10px] uppercase tracking-wider">
+              ⚡ BOTH DIALS SYNCHRONIZED — FINAL STEP!
+            </span>
+            <h3 class="text-base font-black text-white mt-1.5">
+              Strike with the GREATEST Common Factor!
+            </h3>
+            <p class="text-[11px] text-slate-300 mt-0.5">
+              Click the <strong class="text-amber-300">GREATEST</strong> shared key below to generate 100% torque on <span id="p3-target-a" class="font-mono-math font-bold text-cyan-300">4</span> &amp; <span id="p3-target-b" class="font-mono-math font-bold text-amber-300">12</span>:
+            </p>
           </div>
 
-          <!-- Tumbler Pair Gates Rack -->
-          <div class="flex-1 overflow-y-auto space-y-1 pr-1 min-h-[70px] max-h-[130px]" id="lock-b-pairs">
-            <!-- Dynamically populated gates -->
+          <!-- Interactive Master Key Pedestals -->
+          <div id="p3-keys-container" class="flex flex-wrap items-center justify-center gap-2 my-2">
+            <!-- Dynamically populated shared factor keys -->
           </div>
 
-          <!-- Factor Rainbow Arches SVG -->
-          <div class="mt-1 pt-1 border-t border-slate-900/80">
-            <div class="flex items-center justify-between text-[9px] font-mono-math text-slate-400 mb-0.5">
-              <span class="font-bold uppercase tracking-wider text-amber-400">Factor Rainbow Arches</span>
-              <span class="text-slate-500 text-[8px]">Pairs link to <span id="lock-b-rainbow-target">12</span></span>
-            </div>
-            <div class="w-full flex justify-center bg-slate-950/80 rounded-xl p-1 border border-slate-900">
-              <svg id="lock-b-rainbow-svg" viewBox="0 0 300 65" class="w-full h-12 select-none"></svg>
-            </div>
+          <!-- Diagnostic Torque Readout -->
+          <div id="p3-status-banner" class="p-2 rounded-xl border border-slate-800 bg-slate-900/90 text-[11px] font-bold text-slate-300 min-h-[38px] flex items-center justify-center">
+            Select a shared factor key above to test its hydraulic torque!
           </div>
 
-          <div class="text-[9px] text-center font-bold text-slate-500 border-t border-slate-900 pt-1 mt-0.5">
-            Click to focus Lock B
-          </div>
+          <button id="p3-strike-btn" type="button" disabled class="w-full py-2.5 bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-500 text-slate-950 font-black text-xs uppercase tracking-wider rounded-xl transition-all shadow-xl disabled:opacity-40 disabled:cursor-not-allowed hover:scale-102 active:scale-95 cursor-pointer">
+            💥 BREACH VAULT WITH SELECTED GCF (ENTER)
+          </button>
         </div>
-      </div>
-    </div>
 
-    <!-- ==================== PHASE 2: LASER ALIGNMENT SWEEP ==================== -->
-    <div id="phase-2-container" class="hidden h-full flex flex-col justify-between bg-slate-900/90 border-2 border-cyan-500 rounded-3xl p-5 shadow-2xl relative overflow-hidden">
-      <!-- Header -->
-      <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+      </div>
+
+      <!-- ==================== COLUMN 3: TUMBLER DIAL B (Col 4) ==================== -->
+      <div id="lock-b-card" class="col-span-4 bg-gray-950/95 border-2 border-slate-800 rounded-2xl p-2.5 flex flex-col justify-between transition-all cursor-pointer overflow-hidden">
         <div>
-          <span class="text-[10px] font-black uppercase bg-cyan-400 text-slate-950 px-2 py-0.5 rounded-full">STEP 2 OF 3</span>
-          <h2 class="text-xl font-black text-white mt-1">Laser Alignment: Shared Frequency Racks</h2>
-          <p class="text-xs text-slate-400">Comparing Lock A and Lock B factor arrays to isolate shared clearance keys.</p>
-        </div>
-        <div class="bg-slate-950 px-3.5 py-1.5 rounded-xl border border-slate-800 text-center font-mono-math">
-          <span class="text-[10px] text-slate-400 uppercase block font-bold">SHARED KEYS</span>
-          <span id="p2-shared-keys" class="text-xl font-black text-amber-400">0</span>
-        </div>
-      </div>
-
-      <!-- Parallel Racks with Laser Sweep Beam -->
-      <div class="flex-1 relative my-4 flex items-center justify-around gap-6">
-        <!-- Laser Sweep Beam -->
-        <div id="laser-scan-beam" class="absolute inset-x-0 h-1 bg-gradient-to-r from-transparent via-cyan-400 to-transparent shadow-[0_0_20px_#22d3ee] animate-laser pointer-events-none"></div>
-
-        <!-- Factors A -->
-        <div class="flex-1 bg-slate-950 p-4 rounded-2xl border border-cyan-900/60 max-w-md">
-          <span class="text-xs font-black uppercase text-cyan-400 block mb-2 border-b border-slate-800 pb-1">Lock A Factors</span>
-          <div id="p2-factors-a" class="grid grid-cols-4 gap-2"></div>
-        </div>
-
-        <!-- Center Indicator -->
-        <div class="text-2xl font-black text-slate-600">⇄</div>
-
-        <!-- Factors B -->
-        <div class="flex-1 bg-slate-950 p-4 rounded-2xl border border-amber-900/60 max-w-md">
-          <span class="text-xs font-black uppercase text-amber-400 block mb-2 border-b border-slate-800 pb-1">Lock B Factors</span>
-          <div id="p2-factors-b" class="grid grid-cols-4 gap-2"></div>
-        </div>
-      </div>
-
-      <!-- Proceed Action -->
-      <div class="flex justify-end pt-2 border-t border-slate-800">
-        <button id="p2-proceed-btn" class="px-6 py-2.5 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-slate-950 font-black text-xs uppercase tracking-wider rounded-xl transition-all shadow-lg active:scale-95 cursor-pointer">
-          ENGAGE MASTER OVERRIDE STRIKE →
-        </button>
-      </div>
-    </div>
-
-    <!-- ==================== PHASE 3: MASTER KEY TORQUE STRIKE ==================== -->
-    <div id="phase-3-container" class="hidden h-full flex flex-col justify-between bg-slate-900/90 border-2 border-amber-400 rounded-3xl p-5 shadow-2xl relative">
-      <!-- Header -->
-      <div class="flex items-center justify-between border-b border-slate-800 pb-3">
-        <div>
-          <span class="text-[10px] font-black uppercase bg-amber-400 text-slate-950 px-2 py-0.5 rounded-full">STEP 3 OF 3: MASTER KEY STRIKE</span>
-          <h2 class="text-xl font-black text-white mt-1">Select the Greatest Common Factor (GCF)</h2>
-          <p class="text-xs text-slate-400">All keys below are shared factors. Only the <strong class="text-amber-300">GREATEST</strong> key generates 100% torque to breach the blast doors!</p>
-        </div>
-        <div class="text-right text-xs font-mono-math">
-          <span class="text-slate-400">Dials:</span>
-          <span id="p3-target-a" class="font-black text-cyan-300">4</span>
-          <span class="text-slate-500">&</span>
-          <span id="p3-target-b" class="font-black text-amber-300">12</span>
-        </div>
-      </div>
-
-      <!-- Key Pedestals Bay -->
-      <div class="flex-1 flex flex-col justify-center items-center my-3">
-        <div id="p3-keys-container" class="flex flex-wrap items-center justify-center gap-3 max-w-2xl">
-          <!-- Dynamically populated keys -->
-        </div>
-
-        <!-- Hydraulic Torque Gauge -->
-        <div class="w-full max-w-md mt-5 bg-slate-950 p-3 rounded-2xl border border-slate-800 text-center">
-          <div class="flex items-center justify-between text-[10px] font-bold uppercase text-slate-400 mb-1">
-            <span>Hydraulic Torque Gauge</span>
-            <span id="p3-torque-text" class="text-amber-300 font-mono-math font-black">0%</span>
+          <!-- Header -->
+          <div class="flex items-center justify-between border-b border-amber-900/50 pb-1.5 mb-1.5">
+            <div class="flex items-center space-x-2">
+              <span class="w-6 h-6 rounded-lg bg-amber-400 text-slate-950 font-black text-xs flex items-center justify-center shadow">B</span>
+              <div>
+                <span class="text-xs font-black tracking-wider text-amber-300 uppercase block leading-none">Tumbler Dial B</span>
+                <span id="lock-b-active-tag" class="text-[9px] font-mono-math font-bold text-slate-500">CLICK TO TARGET</span>
+              </div>
+            </div>
+            <span id="lock-b-progress" class="px-2 py-0.5 rounded-md bg-amber-950 border border-amber-700 text-[10px] font-mono-math font-black text-amber-300">0 / 3 Pairs</span>
           </div>
-          <div class="w-full h-3 bg-slate-800 rounded-full overflow-hidden p-0.5">
-            <div id="p3-torque-gauge" class="h-full bg-gradient-to-r from-amber-500 to-yellow-400 rounded-full transition-all duration-500" style="width: 0%;"></div>
+
+          <!-- Rotary Safe Wheel -->
+          <div class="flex items-center justify-center my-1 relative">
+            <div id="lock-b-wheel" class="relative w-24 h-24 rounded-full border-4 border-amber-400/80 bg-gradient-to-tr from-slate-950 via-slate-900 to-slate-800 flex items-center justify-center shadow-xl transition-transform duration-700 select-none">
+              <div class="absolute inset-1 rounded-full border border-dashed border-amber-400/40 pointer-events-none"></div>
+              <div class="w-14 h-14 rounded-full bg-slate-950 border-2 border-amber-400 flex flex-col items-center justify-center shadow-inner">
+                <span class="text-[8px] uppercase font-bold text-slate-400 leading-none">DIAL B</span>
+                <span id="lock-b-number" class="text-xl font-mono-math font-black text-amber-300 leading-tight">12</span>
+                <span id="lock-b-dial-status" class="text-[8px] font-bold text-amber-400 leading-none">0/3</span>
+              </div>
+            </div>
           </div>
         </div>
 
-        <div id="p3-status-banner" class="mt-3 text-center text-xs font-bold text-slate-400 min-h-[24px]"></div>
+        <!-- Tumbler Pair Gates Rack -->
+        <div class="flex-1 overflow-y-auto space-y-1 pr-1 min-h-[75px] max-h-[145px]" id="lock-b-pairs">
+          <!-- Dynamically populated gates -->
+        </div>
+
+        <!-- Live Factor Rainbow Arches SVG -->
+        <div class="mt-1.5 pt-1.5 border-t border-slate-900/80">
+          <div class="flex items-center justify-between text-[9px] font-mono-math text-slate-400 mb-0.5">
+            <span class="font-bold uppercase tracking-wider text-amber-400">Factor Rainbow B</span>
+            <span class="text-amber-300 text-[8px] font-bold">★ Gold = Shared Factor</span>
+          </div>
+          <div class="w-full flex justify-center bg-slate-950/90 rounded-xl p-1 border border-slate-900">
+            <svg id="lock-b-rainbow-svg" viewBox="0 0 300 65" class="w-full h-12 select-none"></svg>
+          </div>
+        </div>
       </div>
 
-      <!-- Strike Action -->
-      <div class="flex justify-center pt-2 border-t border-slate-800">
-        <button id="p3-strike-btn" disabled class="px-8 py-3 bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-500 text-slate-950 font-black text-sm uppercase tracking-wider rounded-xl transition-all shadow-xl disabled:opacity-40 disabled:cursor-not-allowed hover:scale-102 active:scale-95 cursor-pointer">
-          💥 STRIKE HYDRAULIC LOCK (ENTER)
-        </button>
-      </div>
     </div>
 
-    <!-- ==================== PHASE 4: BOSS DILEMMA / VICTORY LOOT ==================== -->
-    <div id="phase-4-container" class="hidden h-full flex flex-col justify-between bg-gray-950 border-2 border-emerald-500 rounded-3xl p-6 shadow-2xl text-center">
-      <div>
-        <div class="text-4xl mb-2">🎉</div>
-        <h2 id="p4-title" class="text-2xl font-black text-white">VAULT BREACHED: SECURITY ASSETS SECURED!</h2>
-        <p id="p4-summary" class="text-xs text-slate-300 mt-1 max-w-lg mx-auto">Greatest Common Factor successfully turned the blast locks.</p>
-      </div>
+    <!-- ==================== PHASE 4 OVERLAY: VAULT BREACHED VICTORY / BOSS DILEMMA ==================== -->
+    <div id="phase-4-container" class="hidden fixed inset-0 z-40 bg-black/85 backdrop-blur-md flex items-center justify-center p-4">
+      <div class="bg-gray-950 border-2 border-emerald-400 rounded-3xl max-w-xl w-full p-6 shadow-2xl text-center glow-emerald">
+        <div class="text-4xl mb-1">🔓</div>
+        <h2 id="p4-title" class="text-2xl font-black text-white">VAULT BREACHED!</h2>
+        <p id="p4-summary" class="text-xs text-slate-300 mt-1">Greatest Common Factor confirmed.</p>
 
-      <!-- Dilemma / Stat Container -->
-      <div id="p4-dilemma-container" class="flex-1 flex items-center justify-center my-3">
-        <!-- Dynamically populated -->
-      </div>
+        <!-- GCF Mathematical Breakdown & Boss Dilemma Container -->
+        <div id="p4-dilemma-container" class="my-4">
+          <!-- Dynamically populated -->
+        </div>
 
-      <div class="flex justify-center pt-3 border-t border-slate-900">
-        <button id="p4-next-btn" class="px-8 py-3 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-black text-sm uppercase tracking-wider rounded-xl transition-all shadow-lg active:scale-95 cursor-pointer">
-          NEXT VAULT SECTOR →
+        <button id="p4-next-btn" class="w-full py-3.5 bg-gradient-to-r from-emerald-500 to-teal-400 hover:from-emerald-400 hover:to-teal-300 text-slate-950 font-black text-sm uppercase tracking-wider rounded-xl transition-all shadow-lg active:scale-95 cursor-pointer">
+          NEXT VAULT SECTOR (ENTER) →
         </button>
       </div>
     </div>
 
   </main>
 
-  <!-- ==================== MISSION BRIEFING / HOW TO PLAY MODAL ==================== -->
+  <!-- ==================== MISSION BRIEFING / HOW TO PLAY MODAL (Pillar 6) ==================== -->
   <div id="mission-briefing-modal" class="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-3">
     <div class="bg-gray-950 border-2 border-cyan-400/90 rounded-3xl max-w-2xl w-full p-5 sm:p-6 shadow-2xl glow-cyan text-left max-h-[92vh] overflow-y-auto flex flex-col justify-between">
       <div>
@@ -468,8 +447,8 @@
             </div>
             <div>
               <div class="flex items-center space-x-2">
-                <span class="text-[10px] font-mono-math font-black bg-cyan-950 text-cyan-300 border border-cyan-800 px-2 py-0.5 rounded uppercase">CLEARANCE DIRECTIVE</span>
-                <span class="text-[10px] font-bold text-slate-400">enVision Math 2.0 (Topic 3)</span>
+                <span class="text-[10px] font-mono-math font-black bg-cyan-950 text-cyan-300 border border-cyan-800 px-2 py-0.5 rounded uppercase">MISSION BRIEFING</span>
+                <span class="text-[10px] font-bold text-slate-400">6th Grade Topic 3 · GCF Engine</span>
               </div>
               <h2 class="text-xl sm:text-2xl font-black text-white tracking-wide mt-0.5">Vault Breaker: The GCF Tumbler</h2>
             </div>
@@ -479,7 +458,7 @@
 
         <!-- Mission Objective -->
         <p class="text-xs text-slate-300 mb-3 leading-relaxed">
-          Security blast doors are locked by dual harmonic tumblers. Synchronize both locks using <strong class="text-cyan-300">Factor Pairs</strong> and strike the hydraulic cylinder with the <strong class="text-amber-300">Greatest Common Factor (GCF)</strong> to breach the treasury!
+          Each vault is locked by two rotating number dials. Your mission is to unlock the <strong class="text-cyan-300">Factor Pairs</strong> on both dials to reveal their <strong class="text-amber-300">Common Factors</strong> in the center bridge, then strike the lock with the <strong class="text-emerald-300">Greatest Common Factor (GCF)</strong>!
         </p>
 
         <!-- 3-Step Protocol Cards -->
@@ -488,41 +467,41 @@
           <div class="bg-slate-900/80 border border-cyan-500/50 rounded-2xl p-2.5 flex flex-col justify-between shadow-sm">
             <div>
               <span class="text-[9px] font-black uppercase bg-cyan-400 text-slate-950 px-1.5 py-0.5 rounded-full inline-block mb-1.5">STEP 1</span>
-              <h3 class="font-black text-cyan-300 text-xs">Pair The Tumblers</h3>
+              <h3 class="font-black text-cyan-300 text-xs">Click Factor Pairs</h3>
               <p class="text-[11px] text-slate-300 mt-1 leading-snug">
-                Enter both numbers in each factor pair that multiply to the target:
+                Click any 2 Pin Tiles (or type) that multiply to the active dial:
               </p>
             </div>
             <div class="mt-2 text-center py-1 bg-slate-950 rounded-lg font-mono-math font-extrabold text-[11px] text-cyan-200 border border-cyan-900/60">
-              [ A ] × [ B ] = Target
+              [ 3 ] × [ 4 ] = 12
             </div>
           </div>
 
           <!-- Step 2 -->
-          <div class="bg-slate-900/80 border border-blue-500/50 rounded-2xl p-2.5 flex flex-col justify-between shadow-sm">
+          <div class="bg-slate-900/80 border border-amber-500/50 rounded-2xl p-2.5 flex flex-col justify-between shadow-sm">
             <div>
-              <span class="text-[9px] font-black uppercase bg-blue-400 text-slate-950 px-1.5 py-0.5 rounded-full inline-block mb-1.5">STEP 2</span>
-              <h3 class="font-black text-blue-300 text-xs">Laser Alignment</h3>
+              <span class="text-[9px] font-black uppercase bg-amber-400 text-slate-950 px-1.5 py-0.5 rounded-full inline-block mb-1.5">STEP 2</span>
+              <h3 class="font-black text-amber-300 text-xs">Watch Shared Bridge</h3>
               <p class="text-[11px] text-slate-300 mt-1 leading-snug">
-                Scan both dials simultaneously to isolate the shared clearance frequencies:
+                Whenever a factor is found on <strong>BOTH</strong> dials, a laser zaps it into the Center Bridge!
               </p>
             </div>
-            <div class="mt-2 text-center py-1 bg-slate-950 rounded-lg font-mono-math font-extrabold text-[11px] text-blue-200 border border-blue-900/60">
-              Shared Factors
+            <div class="mt-2 text-center py-1 bg-slate-950 rounded-lg font-mono-math font-extrabold text-[11px] text-amber-200 border border-amber-900/60">
+              🔗 Shared Common Keys
             </div>
           </div>
 
           <!-- Step 3 -->
-          <div class="bg-slate-900/80 border border-amber-500/50 rounded-2xl p-2.5 flex flex-col justify-between shadow-sm">
+          <div class="bg-slate-900/80 border border-emerald-500/50 rounded-2xl p-2.5 flex flex-col justify-between shadow-sm">
             <div>
-              <span class="text-[9px] font-black uppercase bg-amber-400 text-slate-950 px-1.5 py-0.5 rounded-full inline-block mb-1.5">STEP 3</span>
-              <h3 class="font-black text-amber-300 text-xs">Master GCF Strike</h3>
+              <span class="text-[9px] font-black uppercase bg-emerald-400 text-slate-950 px-1.5 py-0.5 rounded-full inline-block mb-1.5">STEP 3</span>
+              <h3 class="font-black text-emerald-300 text-xs">Strike With The GCF</h3>
               <p class="text-[11px] text-slate-300 mt-1 leading-snug">
-                Select the <strong>GREATEST</strong> common factor for 100% torque to shatter the lock:
+                Once all pairs are found, select the <strong>GREATEST Common Factor</strong> for 100% torque!
               </p>
             </div>
-            <div class="mt-2 text-center py-1 bg-slate-950 rounded-lg font-mono-math font-extrabold text-[11px] text-amber-200 border border-amber-900/60">
-              Max Torque (GCF)
+            <div class="mt-2 text-center py-1 bg-slate-950 rounded-lg font-mono-math font-extrabold text-[11px] text-emerald-200 border border-emerald-900/60">
+              💥 100% GCF Breach
             </div>
           </div>
         </div>
@@ -531,12 +510,12 @@
         <div class="bg-slate-900/60 border border-slate-800 rounded-2xl p-2.5 flex items-center justify-between text-[11px] text-slate-300 gap-3 mb-4">
           <div class="flex items-center space-x-1.5">
             <span>⏱️</span>
-            <span><strong>Timer & Alarm:</strong> Beat the clock and avoid incorrect factors to prevent Security Lockdown!</span>
+            <span><strong>Stakes:</strong> Beat the timer and avoid non-factor traps before Alarm reaches 100%!</span>
           </div>
           <div class="hidden sm:flex items-center space-x-1 text-[10px] font-mono-math text-slate-400 shrink-0">
-            <span class="px-1.5 py-0.5 bg-slate-800 rounded">0-9</span>
-            <span class="px-1.5 py-0.5 bg-slate-800 rounded">Tab/x</span>
-            <span class="px-1.5 py-0.5 bg-slate-800 rounded">Enter</span>
+            <span class="px-1.5 py-0.5 bg-slate-800 rounded">Click Tiles</span>
+            <span>or</span>
+            <span class="px-1.5 py-0.5 bg-slate-800 rounded">0-9 + Enter</span>
           </div>
         </div>
       </div>
@@ -544,7 +523,7 @@
       <!-- Initiate Action Button -->
       <div class="text-center pt-2 border-t border-slate-900">
         <button id="start-mission-btn" class="w-full py-3.5 bg-gradient-to-r from-cyan-500 via-amber-400 to-yellow-500 hover:from-cyan-400 hover:to-yellow-400 text-slate-950 font-black text-sm uppercase tracking-wider rounded-xl transition-all shadow-xl shadow-cyan-500/20 active:scale-98 cursor-pointer flex items-center justify-center space-x-2">
-          <span>⚡ INITIATE MISSION</span>
+          <span>⚡ BEGIN MISSION</span>
           <span class="text-xs font-mono-math opacity-80">(PRESS ENTER)</span>
         </button>
       </div>
@@ -574,32 +553,32 @@
       <div class="flex items-center justify-between border-b border-slate-800 pb-3 mb-4">
         <div class="flex items-center space-x-2">
           <span class="text-xl">📖</span>
-          <h3 class="text-lg font-black text-cyan-400 uppercase tracking-wider">Field Guide: Greatest Common Factor</h3>
+          <h3 class="text-lg font-black text-cyan-400 uppercase tracking-wider">Field Guide: Greatest Common Factor (GCF)</h3>
         </div>
         <button id="close-guide-btn" class="px-2.5 py-1 bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-300 rounded-lg text-xs font-bold cursor-pointer">
           ✕ CLOSE
         </button>
       </div>
 
-      <div class="space-y-4 text-xs text-slate-300">
+      <div class="space-y-3.5 text-xs text-slate-300">
         <div class="bg-slate-900/70 p-3 rounded-xl border border-slate-800">
-          <h4 class="font-black text-cyan-300 uppercase mb-1">1. The Factor Pairs (Rainbow) Method</h4>
-          <p>A factor is a whole number that divides another number evenly with <strong>zero remainder</strong>. Factors always come in pairs: $1 \times 24 = 24$, $2 \times 12 = 24$, $3 \times 8 = 24$, $4 \times 6 = 24$.</p>
+          <h4 class="font-black text-cyan-300 uppercase mb-1">1. Factor Pairs &amp; Factor Rainbows</h4>
+          <p>Factors are whole numbers that multiply together to make a target number with <strong>zero remainder</strong>. Every factor has a partner: for $24$, the pairs are $1 \times 24$, $2 \times 12$, $3 \times 8$, and $4 \times 6$.</p>
         </div>
 
         <div class="bg-slate-900/70 p-3 rounded-xl border border-slate-800">
-          <h4 class="font-black text-amber-300 uppercase mb-1">2. Direct Multiple Rule</h4>
-          <p>If number A divides number B evenly (for example, $4$ divides $12$), then the smaller number ($4$) is automatically the Greatest Common Factor!</p>
+          <h4 class="font-black text-amber-300 uppercase mb-1">2. Common Factors vs. GREATEST Common Factor</h4>
+          <p>Any factor that appears on <strong>both</strong> Dial A and Dial B is a <strong>Common Factor</strong>. For $18$ and $24$, the common factors are $1, 2, 3,$ and $6$. Only the largest one ($6$) is the <strong>Greatest Common Factor (GCF)</strong>!</p>
         </div>
 
         <div class="bg-slate-900/70 p-3 rounded-xl border border-slate-800">
-          <h4 class="font-black text-rose-300 uppercase mb-1">3. Co-Prime Numbers</h4>
-          <p>Two numbers that share <strong>NO common factor other than 1</strong> are called <strong>co-prime</strong> (e.g. 15 and 16, or 20 and 21). Consecutive integers are always co-prime, and their GCF is strictly <strong>1</strong>.</p>
+          <h4 class="font-black text-emerald-300 uppercase mb-1">3. Factoring with the GCF (Distributive Property)</h4>
+          <p>When you divide both numbers by their GCF, the remaining parts have no common factor other than $1$: $18 + 24 = \mathbf{6}(3 + 4)$.</p>
         </div>
 
         <div class="bg-slate-900/70 p-3 rounded-xl border border-slate-800">
-          <h4 class="font-black text-emerald-300 uppercase mb-1">4. Common Factor vs. GREATEST Common Factor</h4>
-          <p>Two numbers may share multiple common factors (for example, 18 and 24 share 1, 2, 3, and 6). While 2 and 3 are shared factors, only <strong>6</strong> is the <strong>Greatest Common Factor (GCF)</strong> capable of generating 100% torque!</p>
+          <h4 class="font-black text-rose-300 uppercase mb-1">4. Co-Prime Trap Vaults</h4>
+          <p>Consecutive numbers (like $15$ and $16$) share <strong>no factor other than $1$</strong>! They are called <strong>co-prime</strong>, and their GCF is always $1$.</p>
         </div>
       </div>
     </div>
