@@ -1,9 +1,13 @@
 services:
   - type: web
     name: tactics-math-arena
-    env: static
-    buildCommand: ""
-    staticPublishPath: ./
+    runtime: static
+    buildCommand: npm run build
+    staticPublishPath: .
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
     headers:
       - path: /*
         name: Cache-Control
