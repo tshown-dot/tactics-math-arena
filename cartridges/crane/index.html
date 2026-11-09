@@ -433,6 +433,21 @@
     </div>
   </div>
 
-  <script type="module" src="./js/game.js"></script>
+  <!--
+    Every JS file is loaded with the same ?v= tag (also used inside the imports in js/*.js).
+    GitHub Pages lets browsers cache files for 10 minutes, so after changing ANY js file,
+    bump this tag everywhere (search for "v=20261109b") or students can get a mix of old and new files.
+  -->
+  <script type="module" src="./js/game.js?v=20261109b"></script>
+  <script>
+    // If the game script fails to load (stale cache, network hiccup), say so instead of leaving dead buttons.
+    setTimeout(function () {
+      if (window.craneGame) return;
+      var box = document.createElement('div');
+      box.className = 'fixed top-4 left-1/2 -translate-x-1/2 z-[100] px-5 py-3 rounded-2xl bg-rose-950 border-2 border-rose-500 text-rose-100 text-sm font-bold text-center shadow-2xl';
+      box.innerHTML = 'The game didn\'t finish loading.<br>Press <b>Ctrl + Shift + R</b> (or <b>Cmd + Shift + R</b> on a Mac) to reload it.';
+      document.body.appendChild(box);
+    }, 6000);
+  </script>
 </body>
 </html>

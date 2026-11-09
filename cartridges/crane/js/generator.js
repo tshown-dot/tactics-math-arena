@@ -16,8 +16,8 @@ import {
   validateMove,
   tokensToText,
   isOperatorToken,
-} from './expressionParser.js';
-import { ZONES, BOSS } from './curriculum.js';
+} from './expressionParser.js?v=20261109b';
+import { ZONES, BOSS } from './curriculum.js?v=20261109b';
 
 /** Small seeded PRNG (mulberry32) so runs are reproducible in tests. */
 export function createRng(seed = Date.now()) {

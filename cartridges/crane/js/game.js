@@ -26,7 +26,7 @@ import {
   displayOp,
   opVerb,
   isOperatorToken,
-} from './expressionParser.js';
+} from './expressionParser.js?v=20261109b';
 import {
   ZONES,
   BOSS,
@@ -37,9 +37,9 @@ import {
   MAX_FOLLOWUPS_PER_ZONE,
   MAX_COMBO,
   BOSS_TAUNTS,
-} from './curriculum.js';
-import { createRng, buildRun, buildZoneTasks, buildBossTasks, makeFollowUp, cagedExpression } from './generator.js';
-import { soundEngine } from './audio.js';
+} from './curriculum.js?v=20261109b';
+import { createRng, buildRun, buildZoneTasks, buildBossTasks, makeFollowUp, cagedExpression } from './generator.js?v=20261109b';
+import { soundEngine } from './audio.js?v=20261109b';
 
 const LESSON_ID = 'G06_U03_L03';
 const ALL_STAGES = [...ZONES, BOSS];
