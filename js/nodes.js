@@ -68,7 +68,7 @@ export const REALM_NODES = [
     buildingType: 'bank_vault',
     regionName: 'Gold Street',
     subtitle: 'Greatest Common Factor (GCF)',
-    description: 'Enter the Town Bank! Spin the heavy vault tumblers and pair up factors to crack the GCF security doors before the alarm sounds.',
+    description: 'Rob the Town Bank! Crack dials, split the loot, tile the vault floor, and smash the Vault Golem, all with the Greatest Common Factor, before the heat catches up with you.',
     standard: 'enVision 2.0 Lesson 3-2: Find the Greatest Common Factor',
     cartridgeUrl: './cartridges/gcf/index.html',
     icon: '🏦',

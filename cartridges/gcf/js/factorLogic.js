@@ -448,3 +448,149 @@ export function evaluateMasterKeySelection(rawKey, targetA, targetB) {
     torqueRatio: 0,
   };
 }
+
+// ------------------------------------------------------------------
+// Heist-mode evaluators (Split the Loot, Tile the Floor, Factor Out,
+// and a general GCF answer diagnosis used by every mode)
+// ------------------------------------------------------------------
+
+/** GCF of any list of positive integers. */
+export function getGCFMany(nums) {
+  return nums.reduce((g, n) => getGCF(g, n));
+}
+
+/** Least common multiple of two positive integers (used to spot LCM mix-ups). */
+export function getLCM(a, b) {
+  return (a / getGCF(a, b)) * b;
+}
+
+/**
+ * Diagnoses a single-number GCF answer against two or more numbers.
+ * Codes:
+ *  CORRECT              - the GCF
+ *  INVALID              - not a positive whole number
+ *  LCM_MIXUP            - answered the least common multiple
+ *  TOO_BIG              - bigger than the smallest number (a factor can't be)
+ *  COMMON_NOT_GREATEST  - divides all numbers, but the quotients still share a factor
+ *  DIVIDES_SOME         - divides some of the numbers but not all
+ *  DIVIDES_NONE         - divides none of them
+ */
+export function diagnoseGCFAnswer(rawAnswer, nums) {
+  const answer = parseMathInput(rawAnswer);
+  const gcf = getGCFMany(nums);
+  const list = nums.join(', ');
+  if (isNaN(answer) || answer <= 0) {
+    return { code: 'INVALID', isCorrect: false, gcf, message: 'Enter a positive whole number.' };
+  }
+  if (answer === gcf) {
+    return { code: 'CORRECT', isCorrect: true, gcf, message: `GCF(${list}) = ${gcf}` };
+  }
+  const divides = nums.filter((n) => n % answer === 0);
+  const smallest = Math.min(...nums);
+  if (nums.length === 2 && answer === getLCM(nums[0], nums[1]) && answer > smallest) {
+    return {
+      code: 'LCM_MIXUP', isCorrect: false, gcf,
+      message: `${answer} is a common MULTIPLE (the LCM). A factor has to divide into ${list}, so it can't be bigger than ${smallest}.`,
+    };
+  }
+  if (answer > smallest) {
+    return {
+      code: 'TOO_BIG', isCorrect: false, gcf,
+      message: `${answer} is bigger than ${smallest}. A factor of ${smallest} can't be bigger than ${smallest}.`,
+    };
+  }
+  if (divides.length === nums.length) {
+    const quotients = nums.map((n) => n / answer);
+    const leftover = getGCFMany(quotients);
+    return {
+      code: 'COMMON_NOT_GREATEST', isCorrect: false, gcf, quotients, leftover,
+      message: `${answer} divides all of them, but ${quotients.join(' and ')} still share a factor of ${leftover}. There's a bigger common factor.`,
+    };
+  }
+  if (divides.length > 0) {
+    const misses = nums.filter((n) => n % answer !== 0);
+    const n = misses[0];
+    return {
+      code: 'DIVIDES_SOME', isCorrect: false, gcf,
+      message: `${answer} goes into ${divides.join(' and ')}, but not ${n}: ${n} ÷ ${answer} = ${Math.floor(n / answer)} R ${n % answer}.`,
+    };
+  }
+  return {
+    code: 'DIVIDES_NONE', isCorrect: false, gcf,
+    message: `${answer} doesn't divide evenly into any of ${list}.`,
+  };
+}
+
+/**
+ * Split the Loot: how the loot lands when packed into `bags` identical bags.
+ * @returns {{bags:number, perBagA:number, perBagB:number, leftoverA:number, leftoverB:number, clean:boolean, isMax:boolean}}
+ */
+export function evaluateSplit(rawBags, a, b) {
+  const bags = parseMathInput(rawBags);
+  const gcf = getGCF(a, b);
+  if (isNaN(bags) || bags <= 0) {
+    return { bags: 0, perBagA: 0, perBagB: 0, leftoverA: a, leftoverB: b, clean: false, isMax: false, gcf };
+  }
+  const leftoverA = a % bags;
+  const leftoverB = b % bags;
+  const clean = leftoverA === 0 && leftoverB === 0;
+  return {
+    bags,
+    perBagA: Math.floor(a / bags),
+    perBagB: Math.floor(b / bags),
+    leftoverA,
+    leftoverB,
+    clean,
+    isMax: clean && bags === gcf,
+    gcf,
+  };
+}
+
+/**
+ * Tile the Floor: how square tiles of side `size` cover a w × h floor.
+ * @returns {{size:number, cols:number, rows:number, leftoverW:number, leftoverH:number, fits:boolean, isLargest:boolean}}
+ */
+export function evaluateTile(rawSize, w, h) {
+  const size = parseMathInput(rawSize);
+  const gcf = getGCF(w, h);
+  if (isNaN(size) || size <= 0) {
+    return { size: 0, cols: 0, rows: 0, leftoverW: w, leftoverH: h, fits: false, isLargest: false, gcf };
+  }
+  const cols = Math.floor(w / size);
+  const rows = Math.floor(h / size);
+  const leftoverW = w - cols * size;
+  const leftoverH = h - rows * size;
+  const fits = leftoverW === 0 && leftoverH === 0;
+  return { size, cols, rows, leftoverW, leftoverH, fits, isLargest: fits && size === gcf, gcf };
+}
+
+/**
+ * Factor Out: checks a + b = g(m + n).
+ * Codes: CORRECT, INCOMPLETE, WRONG_PRODUCT, NOT_GREATEST
+ */
+export function evaluateFactorOut(rawG, rawM, rawN, a, b) {
+  const g = parseMathInput(rawG);
+  const m = parseMathInput(rawM);
+  const n = parseMathInput(rawN);
+  const gcf = getGCF(a, b);
+  if ([g, m, n].some((v) => isNaN(v) || v <= 0)) {
+    return { code: 'INCOMPLETE', isCorrect: false, gcf, message: 'Fill in all three boxes.' };
+  }
+  const okA = g * m === a;
+  const okB = g * n === b;
+  if (!okA || !okB) {
+    const bad = !okA ? `${g} × ${m} = ${g * m}, not ${a}` : `${g} × ${n} = ${g * n}, not ${b}`;
+    return {
+      code: 'WRONG_PRODUCT', isCorrect: false, gcf,
+      message: `That doesn't rebuild the numbers: ${bad}. The number outside × each number inside must give back ${a} and ${b}.`,
+    };
+  }
+  if (g !== gcf) {
+    const left = getGCF(m, n);
+    return {
+      code: 'NOT_GREATEST', isCorrect: false, gcf,
+      message: `${g}(${m} + ${n}) is equal, but ${m} and ${n} still share ${left}. Pull out the GREATEST common factor.`,
+    };
+  }
+  return { code: 'CORRECT', isCorrect: true, gcf, message: `${a} + ${b} = ${g}(${m} + ${n})` };
+}

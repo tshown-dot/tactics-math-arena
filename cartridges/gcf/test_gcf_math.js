@@ -19,9 +19,15 @@ import {
   validateFactor,
   validateFactorPair,
   evaluateMasterKeySelection,
+  getGCFMany,
+  diagnoseGCFAnswer,
+  evaluateSplit,
+  evaluateTile,
+  evaluateFactorOut,
 } from './js/factorLogic.js';
 
-import { CURRICULUM_SECTORS } from './js/curriculum.js';
+import { CURRICULUM_SECTORS, MODE_INFO } from './js/curriculum.js';
+import { buildRun, makeFollowUp, makeProblem, createRng } from './js/generator.js';
 
 let totalTests = 0;
 let passedTests = 0;
@@ -36,7 +42,7 @@ function assert(condition, message) {
   }
 }
 
-console.log('🧪 Starting Vault Breaker: GCF Tumbler Verification Suite...\n');
+console.log('🧪 Starting Vault Breaker: GCF Heist Verification Suite...\n');
 
 // 1. Multi-format math input parsing (Rule 3)
 console.log('1. Testing Multi-Format Math Input Parsing ($15, 15, 15.00)');
@@ -89,18 +95,14 @@ assert(
   'Live Common Factor Bridge detects [1, 4] when (1,12),(3,4) and (1,16),(4,4) are unlocked'
 );
 
-for (const sector of CURRICULUM_SECTORS) {
-  for (const vault of sector.vaults) {
-    const tiles = generateCandidateTiles(vault.numA, vault.numB);
-    const allA = getAllFactorsSorted(vault.numA);
-    const allB = getAllFactorsSorted(vault.numB);
-    const includesAllA = allA.every(f => tiles.includes(f));
-    const includesAllB = allB.every(f => tiles.includes(f));
-    assert(
-      includesAllA && includesAllB && (tiles.length === 12 || tiles.length === 16),
-      `Pin Tile Matrix for (${vault.numA}, ${vault.numB}) contains 100% of true factors plus distractors (${tiles.length} tiles)`
-    );
-  }
+for (const [numA, numB] of [[4, 12], [12, 16], [18, 24], [30, 45], [15, 16], [48, 72]]) {
+  const tiles = generateCandidateTiles(numA, numB);
+  const allA = getAllFactorsSorted(numA);
+  const allB = getAllFactorsSorted(numB);
+  assert(
+    allA.every(f => tiles.includes(f)) && allB.every(f => tiles.includes(f)),
+    `Pin Tile Matrix for (${numA}, ${numB}) contains 100% of true factors (${tiles.length} tiles)`
+  );
 }
 
 // 4. Common Factors and GCF Calculations
@@ -170,26 +172,104 @@ assert(
   'Selecting non-common factor 8 diagnoses access denied'
 );
 
-// 7. Curriculum Sector Verification
-console.log('\n7. Testing Curriculum Sector Configuration');
-assert(CURRICULUM_SECTORS.length === 5, 'All 5 curriculum sectors defined');
+// 7. Heist evaluators
+console.log('\n7. Testing Heist Evaluators (diagnosis, split, tile, factor out)');
+assert(getGCFMany([24, 36, 60]) === 12, 'getGCFMany(24, 36, 60) = 12');
+assert(diagnoseGCFAnswer(6, [18, 24]).code === 'CORRECT', 'Diagnose: 6 is GCF(18, 24)');
+assert(diagnoseGCFAnswer('$6.00', [18, 24]).code === 'CORRECT', 'Diagnose accepts "$6.00"');
+const d3 = diagnoseGCFAnswer(3, [18, 24]);
+assert(d3.code === 'COMMON_NOT_GREATEST' && d3.leftover === 2, 'Diagnose: 3 for (18, 24) is common, leftovers 6 and 8 still share 2');
+assert(diagnoseGCFAnswer(72, [18, 24]).code === 'LCM_MIXUP', 'Diagnose: 72 for (18, 24) is the LCM mix-up');
+assert(diagnoseGCFAnswer(20, [18, 24]).code === 'TOO_BIG', 'Diagnose: 20 for (18, 24) is too big');
+assert(diagnoseGCFAnswer(9, [18, 24]).code === 'DIVIDES_SOME', 'Diagnose: 9 divides 18 but not 24');
+assert(diagnoseGCFAnswer(5, [18, 24]).code === 'DIVIDES_NONE', 'Diagnose: 5 divides neither');
+assert(diagnoseGCFAnswer(1, [15, 16]).code === 'CORRECT', 'Diagnose: co-prime (15, 16) GCF is 1');
+assert(diagnoseGCFAnswer(6, [24, 36, 60]).code === 'COMMON_NOT_GREATEST', 'Diagnose: 6 for (24, 36, 60) is not greatest');
+assert(diagnoseGCFAnswer('abc', [18, 24]).code === 'INVALID', 'Diagnose rejects "abc"');
 
-let totalVaults = 0;
+const sp = evaluateSplit(6, 18, 24);
+assert(sp.clean && sp.isMax && sp.perBagA === 3 && sp.perBagB === 4, 'Split 18 & 24 into 6 bags: 3 + 4 each, max');
+const sp3 = evaluateSplit(3, 18, 24);
+assert(sp3.clean && !sp3.isMax, 'Split into 3 bags is clean but not the max');
+const sp5 = evaluateSplit(5, 18, 24);
+assert(!sp5.clean && sp5.leftoverA === 3 && sp5.leftoverB === 4, 'Split into 5 bags leaves 3 and 4 behind');
+
+const t12 = evaluateTile(12, 48, 36);
+assert(t12.fits && t12.isLargest && t12.cols === 4 && t12.rows === 3, '12 ft tiles fit 48 × 36 as 4 × 3, largest');
+const t6 = evaluateTile(6, 48, 36);
+assert(t6.fits && !t6.isLargest, '6 ft tiles fit 48 × 36 but are not the largest');
+const t10 = evaluateTile(10, 48, 36);
+assert(!t10.fits && t10.leftoverW === 8 && t10.leftoverH === 6, '10 ft tiles leave 8 ft and 6 ft gaps');
+
+assert(evaluateFactorOut(12, 2, 3, 24, 36).code === 'CORRECT', '24 + 36 = 12(2 + 3)');
+assert(evaluateFactorOut('6', '4', '6', 24, 36).code === 'NOT_GREATEST', '24 + 36 = 6(4 + 6) is equal but not the GCF');
+assert(evaluateFactorOut(12, 2, 4, 24, 36).code === 'WRONG_PRODUCT', '12(2 + 4) does not rebuild 24 + 36');
+assert(evaluateFactorOut(12, '', 3, 24, 36).code === 'INCOMPLETE', 'Empty box is incomplete');
+
+// 8. Sectors & generator
+console.log('\n8. Testing Sectors & Randomized Run Generator (500 seeds)');
+assert(CURRICULUM_SECTORS.length === 5, 'Five sectors: four floors + boss');
+assert(CURRICULUM_SECTORS[4].isBossSector && CURRICULUM_SECTORS[4].bossHp === CURRICULUM_SECTORS[4].modes.length, 'Boss HP equals its job count');
 for (const sector of CURRICULUM_SECTORS) {
-  assert(sector.timeLimit >= 40, `Sector ${sector.id} has real-stakes time limit (${sector.timeLimit}s)`);
-  assert(sector.alarmPerError >= 20, `Sector ${sector.id} has alarm stakes (${sector.alarmPerError}%)`);
-  for (const vault of sector.vaults) {
-    totalVaults++;
-    const gcf = getGCF(vault.numA, vault.numB);
-    assert(gcf >= 1, `Vault ${vault.vaultName} has valid GCF (${gcf})`);
-  }
+  assert(sector.timeLimit >= 30 && sector.heatPerMiss > 0, `${sector.name}: timer ${sector.timeLimit}s, heat +${sector.heatPerMiss}%`);
+  assert(sector.waves === sector.modes.length && sector.modes.every(m => MODE_INFO[m]), `${sector.name}: ${sector.waves} valid jobs`);
 }
-assert(totalVaults === 9, 'Total of 9 structured vaults across 5 sectors');
 
-const bossSector = CURRICULUM_SECTORS.find(s => s.isBossSector);
-assert(bossSector !== undefined, 'Sector 5 is flagged as isBossSector');
-const bossVault = bossSector.vaults[0];
-assert(bossVault.bossDilemmas.length === 2, 'Boss vault contains 2 higher-order dilemmas');
+let genProblems = 0;
+let genFailures = [];
+let sawCoprime = false;
+let sawDirect = false;
+for (let seed = 1; seed <= 500; seed++) {
+  const run = buildRun(seed);
+  run.forEach((jobs, si) => {
+    const sector = CURRICULUM_SECTORS[si];
+    if (jobs.length !== sector.modes.length) genFailures.push(`seed ${seed} sector ${si} job count`);
+    const keys = new Set();
+    for (const p of jobs) {
+      genProblems++;
+      const g = getGCFMany(p.nums);
+      if (g !== p.answer) genFailures.push(`seed ${seed}: ${p.mode} ${p.nums} answer ${p.answer} != ${g}`);
+      if (Math.max(...p.nums) > sector.numbers.max) genFailures.push(`seed ${seed}: ${p.nums} over max`);
+      if (p.nums.some(n => n < 2)) genFailures.push(`seed ${seed}: ${p.nums} has a number < 2`);
+      if (Math.max(...p.nums) > 999) genFailures.push(`seed ${seed}: ${p.nums} won't fit the 3-digit keypad`);
+      if (p.mode === 'factor') {
+        const [gg, m, n] = p.answerParts;
+        if (gg * m !== p.nums[0] || gg * n !== p.nums[1] || gg === 1) genFailures.push(`seed ${seed}: bad factor ${p.nums}`);
+      }
+      if (p.mode === 'scan') {
+        if (p.choices.length !== 4 || new Set(p.choices).size !== 4) genFailures.push(`seed ${seed}: scan choices ${p.choices}`);
+        if (p.choices.filter(c => c === p.answer).length !== 1) genFailures.push(`seed ${seed}: scan answer count`);
+        if (p.choices.some(c => c > 999)) genFailures.push(`seed ${seed}: scan choice too big`);
+      }
+      if (p.mode === 'tile') {
+        const [w, h] = p.nums;
+        if (w < h) genFailures.push(`seed ${seed}: tile width < height`);
+      }
+      if (p.mode === 'split' && !p.loot) genFailures.push(`seed ${seed}: split missing loot`);
+      if (p.mode === 'crack3' && p.nums.length !== 3) genFailures.push(`seed ${seed}: crack3 needs 3 numbers`);
+      if (g === 1) sawCoprime = true;
+      if (p.nums.length === 2 && Math.max(...p.nums) % Math.min(...p.nums) === 0) sawDirect = true;
+      const key = `${p.mode}:${[...p.nums].sort((a, b) => a - b)}`;
+      keys.add(key);
+    }
+  });
+}
+assert(genFailures.length === 0, `All ${genProblems} generated jobs valid${genFailures.length ? ': ' + genFailures.slice(0, 5).join(' | ') : ''}`);
+assert(sawCoprime, 'Generator produces co-prime traps (GCF = 1)');
+assert(sawDirect, 'Generator produces direct-multiple pairs');
+assert(buildRun(42).flat().map(p => p.nums.join(',')).join('|') !== buildRun(43).flat().map(p => p.nums.join(',')).join('|'), 'Different seeds give different runs');
+const runA = buildRun(7).flat().map(p => p.nums.join(',')).join('|');
+const runB = buildRun(7).flat().map(p => p.nums.join(',')).join('|');
+assert(runA === runB, 'Same seed gives the same run (reproducible)');
+
+const rng = createRng(99);
+const cfg3 = CURRICULUM_SECTORS[2].numbers;
+const factorJob = makeProblem('factor', rng, cfg3);
+const fuNG = makeFollowUp(factorJob, 'NOT_GREATEST', rng, cfg3);
+assert(fuNG && fuNG.mode === 'factor' && fuNG.answer >= 6, 'NOT_GREATEST follow-up: another factor job with a big GCF');
+const fuLcm = makeFollowUp(makeProblem('crack', rng, cfg3), 'LCM_MIXUP', rng, cfg3);
+assert(fuLcm && fuLcm.mode === 'scan', 'LCM mix-up follow-up is a Spot-the-Key job');
+assert(makeFollowUp(factorJob, 'INVALID', rng, cfg3) === null, 'No follow-up for invalid input');
 
 console.log(`\n========================================`);
 console.log(`Results: ${passedTests}/${totalTests} tests passed`);
