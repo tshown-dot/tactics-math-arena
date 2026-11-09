@@ -1,66 +1,99 @@
 /**
  * Charge Runner: Exponent Reactor - Game Engine
  * Core Game Design Aligned:
- *   1. Combo & Scaling Progression (x1 -> x2 -> x4 -> x8 -> x16 combo chains)
- *   2. Real Stakes & Failure States (Active surge timer, Core health, Meltdown)
- *   3. Rapid Inline Misconception Feedback (<1.5s auto-retry, ZERO BLOCKING MODALS)
- *   4. Boss Climax Phase (Sector 5: Singularity Overcharge with Equivalence Dilemmas)
- *   5. Tactile Chromebook 1366x768 Station Flow (Canvas particle beam, screen shake, audio)
+ *   1. Combo & Scaling Progression
+ *   2. Real Stakes & Failure States (surge timer, core health, backup cores, meltdown)
+ *   3. Rapid inline misconception feedback (no blocking modals)
+ *   4. Boss climax phase (Sector 5)
+ *   5. Chromebook 1366x768 station flow (canvas beam, screen shake, audio)
+ *
+ * Problem modes (see curriculum.js): find, evaluate, fix, expanded, compare.
  */
 
 import {
   CURRICULUM_SECTORS,
   calculatePower,
   diagnoseSubmission,
+  diagnoseValue,
+  diagnoseExpanded,
+  diagnoseCompare,
   prepareSteps,
   isBaseLocked,
   getGivenBase,
+  powerText,
+  expandedText,
+  problemTargetValue,
 } from './curriculum.js';
 
 import { soundManager } from './audio.js';
 
+const MAX_READOUT_DIGITS = 7;
+
+const CARD_BASE_CLASS = 'z-10 bg-gray-950/90 border-2 px-6 py-2.5 rounded-2xl shadow-2xl backdrop-blur flex flex-col items-center justify-center transition-all duration-300 mb-1.5';
+const CARD_CLASS = {
+  idle: `${CARD_BASE_CLASS} border-cyan-500/60 glow-cyan`,
+  match: `${CARD_BASE_CLASS} border-emerald-500 glow-emerald`,
+  miss: `${CARD_BASE_CLASS} border-rose-500 glow-rose`,
+};
+
+const MODE_UI = {
+  find: { label: 'Incoming Surge = Your Power', console: 'Set the Dials', fire: 'DISCHARGE MATCHING BEAM', panel: 'dial', keys: 'Enter = Fire' },
+  expanded: { label: 'Surge Signature: write it as a power', console: 'Set the Dials', fire: 'DISCHARGE MATCHING BEAM', panel: 'dial', keys: 'Enter = Fire' },
+  evaluate: { label: 'Calculate the Surge', console: 'Type the Value', fire: 'LOCK IN READOUT', panel: 'readout', keys: 'Type digits · Enter = Fire' },
+  fix: { label: 'Fix the Trainee\'s Log', console: 'Type the Correct Value', fire: 'OVERRIDE LOG', panel: 'readout', keys: 'Type digits · Enter = Fire' },
+  compare: { label: 'Two Lines Surging', console: 'Route the Beam', fire: '', panel: 'compare', keys: 'Keys 1 / 2 / 3' },
+};
+
+/** HTML for a power like 2⁵ with styled base/exponent. */
+function powerHTML(base, exponent, baseColor = 'text-cyan-300', expColor = 'text-amber-400', size = 'text-4xl', ids = {}) {
+  const bId = ids.base ? ` id="${ids.base}"` : '';
+  const eId = ids.exp ? ` id="${ids.exp}"` : '';
+  const expSize = size === 'text-4xl' ? 'text-2xl -translate-y-3' : 'text-lg -translate-y-2';
+  return `<span class="flex items-baseline"><span${bId} class="${size} font-black ${baseColor}">${base}</span><span${eId} class="${expSize} font-black ${expColor}">${exponent}</span></span>`;
+}
+
 class ExponentReactorGame {
   constructor() {
     // Sector & Wave State
-    this.sectorIndex = 0; // 0..4 (Sector 1..5)
-    this.waveIndex = 0;   // 0..4 (5 waves per sector)
+    this.sectorIndex = 0;
+    this.waveIndex = 0;
+    this.problem = null;
 
-    // Modulator State
+    // Input State
     this.base = 2;
     this.exponent = 3;
+    this.readout = '';
     this.isDischarging = false;
     this.isBaseLocked = false;
 
-    // High Stakes & Health Metrics
-    this.coreHealth = 100; // 0..100%
-    this.maxLives = 3;     // 3 Emergency Backup Cores (Sector Retries)
+    // Stakes & Metrics
+    this.coreHealth = 100;
+    this.maxLives = 3;
     this.lives = 3;
     this.score = 0;
     this.totalWattsMitigated = 0;
-    this.combo = 1;        // Scaling combo: 1, 2, 4, 8, 16
+    this.combo = 1;
     this.maxCombo = 1;
     this.totalAttempts = 0;
     this.trapHits = 0;
-    this.firstTryCorrect = 0;   // waves solved with no misses on that wave
+    this.firstTryCorrect = 0;
     this.wavesCleared = 0;
-    this.waveMisses = 0;        // misses on the current wave
+    this.waveMisses = 0;
     this.hintsUsed = 0;
     this.hintUsedThisWave = false;
 
-    // Run / Station Timer
+    // Timers
     this.shiftStartTime = Date.now();
     this.waveTimeRemaining = 30;
     this.waveTimerInterval = null;
     this.isPaused = false;
     this.isGameOver = false;
-
-    // Diagnostic HUD Timer
     this.hudClearTimeout = null;
+    this.hudShowingError = false;
 
-    // Briefing & Start State
     this.hasStarted = false;
 
-    // Canvas & Particle Engine
+    // Canvas
     this.canvas = null;
     this.ctx = null;
     this.particles = [];
@@ -70,91 +103,41 @@ class ExponentReactorGame {
     this.initDOM();
     this.initCanvas();
     this.bindEvents();
-    this.setupInitialDisplay();
+    this.startWave({ silent: true });
     this.animateCanvas();
   }
 
+  $(id) {
+    return document.getElementById(id);
+  }
+
   initDOM() {
-    // Header
-    this.sectorBadge = document.getElementById('sector-badge');
-    this.sectorTitle = document.getElementById('sector-title');
-    this.waveCounter = document.getElementById('wave-counter');
-    this.timerDisplay = document.getElementById('timer-display');
-    this.timerBar = document.getElementById('timer-bar');
-    this.healthBar = document.getElementById('health-bar');
-    this.healthText = document.getElementById('health-text');
-    this.livesContainer = document.getElementById('lives-container');
-    this.comboMultiplierDisplay = document.getElementById('combo-multiplier-display');
-    this.scoreDisplay = document.getElementById('score-display');
-    this.audioToggleBtn = document.getElementById('audio-toggle-btn');
-    this.audioIcon = document.getElementById('audio-icon');
-    this.fieldGuideBtn = document.getElementById('field-guide-btn');
-
-    // Central Chamber
-    this.targetMWDisplay = document.getElementById('target-mw-display');
-    this.threatBadge = document.getElementById('threat-badge');
-    this.hintToggleBtn = document.getElementById('hint-toggle-btn');
-    this.hintStrip = document.getElementById('hint-strip');
-    this.hintText = document.getElementById('hint-text');
-    this.coreStatusText = document.getElementById('core-status-text');
-    this.corePowerCurveText = document.getElementById('core-power-curve-text');
-
-    // Equation Card Elements (Target Demand = a^b)
-    this.equationDisplayCard = document.getElementById('equation-display-card');
-    this.equationOperator = document.getElementById('equation-operator');
-    this.deployedBase = document.getElementById('deployed-base');
-    this.deployedExp = document.getElementById('deployed-exp');
-    this.dischargeResultContainer = document.getElementById('discharge-result-container');
-    this.dischargeEvaluatedMW = document.getElementById('discharge-evaluated-mw');
-    this.dischargeVerdictBadge = document.getElementById('discharge-verdict-badge');
-
-    // Ribbon
-    this.ribbonSummary = document.getElementById('ribbon-summary');
-    this.ribbonNodesContainer = document.getElementById('ribbon-nodes-container');
-
-    // Console Controls
-    this.baseNumberDisplay = document.getElementById('base-number-display');
-    this.baseDecBtn = document.getElementById('base-dec-btn');
-    this.baseIncBtn = document.getElementById('base-inc-btn');
+    const ids = [
+      'sector-badge', 'sector-title', 'wave-counter', 'timer-display', 'timer-bar', 'health-bar', 'health-text',
+      'lives-container', 'combo-multiplier-display', 'score-display', 'audio-toggle-btn', 'audio-icon', 'field-guide-btn',
+      'threat-badge', 'hint-toggle-btn', 'hint-strip', 'hint-text', 'core-status-text', 'core-power-curve-text',
+      'equation-display-card', 'equation-label', 'trainee-log', 'eq-left', 'eq-right', 'equation-operator',
+      'discharge-result-container', 'discharge-evaluated-mw', 'discharge-unit', 'discharge-verdict-badge',
+      'ribbon-summary', 'ribbon-nodes-container',
+      'console-mode-label', 'console-keys-label', 'dial-panel', 'readout-panel', 'compare-panel', 'readout-display',
+      'compare-left-label', 'compare-right-label',
+      'base-number-display', 'base-dec-btn', 'base-inc-btn', 'base-locked-badge', 'base-subtext',
+      'exp-number-display', 'exp-dec-btn', 'exp-inc-btn', 'formula-base', 'formula-exp',
+      'inline-diagnostic-hud', 'diagnostic-icon', 'diagnostic-title', 'diagnostic-message', 'diagnostic-formula',
+      'discharge-btn', 'discharge-label',
+      'modal-debrief', 'debrief-icon', 'debrief-title', 'debrief-subtitle', 'debrief-time', 'debrief-watts',
+      'debrief-combo', 'debrief-evasion', 'debrief-cores', 'debrief-hints', 'debrief-restart-btn',
+      'modal-field-guide', 'close-field-guide-btn', 'modal-briefing', 'briefing-start-btn', 'briefing-btn',
+    ];
+    this.el = {};
+    ids.forEach(id => {
+      const key = id.replace(/-([a-z])/g, (_, c) => c.toUpperCase());
+      this.el[key] = this.$(id);
+    });
     this.basePresetBtns = document.querySelectorAll('.base-preset-btn');
-    this.baseLockedBadge = document.getElementById('base-locked-badge');
-    this.baseSubtext = document.getElementById('base-subtext');
-
-    this.expNumberDisplay = document.getElementById('exp-number-display');
-    this.expDecBtn = document.getElementById('exp-dec-btn');
-    this.expIncBtn = document.getElementById('exp-inc-btn');
     this.expPresetBtns = document.querySelectorAll('.exp-preset-btn');
-
-    this.formulaBase = document.getElementById('formula-base');
-    this.formulaExp = document.getElementById('formula-exp');
-
-    // Rapid Diagnostic HUD & Discharge Button
-    this.inlineDiagnosticHud = document.getElementById('inline-diagnostic-hud');
-    this.diagnosticIcon = document.getElementById('diagnostic-icon');
-    this.diagnosticTitle = document.getElementById('diagnostic-title');
-    this.diagnosticMessage = document.getElementById('diagnostic-message');
-    this.diagnosticFormula = document.getElementById('diagnostic-formula');
-    this.dischargeBtn = document.getElementById('discharge-btn');
-
-    // Modals
-    this.modalDebrief = document.getElementById('modal-debrief');
-    this.debriefIcon = document.getElementById('debrief-icon');
-    this.debriefTitle = document.getElementById('debrief-title');
-    this.debriefSubtitle = document.getElementById('debrief-subtitle');
-    this.debriefTime = document.getElementById('debrief-time');
-    this.debriefWatts = document.getElementById('debrief-watts');
-    this.debriefCombo = document.getElementById('debrief-combo');
-    this.debriefEvasion = document.getElementById('debrief-evasion');
-    this.debriefCores = document.getElementById('debrief-cores');
-    this.debriefHints = document.getElementById('debrief-hints');
-    this.debriefRestartBtn = document.getElementById('debrief-restart-btn');
-
-    this.modalFieldGuide = document.getElementById('modal-field-guide');
-    this.closeFieldGuideBtn = document.getElementById('close-field-guide-btn');
-
-    this.modalBriefing = document.getElementById('modal-briefing');
-    this.briefingStartBtn = document.getElementById('briefing-start-btn');
-    this.briefingBtn = document.getElementById('briefing-btn');
+    this.keypadBtns = document.querySelectorAll('.keypad-btn');
+    this.compareBtns = document.querySelectorAll('.compare-btn');
     this.isBriefingOpen = true;
 
     this.updateAudioIcon();
@@ -162,26 +145,22 @@ class ExponentReactorGame {
   }
 
   updateLivesDisplay() {
-    if (!this.livesContainer) return;
-    this.livesContainer.innerHTML = '';
+    const c = this.el.livesContainer;
+    if (!c) return;
+    c.innerHTML = '';
     for (let i = 0; i < this.maxLives; i++) {
       const span = document.createElement('span');
       span.className = 'core-life-icon transition-all duration-300';
-      if (i < this.lives) {
-        span.textContent = '🔋';
-      } else {
-        span.textContent = '🪫';
-        span.classList.add('opacity-40');
-      }
-      this.livesContainer.appendChild(span);
+      span.textContent = i < this.lives ? '🔋' : '🪫';
+      if (i >= this.lives) span.classList.add('opacity-40');
+      c.appendChild(span);
     }
   }
 
   initCanvas() {
-    this.canvas = document.getElementById('reactor-canvas');
+    this.canvas = this.$('reactor-canvas');
     if (!this.canvas) return;
     this.ctx = this.canvas.getContext('2d');
-
     const resize = () => {
       const rect = this.canvas.getBoundingClientRect();
       this.canvas.width = rect.width;
@@ -189,8 +168,6 @@ class ExponentReactorGame {
     };
     window.addEventListener('resize', resize);
     resize();
-
-    // Seed plasma particles
     this.particles = [];
     for (let i = 0; i < 40; i++) {
       this.particles.push({
@@ -204,108 +181,112 @@ class ExponentReactorGame {
     }
   }
 
+  get inputLocked() {
+    return !this.hasStarted || this.isPaused || this.isGameOver || this.isDischarging || this.isBriefingOpen;
+  }
+
   bindEvents() {
-    // Base Controls
-    this.baseDecBtn.addEventListener('click', () => {
+    const { el } = this;
+    el.baseDecBtn.addEventListener('click', () => { soundManager.playClick(); this.setBase(Math.max(1, this.base - 1)); });
+    el.baseIncBtn.addEventListener('click', () => { soundManager.playClick(); this.setBase(Math.min(10, this.base + 1)); });
+    this.basePresetBtns.forEach(btn => btn.addEventListener('click', e => {
       soundManager.playClick();
-      this.setBase(Math.max(1, this.base - 1));
-    });
-    this.baseIncBtn.addEventListener('click', () => {
+      this.setBase(parseInt(e.currentTarget.dataset.val, 10));
+    }));
+    el.expDecBtn.addEventListener('click', () => { soundManager.playClick(); this.setExponent(Math.max(0, this.exponent - 1)); });
+    el.expIncBtn.addEventListener('click', () => { soundManager.playClick(); this.setExponent(Math.min(6, this.exponent + 1)); });
+    this.expPresetBtns.forEach(btn => btn.addEventListener('click', e => {
       soundManager.playClick();
-      this.setBase(Math.min(10, this.base + 1));
-    });
-    this.basePresetBtns.forEach(btn => {
-      btn.addEventListener('click', e => {
-        soundManager.playClick();
-        this.setBase(parseInt(e.currentTarget.dataset.val, 10));
-      });
-    });
+      this.setExponent(parseInt(e.currentTarget.dataset.val, 10));
+    }));
 
-    // Exponent Controls
-    this.expDecBtn.addEventListener('click', () => {
+    this.keypadBtns.forEach(btn => btn.addEventListener('click', e => {
       soundManager.playClick();
-      this.setExponent(Math.max(0, this.exponent - 1));
-    });
-    this.expIncBtn.addEventListener('click', () => {
+      this.pressKey(e.currentTarget.dataset.key);
+    }));
+    this.compareBtns.forEach(btn => btn.addEventListener('click', e => {
+      this.handleDischarge(e.currentTarget.dataset.choice);
+    }));
+
+    if (el.briefingStartBtn) el.briefingStartBtn.addEventListener('click', () => this.startGameFromBriefing());
+    if (el.briefingBtn) el.briefingBtn.addEventListener('click', () => this.openBriefing());
+
+    el.dischargeBtn.addEventListener('click', () => this.handleDischarge());
+
+    window.addEventListener('keydown', e => this.handleKeydown(e));
+
+    el.hintToggleBtn.addEventListener('click', () => {
       soundManager.playClick();
-      this.setExponent(Math.min(6, this.exponent + 1));
-    });
-    this.expPresetBtns.forEach(btn => {
-      btn.addEventListener('click', e => {
-        soundManager.playClick();
-        this.setExponent(parseInt(e.currentTarget.dataset.val, 10));
-      });
-    });
-
-    // Briefing Start Button
-    if (this.briefingStartBtn) {
-      this.briefingStartBtn.addEventListener('click', () => this.startGameFromBriefing());
-    }
-
-    if (this.briefingBtn) {
-      this.briefingBtn.addEventListener('click', () => this.openBriefing());
-    }
-
-    // Fire / Discharge Button
-    this.dischargeBtn.addEventListener('click', () => this.handleDischarge());
-
-    // Keyboard Shortcuts: Space or Enter to start or discharge!
-    window.addEventListener('keydown', e => {
-      if (!this.hasStarted) {
-        if (e.code === 'Space' || e.code === 'Enter') {
-          e.preventDefault();
-          this.startGameFromBriefing();
-        }
-        return;
-      }
-      if (this.isPaused || this.isGameOver) return;
-      if (e.code === 'Space' || e.code === 'Enter') {
-        e.preventDefault();
-        this.handleDischarge();
-      }
-    });
-
-    // Hint Toggle
-    this.hintToggleBtn.addEventListener('click', () => {
-      soundManager.playClick();
-      this.hintStrip.classList.toggle('hidden');
-      if (!this.hintStrip.classList.contains('hidden') && !this.hintUsedThisWave && this.hasStarted) {
+      el.hintStrip.classList.toggle('hidden');
+      if (!el.hintStrip.classList.contains('hidden') && !this.hintUsedThisWave && this.hasStarted) {
         this.hintUsedThisWave = true;
         this.hintsUsed++;
       }
     });
 
-    // Sound Toggle
-    this.audioToggleBtn.addEventListener('click', () => {
-      const muted = soundManager.toggleMuted();
+    el.audioToggleBtn.addEventListener('click', () => {
+      soundManager.toggleMuted();
       this.updateAudioIcon();
     });
 
-    // Field Guide Modal
-    this.fieldGuideBtn.addEventListener('click', () => {
+    el.fieldGuideBtn.addEventListener('click', () => {
       soundManager.playClick();
       this.isPaused = true;
-      this.modalFieldGuide.classList.remove('hidden');
+      el.modalFieldGuide.classList.remove('hidden');
     });
-    this.closeFieldGuideBtn.addEventListener('click', () => {
+    el.closeFieldGuideBtn.addEventListener('click', () => {
       this.isPaused = false;
-      this.modalFieldGuide.classList.add('hidden');
+      el.modalFieldGuide.classList.add('hidden');
     });
 
-    // Shift Restart
-    this.debriefRestartBtn.addEventListener('click', () => {
+    el.debriefRestartBtn.addEventListener('click', () => {
       soundManager.playClick();
-      this.modalDebrief.classList.add('hidden');
+      el.modalDebrief.classList.add('hidden');
       this.resetFullStationShift();
     });
   }
 
+  handleKeydown(e) {
+    if (!this.hasStarted) {
+      if (e.code === 'Space' || e.code === 'Enter') {
+        e.preventDefault();
+        this.startGameFromBriefing();
+      }
+      return;
+    }
+    if (this.isBriefingOpen && (e.code === 'Space' || e.code === 'Enter')) {
+      e.preventDefault();
+      this.closeBriefing();
+      return;
+    }
+    if (this.isPaused || this.isGameOver || this.isBriefingOpen) return;
+
+    const mode = this.problem ? this.problem.mode : 'find';
+
+    if (e.code === 'Space' || e.code === 'Enter') {
+      e.preventDefault();
+      if (mode !== 'compare') this.handleDischarge();
+      return;
+    }
+
+    if (MODE_UI[mode].panel === 'readout') {
+      if (/^[0-9]$/.test(e.key)) { this.pressKey(e.key); return; }
+      if (e.key === 'Backspace') { e.preventDefault(); this.pressKey('back'); return; }
+      if (e.key === 'Delete' || e.key === 'Escape') { this.pressKey('clear'); return; }
+    }
+
+    if (mode === 'compare') {
+      const map = { Digit1: 'left', Numpad1: 'left', Digit2: 'equal', Numpad2: 'equal', Digit3: 'right', Numpad3: 'right' };
+      if (map[e.code]) this.handleDischarge(map[e.code]);
+    }
+  }
+
   updateAudioIcon() {
-    this.audioIcon.textContent = soundManager.getMuted() ? '🔇' : '🔊';
+    this.el.audioIcon.textContent = soundManager.getMuted() ? '🔇' : '🔊';
   }
 
   // ==========================================
-  // BRIEFING & INITIAL SETUP
+  // BRIEFING
   // ==========================================
   startGameFromBriefing() {
     if (!this.hasStarted) {
@@ -313,9 +294,7 @@ class ExponentReactorGame {
       this.isBriefingOpen = false;
       soundManager.playClick();
       soundManager.playSuccessChord();
-      if (this.modalBriefing) {
-        this.modalBriefing.classList.add('hidden');
-      }
+      if (this.el.modalBriefing) this.el.modalBriefing.classList.add('hidden');
       this.shiftStartTime = Date.now();
       this.startWave();
     } else {
@@ -326,609 +305,591 @@ class ExponentReactorGame {
   openBriefing() {
     this.isBriefingOpen = true;
     soundManager.playClick();
-    if (this.briefingStartBtn) {
-      this.briefingStartBtn.textContent = 'RESUME MISSION ➔';
-    }
-    if (this.modalBriefing) {
-      this.modalBriefing.classList.remove('hidden');
-    }
+    if (this.el.briefingStartBtn) this.el.briefingStartBtn.textContent = 'RESUME MISSION ➔';
+    if (this.el.modalBriefing) this.el.modalBriefing.classList.remove('hidden');
   }
 
   closeBriefing() {
     this.isBriefingOpen = false;
     soundManager.playClick();
-    if (this.modalBriefing) {
-      this.modalBriefing.classList.add('hidden');
-    }
-  }
-
-  setupInitialDisplay() {
-    const sector = CURRICULUM_SECTORS[this.sectorIndex];
-    const problem = sector.problems[this.waveIndex];
-
-    this.sectorBadge.textContent = sector.badge;
-    this.sectorTitle.textContent = `${sector.name} (${sector.tagline})`;
-    this.waveCounter.textContent = `${this.waveIndex + 1} / ${sector.problems.length}`;
-
-    this.targetMWDisplay.textContent = problem.targetMW.toLocaleString();
-    this.hintText.textContent = problem.hint;
-    this.hintStrip.classList.add('hidden');
-
-    this.timerDisplay.textContent = `${sector.waveTimeLimit}s`;
-    this.timerBar.style.width = '100%';
-
-    this.updateRibbon();
-    this.updateConsoleOutput();
+    if (this.el.modalBriefing) this.el.modalBriefing.classList.add('hidden');
   }
 
   // ==========================================
   // SECTOR & WAVE LIFECYCLE
   // ==========================================
-  startWave() {
-    const sector = CURRICULUM_SECTORS[this.sectorIndex];
+  currentSector() {
+    return CURRICULUM_SECTORS[this.sectorIndex];
+  }
+
+  startWave({ silent = false } = {}) {
+    const { el } = this;
+    const sector = this.currentSector();
     const problem = sector.problems[this.waveIndex];
+    this.problem = problem;
 
-    // Sector & Wave UI
-    this.sectorBadge.textContent = sector.badge;
-    this.sectorTitle.textContent = `${sector.name} (${sector.tagline})`;
-    this.waveCounter.textContent = `${this.waveIndex + 1} / ${sector.problems.length}`;
+    el.sectorBadge.textContent = sector.badge;
+    el.sectorTitle.textContent = `${sector.name} (${sector.tagline})`;
+    el.waveCounter.textContent = `${this.waveIndex + 1} / ${sector.problems.length}`;
 
-    // Target Demand
-    this.targetMWDisplay.textContent = problem.targetMW.toLocaleString();
-    this.hintText.textContent = problem.hint;
-    this.hintStrip.classList.add('hidden');
+    el.hintText.textContent = problem.hint;
+    el.hintStrip.classList.add('hidden');
     this.hintUsedThisWave = false;
     this.waveMisses = 0;
 
-    // Reset Equation Card Display
-    if (this.dischargeResultContainer) {
-      this.dischargeResultContainer.classList.add('hidden');
-      this.dischargeResultContainer.classList.remove('flex');
-    }
-    if (this.equationOperator) {
-      this.equationOperator.textContent = '=';
-      this.equationOperator.className = 'text-3xl font-black text-gray-400';
-    }
-    if (this.equationDisplayCard) {
-      this.equationDisplayCard.className = 'z-10 bg-gray-950/90 border-2 border-cyan-500/60 px-6 py-2.5 rounded-2xl shadow-2xl backdrop-blur flex flex-col items-center justify-center transition-all duration-300 mb-1.5 glow-cyan';
-    }
-
-    // Base Locking for large non-ten surges (>200 MW) to eliminate cognitive strain
-    const locked = isBaseLocked(problem);
-    this.isBaseLocked = locked;
-    if (locked) {
-      const givenBase = getGivenBase(problem);
-      this.setBase(givenBase, true);
-      if (this.baseLockedBadge) this.baseLockedBadge.classList.remove('hidden');
-      if (this.baseSubtext) {
-        this.baseSubtext.textContent = 'GIVEN BASE';
-        this.baseSubtext.className = 'text-[10px] text-cyan-400 font-black tracking-wider';
-      }
-      if (this.baseDecBtn) {
-        this.baseDecBtn.disabled = true;
-        this.baseDecBtn.classList.add('opacity-30', 'cursor-not-allowed', 'pointer-events-none');
-      }
-      if (this.baseIncBtn) {
-        this.baseIncBtn.disabled = true;
-        this.baseIncBtn.classList.add('opacity-30', 'cursor-not-allowed', 'pointer-events-none');
-      }
-      this.basePresetBtns.forEach(btn => {
-        btn.disabled = true;
-        btn.classList.add('opacity-30', 'cursor-not-allowed', 'pointer-events-none');
-      });
-    } else {
-      if (this.baseLockedBadge) this.baseLockedBadge.classList.add('hidden');
-      if (this.baseSubtext) {
-        this.baseSubtext.textContent = 'Repeated Factor';
-        this.baseSubtext.className = 'text-[10px] text-gray-400 font-medium';
-      }
-      if (this.baseDecBtn) {
-        this.baseDecBtn.disabled = false;
-        this.baseDecBtn.classList.remove('opacity-30', 'cursor-not-allowed', 'pointer-events-none');
-      }
-      if (this.baseIncBtn) {
-        this.baseIncBtn.disabled = false;
-        this.baseIncBtn.classList.remove('opacity-30', 'cursor-not-allowed', 'pointer-events-none');
-      }
-      this.basePresetBtns.forEach(btn => {
-        btn.disabled = false;
-        btn.classList.remove('opacity-30', 'cursor-not-allowed', 'pointer-events-none');
-      });
-    }
+    this.setupModeUI(problem);
+    this.resetEquationResult();
 
     if (sector.isBossSector) {
-      this.threatBadge.className = 'text-[9px] font-black uppercase px-2 py-0.5 rounded-full bg-rose-950 border border-rose-600 text-rose-300 animate-pulse';
-      this.threatBadge.textContent = 'SINGULARITY BOSS CORE';
-      this.coreStatusText.textContent = 'WARNING: HIGH VOLTAGE SINGULARITY SURGE';
-      this.coreStatusText.className = 'text-xs uppercase font-mono-math font-black tracking-widest text-rose-400';
+      el.threatBadge.className = 'text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-rose-950 border border-rose-600 text-rose-300 animate-pulse';
+      el.threatBadge.textContent = 'SINGULARITY BOSS CORE';
+      el.coreStatusText.textContent = 'WARNING: HIGH VOLTAGE SINGULARITY SURGE';
+      el.coreStatusText.className = 'text-xs uppercase font-mono-math font-black tracking-widest text-rose-400';
     } else {
-      this.threatBadge.className = 'text-[9px] font-black uppercase px-2 py-0.5 rounded-full bg-cyan-950 border border-cyan-700 text-cyan-300';
-      this.threatBadge.textContent = 'ACTIVE SURGE';
-      this.coreStatusText.textContent = 'REACTOR MODULATOR READY';
-      this.coreStatusText.className = 'text-xs uppercase font-mono-math font-black tracking-widest text-cyan-400';
+      el.threatBadge.className = 'text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-cyan-950 border border-cyan-700 text-cyan-300';
+      el.threatBadge.textContent = 'ACTIVE SURGE';
+      el.coreStatusText.textContent = 'REACTOR MODULATOR READY';
+      el.coreStatusText.className = 'text-xs uppercase font-mono-math font-black tracking-widest text-cyan-400';
     }
 
-    // Reset Wave Timer
     clearInterval(this.waveTimerInterval);
     this.waveTimeRemaining = sector.waveTimeLimit;
     this.updateTimerDisplay();
+    if (silent) return;
 
     this.waveTimerInterval = setInterval(() => {
       if (this.isPaused || this.isGameOver || this.isDischarging || this.isBriefingOpen) return;
-
       this.waveTimeRemaining--;
       this.updateTimerDisplay();
-
-      if (this.waveTimeRemaining <= 5 && this.waveTimeRemaining > 0) {
-        soundManager.playAlarmTick();
-        this.timerDisplay.classList.add('animate-urgent', 'text-rose-400');
-      }
-
+      if (this.waveTimeRemaining <= 5 && this.waveTimeRemaining > 0) soundManager.playAlarmTick();
       if (this.waveTimeRemaining <= 0) {
         clearInterval(this.waveTimerInterval);
         this.handleSurgeTimeout();
       }
     }, 1000);
+  }
 
+  /** Shows the right console panel and renders the equation card for the problem's mode. */
+  setupModeUI(problem) {
+    const { el } = this;
+    const ui = MODE_UI[problem.mode];
+
+    el.equationLabel.textContent = ui.label;
+    el.consoleModeLabel.textContent = ui.console;
+    el.consoleKeysLabel.textContent = ui.keys;
+    el.dischargeLabel.textContent = ui.fire;
+    el.dialPanel.classList.toggle('hidden', ui.panel !== 'dial');
+    el.readoutPanel.classList.toggle('hidden', ui.panel !== 'readout');
+    el.comparePanel.classList.toggle('hidden', ui.panel !== 'compare');
+    el.dischargeBtn.classList.toggle('hidden', ui.panel === 'compare');
+    el.traineeLog.classList.add('hidden');
+
+    this.applyBaseLock(problem.mode === 'find' ? problem : null);
+
+    if (ui.panel === 'readout') {
+      this.readout = '';
+      this.base = problem.base;
+      this.exponent = problem.exponent;
+      this.updateReadoutDisplay();
+      el.eqLeft.innerHTML = powerHTML(problem.base, problem.exponent);
+      el.eqRight.innerHTML = `<span id="eq-readout" class="text-4xl font-black text-emerald-300">?</span><span class="text-xs font-extrabold text-cyan-400 uppercase ml-1">MW</span>`;
+      if (problem.mode === 'fix') {
+        el.traineeLog.textContent = `⚠ Trainee's log says: ${powerText(problem.base, problem.exponent)} = ${problem.wrongValue.toLocaleString()} MW ✗`;
+        el.traineeLog.classList.remove('hidden');
+      }
+    } else if (problem.mode === 'compare') {
+      el.eqLeft.innerHTML = `<span class="text-[10px] font-sans font-black text-gray-500 mr-1">A</span>${powerHTML(problem.left.base, problem.left.exponent)}`;
+      el.eqRight.innerHTML = `<span class="text-[10px] font-sans font-black text-gray-500 mr-1">B</span>${powerHTML(problem.right.base, problem.right.exponent, 'text-amber-300', 'text-cyan-300')}`;
+      el.compareLeftLabel.textContent = powerText(problem.left.base, problem.left.exponent);
+      el.compareRightLabel.textContent = powerText(problem.right.base, problem.right.exponent);
+      this.base = Math.max(problem.left.base, problem.right.base);
+      this.exponent = Math.max(problem.left.exponent, problem.right.exponent);
+    } else {
+      // Dial modes: find / expanded
+      if (problem.mode === 'find') {
+        el.eqLeft.innerHTML = `<span class="text-4xl font-black text-white tracking-tight">${problem.targetMW.toLocaleString()}</span><span class="text-xs font-extrabold text-cyan-400 uppercase">MW</span>`;
+      } else {
+        const text = expandedText(problem.base, problem.exponent);
+        const size = problem.exponent >= 5 ? 'text-lg' : problem.exponent >= 4 ? 'text-xl' : 'text-2xl';
+        el.eqLeft.innerHTML = `<span class="${size} font-black text-white tracking-tight">${text}</span>`;
+      }
+      el.eqRight.innerHTML = powerHTML(this.base, this.exponent, 'text-cyan-300', 'text-amber-400', 'text-4xl', { base: 'deployed-base', exp: 'deployed-exp' });
+      this.setBase(this.base, true);
+      this.setExponent(this.exponent, true);
+    }
     this.updateRibbon();
-    this.updateConsoleOutput();
+  }
+
+  applyBaseLock(findProblem) {
+    const { el } = this;
+    const locked = !!findProblem && isBaseLocked(findProblem);
+    this.isBaseLocked = locked;
+    if (locked) this.base = getGivenBase(findProblem);
+    el.baseLockedBadge.classList.toggle('hidden', !locked);
+    el.baseSubtext.textContent = locked ? 'GIVEN BASE' : 'Repeated Factor';
+    el.baseSubtext.className = locked ? 'text-[10px] text-cyan-400 font-black tracking-wider' : 'text-[10px] text-gray-400 font-medium';
+    [el.baseDecBtn, el.baseIncBtn, ...this.basePresetBtns].forEach(btn => {
+      btn.disabled = locked;
+      btn.classList.toggle('opacity-30', locked);
+      btn.classList.toggle('cursor-not-allowed', locked);
+      btn.classList.toggle('pointer-events-none', locked);
+    });
+  }
+
+  resetEquationResult() {
+    const { el } = this;
+    el.dischargeResultContainer.classList.add('hidden');
+    el.dischargeResultContainer.classList.remove('flex');
+    el.equationOperator.textContent = this.problem && this.problem.mode === 'compare' ? '?' : '=';
+    el.equationOperator.className = 'text-3xl font-black text-gray-400';
+    el.equationDisplayCard.className = CARD_CLASS.idle;
   }
 
   updateTimerDisplay() {
-    const sector = CURRICULUM_SECTORS[this.sectorIndex];
-    this.timerDisplay.textContent = `${this.waveTimeRemaining}s`;
-
+    const { el } = this;
+    const sector = this.currentSector();
+    el.timerDisplay.textContent = `${this.waveTimeRemaining}s`;
     const pct = Math.max(0, (this.waveTimeRemaining / sector.waveTimeLimit) * 100);
-    this.timerBar.style.width = `${pct}%`;
-
+    el.timerBar.style.width = `${pct}%`;
     if (this.waveTimeRemaining > 7) {
-      this.timerBar.className = 'h-full bg-amber-400 rounded-full transition-all duration-300';
-      this.timerDisplay.className = 'text-sm font-mono-math font-black text-amber-300';
+      el.timerBar.className = 'h-full bg-amber-400 rounded-full transition-all duration-300';
+      el.timerDisplay.className = 'text-sm font-mono-math font-black text-amber-300';
     } else {
-      this.timerBar.className = 'h-full bg-rose-500 rounded-full transition-all duration-300';
-      this.timerDisplay.className = 'text-sm font-mono-math font-black text-rose-400 animate-urgent';
+      el.timerBar.className = 'h-full bg-rose-500 rounded-full transition-all duration-300';
+      el.timerDisplay.className = 'text-sm font-mono-math font-black text-rose-400 animate-urgent';
     }
   }
 
   handleSurgeTimeout() {
     clearInterval(this.waveTimerInterval);
     soundManager.playStallBuzzer(false);
-
-    // Screen shake
-    document.body.classList.add('shake-active');
-    setTimeout(() => document.body.classList.remove('shake-active'), 450);
-
-    // Reset combo to x1
-    this.combo = 1;
-    this.comboMultiplierDisplay.textContent = 'x1';
-    this.comboMultiplierDisplay.parentElement.className = 'flex items-center space-x-1.5 bg-indigo-950/70 border border-indigo-700/60 px-2.5 py-1 rounded-xl';
+    this.shake();
+    this.setCombo(1);
+    this.waveMisses++;
 
     if (this.lives > 0) {
-      // Consume 1 backup core / life on timer expiration!
       this.lives--;
       this.updateLivesDisplay();
-
-      // Flash amber
       document.body.classList.add('glow-amber');
       setTimeout(() => document.body.classList.remove('glow-amber'), 600);
-
-      const coresLeftStr = this.lives === 1 ? '1 backup core remaining' : `${this.lives} backup cores remaining`;
-      this.showInlineDiagnostic(
-        false,
-        'SURGE BREACH! BACKUP CORE CONSUMED',
-        `Timer expired! Emergency core engaged to restore power and reset the wave timer.`,
-        `Timer Reset & Health 100% (${coresLeftStr})`
-      );
-
-      // Restore health to 100% and restart the wave with full timer
+      const coresLeftStr = this.lives === 1 ? '1 backup core left' : `${this.lives} backup cores left`;
+      this.showInlineDiagnostic(false, 'TIME UP! BACKUP CORE USED', 'The surge timer ran out. A backup core restarted this wave.', `Timer reset (${coresLeftStr})`);
+      this.isDischarging = true;
       setTimeout(() => {
         this.coreHealth = 100;
         this.updateHealthBar();
-        this.isDischarging = false;
-        this.dischargeBtn.disabled = false;
-        this.dischargeBtn.classList.remove('opacity-50');
-        this.startWave(); // restarts wave timer and keeps player on current wave/sector!
-      }, 1500);
+        this.finishDischarge();
+        this.startWave();
+      }, 1800);
       return;
     }
 
-    // OUT OF LIVES: Total meltdown
     this.coreHealth = 0;
     this.updateHealthBar();
     soundManager.playMeltdown();
-    this.showInlineDiagnostic(
-      false,
-      'SURGE BREACH! ZERO BACKUP CORES',
-      'The incoming energy surge breached core shielding and all backup cores are exhausted.',
-      'Core Meltdown Initiated'
-    );
-    setTimeout(() => this.endGame(false), 900);
+    this.showInlineDiagnostic(false, 'TIME UP! NO BACKUP CORES LEFT', 'The surge breached the core and all backup cores are used.', 'Core meltdown');
+    setTimeout(() => this.endGame(false), 1500);
   }
 
   // ==========================================
-  // DIAL CONTROLS & RIBBON
+  // INPUTS: DIALS, KEYPAD, RIBBON
   // ==========================================
   setBase(val, force = false) {
-    if (this.isBaseLocked && !force) return;
+    if (!force && (this.isBaseLocked || this.inputLocked)) return;
     if (!force) this.hideErrorDiagnostic();
-
     this.base = val;
-    this.baseNumberDisplay.textContent = val;
-    const depBase = this.deployedBase || document.getElementById('deployed-base');
-    if (depBase) depBase.textContent = val;
-    if (this.formulaBase) this.formulaBase.textContent = val;
-
+    const { el } = this;
+    el.baseNumberDisplay.textContent = val;
+    const dep = this.$('deployed-base');
+    if (dep) dep.textContent = val;
+    el.formulaBase.textContent = val;
     this.basePresetBtns.forEach(btn => {
       const bVal = parseInt(btn.dataset.val, 10);
       btn.className = bVal === val
         ? 'base-preset-btn py-1 bg-cyan-950 border border-cyan-500/50 rounded font-mono-math font-bold text-xs text-cyan-300 font-black'
         : 'base-preset-btn py-1 bg-gray-950 hover:bg-cyan-950 border border-gray-800 rounded font-mono-math font-bold text-xs text-gray-300';
+      if (this.isBaseLocked) btn.classList.add('opacity-30', 'cursor-not-allowed', 'pointer-events-none');
     });
-    this.updateRibbon();
-    this.updateConsoleOutput();
+    if (!force) {
+      this.updateRibbon();
+      this.resetEquationResult();
+    }
   }
 
-  setExponent(val) {
-    this.hideErrorDiagnostic();
+  setExponent(val, force = false) {
+    if (!force && this.inputLocked) return;
+    if (!force) this.hideErrorDiagnostic();
     this.exponent = val;
-    this.expNumberDisplay.textContent = val;
-    const depExp = this.deployedExp || document.getElementById('deployed-exp');
-    if (depExp) depExp.textContent = val;
-    if (this.formulaExp) this.formulaExp.textContent = val;
-
+    const { el } = this;
+    el.expNumberDisplay.textContent = val;
+    const dep = this.$('deployed-exp');
+    if (dep) dep.textContent = val;
+    el.formulaExp.textContent = val;
     this.expPresetBtns.forEach(btn => {
       const eVal = parseInt(btn.dataset.val, 10);
       btn.className = eVal === val
         ? 'exp-preset-btn py-1 bg-amber-950 border border-amber-500/50 rounded font-mono-math font-bold text-xs text-amber-300 font-black'
         : 'exp-preset-btn py-1 bg-gray-950 hover:bg-amber-950 border border-gray-800 rounded font-mono-math font-bold text-xs text-gray-300';
     });
-    this.updateRibbon();
-    this.updateConsoleOutput();
+    if (!force) {
+      this.updateRibbon();
+      this.resetEquationResult();
+    }
   }
 
-  updateRibbon() {
-    const steps = prepareSteps(this.base, this.exponent);
-    this.ribbonNodesContainer.innerHTML = '';
+  pressKey(key) {
+    if (this.inputLocked) return;
+    this.hideErrorDiagnostic();
+    if (key === 'clear') this.readout = '';
+    else if (key === 'back') this.readout = this.readout.slice(0, -1);
+    else if (/^[0-9]$/.test(key) && this.readout.length < MAX_READOUT_DIGITS) {
+      this.readout = this.readout === '0' ? key : this.readout + key;
+    }
+    this.updateReadoutDisplay();
+    this.resetEquationResult();
+  }
 
-    if (this.exponent === 0) {
-      const pill = document.createElement('div');
-      pill.className = 'px-3 py-1 bg-emerald-950/70 border border-emerald-500/60 rounded-xl text-emerald-300 font-mono-math text-xs font-bold flex items-center space-x-1.5';
-      pill.innerHTML = `<span>⚡</span><span>Zero Factors: Base ${this.base} to power 0</span>`;
-      this.ribbonNodesContainer.appendChild(pill);
-      this.ribbonSummary.textContent = `${this.base}⁰`;
-      this.corePowerCurveText.textContent = `Zero Exponent Rule: Any non-zero base raised to power 0.`;
+  updateReadoutDisplay() {
+    const shown = this.readout === '' ? '_' : Number(this.readout).toLocaleString();
+    this.el.readoutDisplay.textContent = shown;
+    const eq = this.$('eq-readout');
+    if (eq) eq.textContent = this.readout === '' ? '?' : Number(this.readout).toLocaleString();
+  }
+
+  /** Which power the ribbon expands (and the beam animates) for the current mode. */
+  ribbonPower() {
+    const p = this.problem;
+    if (!p) return { base: this.base, exponent: this.exponent };
+    if (p.mode === 'evaluate' || p.mode === 'fix') return { base: p.base, exponent: p.exponent };
+    return { base: this.base, exponent: this.exponent };
+  }
+
+  updateRibbon({ reveal = false } = {}) {
+    const { el } = this;
+    const p = this.problem;
+    el.ribbonNodesContainer.innerHTML = '';
+
+    if (p && p.mode === 'compare') {
+      el.ribbonSummary.textContent = `A: ${expandedText(p.left.base, p.left.exponent)}   |   B: ${expandedText(p.right.base, p.right.exponent)}`;
+      el.corePowerCurveText.textContent = 'Work out both powers, then route the beam to the stronger line.';
+      return;
+    }
+    if (p && p.mode === 'expanded' && !reveal) {
+      el.ribbonSummary.textContent = 'Hidden until you fire: count the factors in the signature!';
+      el.corePowerCurveText.textContent = 'The repeated number is the base. How many times it repeats is the exponent.';
       return;
     }
 
-    let summaryText = `${this.base}^${this.exponent} = `;
-    const factors = Array(this.exponent).fill(this.base);
-    summaryText += factors.join(' × ');
-    this.ribbonSummary.textContent = summaryText;
+    const { base, exponent } = this.ribbonPower();
+    if (exponent === 0) {
+      const pill = document.createElement('div');
+      pill.className = 'px-3 py-1 bg-emerald-950/70 border border-emerald-500/60 rounded-xl text-emerald-300 font-mono-math text-xs font-bold flex items-center space-x-1.5';
+      pill.innerHTML = `<span>⚡</span><span>Zero factors: base ${base} to the power 0</span>`;
+      el.ribbonNodesContainer.appendChild(pill);
+      el.ribbonSummary.textContent = `${base}⁰`;
+      el.corePowerCurveText.textContent = 'Zero exponent rule: any non-zero base to the power 0.';
+      return;
+    }
 
-    this.corePowerCurveText.textContent = `Repeated Factors: ${this.base} used as a factor ${this.exponent} time${this.exponent === 1 ? '' : 's'}.`;
+    el.ribbonSummary.textContent = `${powerText(base, exponent)} = ${expandedText(base, exponent)}`;
+    el.corePowerCurveText.textContent = `${base} used as a factor ${exponent} time${exponent === 1 ? '' : 's'}.`;
 
-    steps.forEach((step, idx) => {
+    prepareSteps(base, exponent).forEach((step, idx, steps) => {
       const cell = document.createElement('div');
       cell.id = `ribbon-node-${idx}`;
-      cell.className = 'flex items-center space-x-1.5 bg-gray-900 border border-cyan-900/60 px-3 py-1 rounded-xl font-mono-math text-xs';
+      cell.className = 'flex items-center space-x-1.5 bg-gray-900 border border-cyan-900/60 px-3 py-1 rounded-xl font-mono-math text-xs transition-all';
       cell.innerHTML = `
         <span class="text-[9px] text-gray-500 font-bold">#${idx + 1}</span>
         <span class="font-black text-cyan-300 text-sm">${step.factor}</span>
+        <span class="ribbon-partial hidden text-[10px] font-black text-emerald-300">→ ${step.currentValue.toLocaleString()}</span>
       `;
-      this.ribbonNodesContainer.appendChild(cell);
-
+      el.ribbonNodesContainer.appendChild(cell);
       if (idx < steps.length - 1) {
         const mul = document.createElement('span');
         mul.className = 'text-gray-600 font-black text-xs';
         mul.textContent = '×';
-        this.ribbonNodesContainer.appendChild(mul);
+        el.ribbonNodesContainer.appendChild(mul);
       }
     });
   }
 
-  updateConsoleOutput() {
-    if (this.formulaBase) this.formulaBase.textContent = this.base;
-    if (this.formulaExp) this.formulaExp.textContent = this.exponent;
-
-    const depBase = this.deployedBase || document.getElementById('deployed-base');
-    const depExp = this.deployedExp || document.getElementById('deployed-exp');
-    if (depBase) depBase.textContent = this.base;
-    if (depExp) depExp.textContent = this.exponent;
-
-    // While student is adjusting dials before discharge, reset reveal & comparison
-    if (!this.isDischarging) {
-      if (this.dischargeResultContainer) {
-        this.dischargeResultContainer.classList.add('hidden');
-        this.dischargeResultContainer.classList.remove('flex');
+  // ==========================================
+  // DISCHARGE & DIAGNOSIS
+  // ==========================================
+  diagnoseCurrent(choice) {
+    const p = this.problem;
+    switch (p.mode) {
+      case 'find': {
+        const d = diagnoseSubmission(this.base, this.exponent, p.targetMW);
+        return { ...d, correct: d.type === 'exact-match', value: calculatePower(this.base, this.exponent) };
       }
-      if (this.equationOperator) {
-        this.equationOperator.textContent = '=';
-        this.equationOperator.className = 'text-3xl font-black text-gray-400';
-      }
-      if (this.equationDisplayCard) {
-        this.equationDisplayCard.className = 'z-10 bg-gray-950/90 border-2 border-cyan-500/60 px-6 py-2.5 rounded-2xl shadow-2xl backdrop-blur flex flex-col items-center justify-center transition-all duration-300 mb-1.5 glow-cyan';
-      }
+      case 'expanded':
+        return { ...diagnoseExpanded(p, this.base, this.exponent), value: calculatePower(this.base, this.exponent) };
+      case 'evaluate':
+      case 'fix':
+        return { ...diagnoseValue(p.base, p.exponent, this.readout === '' ? NaN : Number(this.readout)), value: Number(this.readout) };
+      case 'compare':
+        return diagnoseCompare(p, choice);
+      default:
+        return { correct: false, isTrap: false, type: 'unknown', explanation: '', correctFormula: '' };
     }
   }
 
-  // ==========================================
-  // BEAM DISCHARGE & RAPID INLINE DIAGNOSTIC LOOP
-  // ==========================================
-  async handleDischarge() {
-    if (this.isDischarging || this.isGameOver || this.isPaused) return;
+  async handleDischarge(choice) {
+    if (this.inputLocked) return;
+    const p = this.problem;
+    const isReadout = p.mode === 'evaluate' || p.mode === 'fix';
+
+    if (isReadout && this.readout === '') {
+      this.showInlineDiagnostic(false, 'NO READOUT', 'Type the value of the power on the keypad, then lock it in.', '', { penalty: false });
+      return;
+    }
 
     this.isDischarging = true;
     this.totalAttempts++;
-    this.dischargeBtn.disabled = true;
-    this.dischargeBtn.classList.add('opacity-50');
+    this.el.dischargeBtn.disabled = true;
+    this.el.dischargeBtn.classList.add('opacity-50');
+    this.compareBtns.forEach(b => { b.disabled = true; });
 
-    const sector = CURRICULUM_SECTORS[this.sectorIndex];
-    const problem = sector.problems[this.waveIndex];
-    const steps = prepareSteps(this.base, this.exponent);
+    const diagnosis = this.diagnoseCurrent(choice);
 
-    // Audio step tones and canvas laser surge
+    // Beam + step tones. Running products are revealed for the student's own dial setting,
+    // and for readout modes only when the answer is right (so a miss doesn't leak the answer).
     soundManager.playDischargeLaser();
     this.beamFiringProgress = 1.0;
-
+    const { base, exponent } = this.ribbonPower();
+    const steps = p.mode === 'compare' ? [] : prepareSteps(base, exponent);
+    const revealPartials = !isReadout || diagnosis.correct;
+    if (p.mode === 'expanded') this.updateRibbon({ reveal: true });
     for (let i = 0; i < steps.length; i++) {
-      soundManager.playStepTone(i, steps.length, this.base);
-      const node = document.getElementById(`ribbon-node-${i}`);
+      soundManager.playStepTone(i, steps.length, base);
+      const node = this.$(`ribbon-node-${i}`);
       if (node) {
         node.classList.add('border-cyan-400', 'bg-cyan-950', 'scale-105');
+        if (revealPartials) {
+          const partial = node.querySelector('.ribbon-partial');
+          if (partial) partial.classList.remove('hidden');
+        }
       }
-      await new Promise(r => setTimeout(r, 90));
-      if (node) {
-        node.classList.remove('scale-105');
-      }
+      await new Promise(r => setTimeout(r, exponent > 4 ? 110 : 160));
+      if (node) node.classList.remove('scale-105');
     }
 
-    const evaluatedPower = calculatePower(this.base, this.exponent);
+    this.revealResult(diagnosis);
 
-    // REVEAL DISCHARGED POWER VALUE & EQUALITY COMPARISON
-    if (this.dischargeResultContainer && this.dischargeEvaluatedMW && this.equationOperator) {
-      this.dischargeResultContainer.classList.remove('hidden');
-      this.dischargeResultContainer.classList.add('flex');
-      this.dischargeEvaluatedMW.textContent = evaluatedPower.toLocaleString();
-
-      if (evaluatedPower === problem.targetMW) {
-        // MATCH: Target = a^b = Evaluated MW
-        this.equationOperator.textContent = '=';
-        this.equationOperator.className = 'text-3xl font-black text-emerald-400';
-        if (this.dischargeVerdictBadge) {
-          this.dischargeVerdictBadge.textContent = 'MATCH';
-          this.dischargeVerdictBadge.className = 'ml-1 text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-emerald-950 border border-emerald-500 text-emerald-300';
-        }
-        if (this.equationDisplayCard) {
-          this.equationDisplayCard.className = 'z-10 bg-gray-950/95 border-2 border-emerald-500 px-6 py-2.5 rounded-2xl shadow-2xl backdrop-blur flex flex-col items-center justify-center transition-all duration-300 mb-1.5 glow-emerald';
-        }
-      } else {
-        // MISMATCH: Target ≠ a^b = Evaluated MW
-        this.equationOperator.textContent = '≠';
-        this.equationOperator.className = 'text-3xl font-black text-rose-400';
-        const isOverload = evaluatedPower > problem.targetMW;
-        if (this.dischargeVerdictBadge) {
-          this.dischargeVerdictBadge.textContent = isOverload ? 'OVERLOAD' : 'UNDERPOWER';
-          this.dischargeVerdictBadge.className = 'ml-1 text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-rose-950 border border-rose-500 text-rose-300';
-        }
-        if (this.equationDisplayCard) {
-          this.equationDisplayCard.className = 'z-10 bg-gray-950/95 border-2 border-rose-500 px-6 py-2.5 rounded-2xl shadow-2xl backdrop-blur flex flex-col items-center justify-center transition-all duration-300 mb-1.5 glow-rose';
-        }
-      }
-    }
-
-    const diagnosis = diagnoseSubmission(this.base, this.exponent, problem.targetMW);
-
-    if (!diagnosis.isTrap && diagnosis.type === 'exact-match') {
-      // SUCCESS: POWER MATCH!
-      this.handleMatchSuccess(problem.targetMW);
+    if (diagnosis.correct) {
+      this.handleMatchSuccess(problemTargetValue(p) ?? 0);
     } else {
-      // MISCONCEPTION / TRAP STALL
-      if (diagnosis.isTrap) {
-        this.trapHits++;
-      }
+      if (diagnosis.isTrap) this.trapHits++;
       soundManager.playStallBuzzer(diagnosis.isTrap);
       this.triggerCircuitBreach(
-        diagnosis.isTrap ? 'CIRCUIT STALL: EXPONENT TRAP DETECTED!' : 'CIRCUIT OVERLOAD: POWER MISMATCH',
+        diagnosis.isTrap ? 'EXPONENT TRAP!' : 'MISS',
         diagnosis.explanation,
         diagnosis.correctFormula
       );
     }
   }
 
+
+  revealResult(diagnosis) {
+    const { el } = this;
+    const p = this.problem;
+    el.dischargeResultContainer.classList.remove('hidden');
+    el.dischargeResultContainer.classList.add('flex');
+    el.equationDisplayCard.className = diagnosis.correct ? CARD_CLASS.match : CARD_CLASS.miss;
+    el.equationOperator.className = `text-3xl font-black ${diagnosis.correct ? 'text-emerald-400' : 'text-rose-400'}`;
+
+    const badge = (text, ok) => {
+      el.dischargeVerdictBadge.textContent = text;
+      el.dischargeVerdictBadge.className = ok
+        ? 'ml-1 text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-emerald-950 border border-emerald-500 text-emerald-300'
+        : 'ml-1 text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-rose-950 border border-rose-500 text-rose-300';
+    };
+
+    if (p.mode === 'compare') {
+      const a = calculatePower(p.left.base, p.left.exponent);
+      const b = calculatePower(p.right.base, p.right.exponent);
+      el.equationOperator.textContent = a === b ? '=' : a > b ? '>' : '<';
+      el.dischargeEvaluatedMw.textContent = `${a.toLocaleString()} vs ${b.toLocaleString()}`;
+      el.dischargeUnit.textContent = 'MW';
+      badge(diagnosis.correct ? 'ROUTED' : 'WRONG LINE', diagnosis.correct);
+      return;
+    }
+
+    if (p.mode === 'evaluate' || p.mode === 'fix') {
+      el.equationOperator.textContent = diagnosis.correct ? '=' : '≠';
+      el.dischargeResultContainer.classList.add('hidden');
+      el.dischargeResultContainer.classList.remove('flex');
+      return;
+    }
+
+    // find / expanded: show what the student's dials evaluate to
+    el.dischargeEvaluatedMw.textContent = diagnosis.value.toLocaleString();
+    el.dischargeUnit.textContent = 'MW';
+    el.equationOperator.textContent = diagnosis.correct ? '=' : '≠';
+    if (p.mode === 'find') {
+      badge(diagnosis.correct ? 'MATCH' : diagnosis.value > p.targetMW ? 'TOO HIGH' : 'TOO LOW', diagnosis.correct);
+    } else {
+      badge(diagnosis.correct ? 'MATCH' : 'MISMATCH', diagnosis.correct);
+    }
+  }
+
+  setCombo(value) {
+    this.combo = value;
+    const { el } = this;
+    el.comboMultiplierDisplay.textContent = `x${this.combo}`;
+    el.comboMultiplierDisplay.parentElement.className = this.combo > 1
+      ? 'flex items-center space-x-1.5 bg-emerald-950/80 border border-emerald-500/80 px-2.5 py-1 rounded-xl glow-emerald'
+      : 'flex items-center space-x-1.5 bg-indigo-950/70 border border-indigo-700/60 px-2.5 py-1 rounded-xl';
+  }
+
+  shake() {
+    document.body.classList.add('shake-active');
+    setTimeout(() => document.body.classList.remove('shake-active'), 450);
+  }
+
+  finishDischarge() {
+    this.isDischarging = false;
+    this.el.dischargeBtn.disabled = false;
+    this.el.dischargeBtn.classList.remove('opacity-50');
+    this.compareBtns.forEach(b => { b.disabled = false; });
+  }
+
   handleMatchSuccess(targetMW) {
     soundManager.playSuccessChord();
-
     this.wavesCleared++;
     if (this.waveMisses === 0) this.firstTryCorrect++;
 
-    // Exponential scaling combo: x1 -> x2 -> x4 -> x8 -> x16 (a hint holds the combo where it is)
     if (!this.hintUsedThisWave) {
-      this.combo = Math.min(16, this.combo === 1 ? 2 : this.combo * 2);
+      this.setCombo(Math.min(16, this.combo === 1 ? 2 : this.combo * 2));
     }
-    if (this.combo > this.maxCombo) {
-      this.maxCombo = this.combo;
-    }
+    this.maxCombo = Math.max(this.maxCombo, this.combo);
 
-    const basePoints = this.hintUsedThisWave ? 50 : 100;
-    const pointsEarned = basePoints * this.combo;
+    const pointsEarned = (this.hintUsedThisWave ? 50 : 100) * this.combo;
     this.score += pointsEarned;
     this.totalWattsMitigated += targetMW;
-
-    // Regain +10% core integrity
     this.coreHealth = Math.min(100, this.coreHealth + 10);
     this.updateHealthBar();
+    this.el.scoreDisplay.textContent = this.score.toLocaleString();
 
-    // Update displays
-    this.scoreDisplay.textContent = this.score.toLocaleString();
-    this.comboMultiplierDisplay.textContent = `x${this.combo}`;
-    this.comboMultiplierDisplay.parentElement.className = 'flex items-center space-x-1.5 bg-emerald-950/80 border border-emerald-500/80 px-2.5 py-1 rounded-xl glow-emerald';
-
-    // Show rapid inline success flash
     this.showInlineDiagnostic(
       true,
       'SURGE MITIGATED!',
-      `Beam calibrated to ${targetMW.toLocaleString()} MW. Reactor grid locked!`,
+      'Reactor grid locked!',
       `+${pointsEarned} pts (Combo x${this.combo})${this.hintUsedThisWave ? ' · hint used' : ''}`
     );
-
-    // Visual green flash
     document.body.classList.add('glow-emerald');
     setTimeout(() => document.body.classList.remove('glow-emerald'), 500);
 
-    // Advance wave
     setTimeout(() => {
       this.waveIndex++;
-      const sector = CURRICULUM_SECTORS[this.sectorIndex];
-
-      if (this.waveIndex >= sector.problems.length) {
-        // Sector Cleared!
+      if (this.waveIndex >= this.currentSector().problems.length) {
         this.waveIndex = 0;
         this.sectorIndex++;
-
         if (this.sectorIndex >= CURRICULUM_SECTORS.length) {
-          // Completed all 5 sectors (Victory!)
           this.endGame(true);
           return;
         }
       }
-
-      this.isDischarging = false;
-      this.dischargeBtn.disabled = false;
-      this.dischargeBtn.classList.remove('opacity-50');
+      this.finishDischarge();
       this.startWave();
-    }, 700);
+    }, 900);
   }
 
   triggerCircuitBreach(title, explanation, formula) {
     this.waveMisses++;
-
-    // Reset combo to x1
-    this.combo = 1;
-    this.comboMultiplierDisplay.textContent = 'x1';
-    this.comboMultiplierDisplay.parentElement.className = 'flex items-center space-x-1.5 bg-indigo-950/70 border border-indigo-700/60 px-2.5 py-1 rounded-xl';
-
-    // Core takes damage
+    this.setCombo(1);
     this.coreHealth = Math.max(0, this.coreHealth - 20);
     this.updateHealthBar();
-
-    // Screen shake
-    document.body.classList.add('shake-active');
-    setTimeout(() => document.body.classList.remove('shake-active'), 450);
-
-    // Show Rapid Inline Diagnostic HUD (No modal click required!)
+    this.shake();
     this.showInlineDiagnostic(false, title, explanation, formula);
 
-    // Check Core Depletion / Meltdown State
     if (this.coreHealth <= 0) {
       clearInterval(this.waveTimerInterval);
-
       if (this.lives > 0) {
-        // CONSUME 1 BACKUP CORE & REBOOT SECTOR!
         this.lives--;
         this.updateLivesDisplay();
         soundManager.playStallBuzzer(true);
-
-        // Flash screen amber
         document.body.classList.add('glow-amber');
         setTimeout(() => document.body.classList.remove('glow-amber'), 600);
-
-        // Keep the math explanation visible: the student needs to see WHY this miss was wrong.
         const coresLeftStr = this.lives === 1 ? '1 backup core left' : `${this.lives} backup cores left`;
-        this.showInlineDiagnostic(
-          false,
-          `${title} · BACKUP CORE USED`,
-          explanation,
-          `${formula}  |  🔋 Rebooting sector (${coresLeftStr})`
-        );
-
+        this.showInlineDiagnostic(false, `${title} · BACKUP CORE USED`, explanation, `${formula}  |  🔋 Rebooting sector (${coresLeftStr})`);
         setTimeout(() => {
           this.coreHealth = 100;
           this.updateHealthBar();
-          this.waveIndex = 0; // restarts at Wave 1 of CURRENT sector
-          this.isDischarging = false;
-          this.dischargeBtn.disabled = false;
-          this.dischargeBtn.classList.remove('opacity-50');
+          this.waveIndex = 0;
+          this.finishDischarge();
           this.startWave();
         }, 3500);
         return;
       }
-
-      // OUT OF BACKUP CORES: TOTAL GRID MELTDOWN
       soundManager.playMeltdown();
       setTimeout(() => this.endGame(false), 3000);
       return;
     }
 
-    // Auto-reset input after < 1.4s for instant fast retry loop!
-    setTimeout(() => {
-      this.isDischarging = false;
-      this.dischargeBtn.disabled = false;
-      this.dischargeBtn.classList.remove('opacity-50');
-    }, 1400);
+    setTimeout(() => this.finishDischarge(), 900);
   }
 
-  showInlineDiagnostic(isSuccess, title, msg, formula) {
+  showInlineDiagnostic(isSuccess, title, msg, formula, { penalty = true } = {}) {
+    const { el } = this;
     clearTimeout(this.hudClearTimeout);
-
-    this.inlineDiagnosticHud.classList.remove('hidden');
-
+    el.inlineDiagnosticHud.classList.remove('hidden');
     if (isSuccess) {
-      this.inlineDiagnosticHud.className = 'rounded-xl border border-emerald-500/60 bg-emerald-950/70 p-2.5 transition-all';
-      this.diagnosticIcon.textContent = '✅';
-      this.diagnosticTitle.textContent = title;
-      this.diagnosticTitle.className = 'text-xs font-black uppercase tracking-wider text-emerald-300';
-      this.diagnosticMessage.textContent = msg;
-      this.diagnosticMessage.className = 'text-[11px] leading-tight font-medium mt-0.5 text-emerald-200';
-      this.diagnosticFormula.textContent = formula;
-      this.diagnosticFormula.className = 'font-mono-math font-extrabold text-[11px] mt-1 text-emerald-300';
+      el.inlineDiagnosticHud.className = 'rounded-xl border border-emerald-500/60 bg-emerald-950/70 p-2.5 transition-all';
+      el.diagnosticIcon.textContent = '✅';
+      el.diagnosticTitle.className = 'text-xs font-black uppercase tracking-wider text-emerald-300';
+      el.diagnosticMessage.className = 'text-xs leading-snug font-medium mt-0.5 text-emerald-200';
+      el.diagnosticFormula.className = 'font-mono-math font-extrabold text-xs mt-1 text-emerald-300';
     } else {
-      this.inlineDiagnosticHud.className = 'rounded-xl border border-rose-500/70 bg-rose-950/80 p-2.5 transition-all glow-rose';
-      this.diagnosticIcon.textContent = '⚠️';
-      this.diagnosticTitle.textContent = title;
-      this.diagnosticTitle.className = 'text-xs font-black uppercase tracking-wider text-rose-300';
-      this.diagnosticMessage.textContent = msg;
-      this.diagnosticMessage.className = 'text-[11px] leading-tight font-medium mt-0.5 text-rose-100';
-      this.diagnosticFormula.textContent = formula;
-      this.diagnosticFormula.className = 'font-mono-math font-extrabold text-[11px] mt-1 text-amber-300';
+      el.inlineDiagnosticHud.className = penalty
+        ? 'rounded-xl border border-rose-500/70 bg-rose-950/80 p-2.5 transition-all glow-rose'
+        : 'rounded-xl border border-amber-500/70 bg-amber-950/60 p-2.5 transition-all';
+      el.diagnosticIcon.textContent = penalty ? '⚠️' : '⌨️';
+      el.diagnosticTitle.className = `text-xs font-black uppercase tracking-wider ${penalty ? 'text-rose-300' : 'text-amber-300'}`;
+      el.diagnosticMessage.className = 'text-xs leading-snug font-medium mt-0.5 text-rose-100';
+      el.diagnosticFormula.className = 'font-mono-math font-extrabold text-xs mt-1 text-amber-300';
     }
+    el.diagnosticTitle.textContent = title;
+    el.diagnosticMessage.textContent = msg;
+    el.diagnosticFormula.textContent = formula;
+    el.diagnosticFormula.classList.toggle('hidden', !formula);
 
-    // Success messages clear themselves; error explanations stay until the student
-    // changes a dial so there is time to read them.
+    // Success clears itself; errors stay until the student changes their answer.
     this.hudShowingError = !isSuccess;
     if (isSuccess) {
-      this.hudClearTimeout = setTimeout(() => {
-        this.inlineDiagnosticHud.classList.add('hidden');
-      }, 1800);
+      this.hudClearTimeout = setTimeout(() => el.inlineDiagnosticHud.classList.add('hidden'), 1800);
     }
   }
 
   hideErrorDiagnostic() {
     if (this.hudShowingError && !this.isDischarging) {
-      this.inlineDiagnosticHud.classList.add('hidden');
+      this.el.inlineDiagnosticHud.classList.add('hidden');
       this.hudShowingError = false;
     }
   }
 
   updateHealthBar() {
-    this.healthBar.style.width = `${this.coreHealth}%`;
-    this.healthText.textContent = `${this.coreHealth}%`;
-
+    const { el } = this;
+    el.healthBar.style.width = `${this.coreHealth}%`;
+    el.healthText.textContent = `${this.coreHealth}%`;
     if (this.coreHealth <= 25) {
-      this.healthBar.className = 'h-full bg-rose-600 rounded-full transition-all duration-300 animate-pulse';
-      this.healthText.className = 'text-xs font-mono-math font-bold text-rose-400';
+      el.healthBar.className = 'h-full bg-rose-600 rounded-full transition-all duration-300 animate-pulse';
+      el.healthText.className = 'text-xs font-mono-math font-bold text-rose-400';
     } else if (this.coreHealth <= 50) {
-      this.healthBar.className = 'h-full bg-amber-500 rounded-full transition-all duration-300';
-      this.healthText.className = 'text-xs font-mono-math font-bold text-amber-400';
+      el.healthBar.className = 'h-full bg-amber-500 rounded-full transition-all duration-300';
+      el.healthText.className = 'text-xs font-mono-math font-bold text-amber-400';
     } else {
-      this.healthBar.className = 'h-full bg-gradient-to-r from-cyan-500 to-emerald-400 rounded-full transition-all duration-300';
-      this.healthText.className = 'text-xs font-mono-math font-bold text-cyan-300';
+      el.healthBar.className = 'h-full bg-gradient-to-r from-cyan-500 to-emerald-400 rounded-full transition-all duration-300';
+      el.healthText.className = 'text-xs font-mono-math font-bold text-cyan-300';
     }
   }
 
   // ==========================================
-  // STATION RUN COMPLETE / MELTDOWN DEBRIEF
+  // DEBRIEF
   // ==========================================
   endGame(isVictory) {
+    const { el } = this;
     this.isGameOver = true;
     clearInterval(this.waveTimerInterval);
 
@@ -936,22 +897,15 @@ class ExponentReactorGame {
     const mins = Math.floor(shiftSeconds / 60);
     const secs = shiftSeconds % 60;
     const timeStr = `${mins}m ${secs < 10 ? '0' : ''}${secs}s`;
-
-    const evasionRate = this.totalAttempts > 0
-      ? Math.round(((this.totalAttempts - this.trapHits) / this.totalAttempts) * 100)
-      : 100;
     const totalWaves = CURRICULUM_SECTORS.reduce((n, sec) => n + sec.problems.length, 0);
-    const firstTryPct = this.wavesCleared > 0
-      ? Math.round((this.firstTryCorrect / this.wavesCleared) * 100)
-      : 0;
+    const firstTryPct = this.wavesCleared > 0 ? Math.round((this.firstTryCorrect / this.wavesCleared) * 100) : 0;
 
     if (isVictory) {
       soundManager.playVictoryFanfare();
-      this.debriefIcon.textContent = '🏆';
-      this.debriefIcon.className = 'w-16 h-16 rounded-3xl bg-cyan-950 border-2 border-cyan-500/60 flex items-center justify-center text-3xl mb-3 glow-cyan';
-      this.debriefTitle.textContent = 'SECTOR GRID STABILIZED!';
-      this.debriefSubtitle.textContent = 'All 5 sectors cleared. Singularity Boss Core subdued and grid secured!';
-
+      el.debriefIcon.textContent = '🏆';
+      el.debriefIcon.className = 'w-16 h-16 rounded-3xl bg-cyan-950 border-2 border-cyan-500/60 flex items-center justify-center text-3xl mb-3 glow-cyan';
+      el.debriefTitle.textContent = 'SECTOR GRID STABILIZED!';
+      el.debriefSubtitle.textContent = 'All 5 sectors cleared. Singularity Boss Core subdued and grid secured!';
       try {
         window.parent.postMessage({
           type: 'CARTRIDGE_COMPLETE',
@@ -960,61 +914,42 @@ class ExponentReactorGame {
             // score = waves solved on the first try; total = waves in the run
             score: this.firstTryCorrect,
             total: totalWaves,
-            evasionRate: evasionRate,
-            bossDefeated: true
-          }
+            bossDefeated: true,
+          },
         }, '*');
-      } catch (e) {}
+      } catch (e) { /* not embedded */ }
     } else {
-      this.debriefIcon.textContent = '⚠️';
-      this.debriefIcon.className = 'w-16 h-16 rounded-3xl bg-rose-950 border-2 border-rose-500/60 flex items-center justify-center text-3xl mb-3 glow-rose';
-      this.debriefTitle.textContent = 'REACTOR CORE MELTDOWN!';
-      this.debriefSubtitle.textContent = 'Core structural integrity collapsed under circuit overcharge.';
+      el.debriefIcon.textContent = '⚠️';
+      el.debriefIcon.className = 'w-16 h-16 rounded-3xl bg-rose-950 border-2 border-rose-500/60 flex items-center justify-center text-3xl mb-3 glow-rose';
+      el.debriefTitle.textContent = 'REACTOR CORE MELTDOWN!';
+      el.debriefSubtitle.textContent = 'Core integrity collapsed. Review the Field Guide and try again!';
     }
 
-    this.debriefTime.textContent = timeStr;
-    this.debriefWatts.textContent = `${this.totalWattsMitigated.toLocaleString()} MW`;
-    this.debriefCombo.textContent = `x${this.maxCombo} Combo`;
-    this.debriefEvasion.textContent = `${firstTryPct}%`;
-    if (this.debriefHints) this.debriefHints.textContent = String(this.hintsUsed);
-    if (this.debriefCores) {
-      this.debriefCores.textContent = `${this.lives} / ${this.maxLives}`;
-    }
-
-    this.modalDebrief.classList.remove('hidden');
+    el.debriefTime.textContent = timeStr;
+    el.debriefWatts.textContent = `${this.totalWattsMitigated.toLocaleString()} MW`;
+    el.debriefCombo.textContent = `x${this.maxCombo} Combo`;
+    el.debriefEvasion.textContent = `${firstTryPct}%`;
+    if (el.debriefCores) el.debriefCores.textContent = `${this.lives} / ${this.maxLives}`;
+    if (el.debriefHints) el.debriefHints.textContent = String(this.hintsUsed);
+    el.modalDebrief.classList.remove('hidden');
   }
 
   resetFullStationShift() {
-    this.sectorIndex = 0;
-    this.waveIndex = 0;
-    this.coreHealth = 100;
-    this.lives = this.maxLives;
+    Object.assign(this, {
+      sectorIndex: 0, waveIndex: 0, coreHealth: 100, lives: this.maxLives, score: 0, totalWattsMitigated: 0,
+      maxCombo: 1, totalAttempts: 0, trapHits: 0, firstTryCorrect: 0, wavesCleared: 0, hintsUsed: 0,
+      isGameOver: false, shiftStartTime: Date.now(),
+    });
     this.updateLivesDisplay();
-    this.score = 0;
-    this.totalWattsMitigated = 0;
-    this.combo = 1;
-    this.maxCombo = 1;
-    this.totalAttempts = 0;
-    this.trapHits = 0;
-    this.firstTryCorrect = 0;
-    this.wavesCleared = 0;
-    this.hintsUsed = 0;
-    this.isGameOver = false;
-    this.isDischarging = false;
-    this.isBaseLocked = false;
-    this.shiftStartTime = Date.now();
-
-    this.scoreDisplay.textContent = '0';
-    this.comboMultiplierDisplay.textContent = 'x1';
+    this.setCombo(1);
+    this.el.scoreDisplay.textContent = '0';
     this.updateHealthBar();
-    this.dischargeBtn.disabled = false;
-    this.dischargeBtn.classList.remove('opacity-50');
-
+    this.finishDischarge();
     this.startWave();
   }
 
   // ==========================================
-  // REAL-TIME CANVAS PARTICLE & BEAM RENDERER
+  // CANVAS RENDERER
   // ==========================================
   animateCanvas() {
     requestAnimationFrame(() => this.animateCanvas());
@@ -1118,7 +1053,6 @@ class ExponentReactorGame {
   }
 }
 
-// Instantiate on DOM Ready
 window.addEventListener('DOMContentLoaded', () => {
   new ExponentReactorGame();
 });

@@ -5,6 +5,13 @@
  */
 
 import {
+  PROBLEM_MODES,
+  diagnoseValue,
+  diagnoseExpanded,
+  diagnoseCompare,
+  compareAnswer,
+  sup,
+  powerText,
   powerOfTenExponent,
   calculatePower,
   diagnoseSubmission,
@@ -71,39 +78,59 @@ const stepsCubes = prepareSteps(2, 3);
 assert(stepsCubes.length === 3, '2³ produces 3 animation steps');
 assert(stepsCubes[0].currentValue === 2 && stepsCubes[1].currentValue === 4 && stepsCubes[2].currentValue === 8, '2³ produces values [2, 4, 8]');
 
-// 4. Sector & Boss Problem Integrity
-console.log('\n4. Testing Curriculum Sector & Boss Integrity');
+// 4. Sector Problem Integrity (all modes)
+console.log('\n4. Testing Curriculum Sector Integrity');
 assert(CURRICULUM_SECTORS.length === 5, 'All 5 curriculum sectors defined');
 
-let allSolutionsValid = true;
+let allProblemsValid = true;
 let totalSectorProblems = 0;
 for (const sec of CURRICULUM_SECTORS) {
   for (const p of sec.problems) {
     totalSectorProblems++;
-    for (const sol of p.validSolutions) {
-      const val = calculatePower(sol.base, sol.exponent);
-      if (val !== p.targetMW) {
-        allSolutionsValid = false;
-        console.error(`Mismatch in sector problem ${p.id}: ${sol.base}^${sol.exponent} = ${val} != ${p.targetMW}`);
+    if (!PROBLEM_MODES.includes(p.mode)) { allProblemsValid = false; console.error(`Bad mode in ${p.id}`); }
+    if (p.mode === 'find') {
+      for (const sol of p.validSolutions) {
+        if (calculatePower(sol.base, sol.exponent) !== p.targetMW) { allProblemsValid = false; console.error(`Mismatch in ${p.id}`); }
       }
+      // Every find problem must be reachable with the dials (base 1-10, exponent 0-6)
+      const reachable = p.validSolutions.some(sol => sol.base <= 10 && sol.exponent <= 6 && (!isBaseLocked(p) || sol.base === getGivenBase(p)));
+      if (!reachable) { allProblemsValid = false; console.error(`Unreachable ${p.id}`); }
     }
+    if (p.mode === 'fix' && p.wrongValue === calculatePower(p.base, p.exponent)) { allProblemsValid = false; console.error(`Fix problem ${p.id} wrong value is actually right`); }
+    if (p.mode === 'expanded' && (p.exponent < 2 || p.exponent > 6)) { allProblemsValid = false; console.error(`Expanded ${p.id} out of dial range`); }
   }
 }
-assert(totalSectorProblems === 25, `Total sector problems is 25 (5 sectors x 5 waves)`);
-assert(allSolutionsValid, 'All valid solutions across all 5 sectors evaluate mathematically to targetMW');
+assert(totalSectorProblems === 25, 'Total sector problems is 25 (5 sectors x 5 waves)');
+assert(allProblemsValid, 'Every problem is well-formed, correct, and solvable with the dials');
+assert(CURRICULUM_SECTORS.find(s => s.isBossSector) !== undefined, 'Sector 5 is flagged as boss sector');
 
-// Verify Boss Equivalence Dilemmas in Sector 5
-console.log('\n5. Testing Boss Equivalence Dilemmas (Sector 5)');
-const bossSector = CURRICULUM_SECTORS.find(s => s.isBossSector);
-assert(bossSector !== undefined, 'Sector 5 is flagged as isBossSector');
+// 5. New mode diagnosers
+console.log('\n5. Testing Evaluate / Expanded / Compare Diagnosis');
+assert(diagnoseValue(4, 3, 64).correct === true, 'Evaluate 4³ = 64 is correct');
+assert(diagnoseValue(4, 3, 12).type === 'multiplication-error', 'Evaluate 4³ typed 12 → multiplication trap');
+assert(diagnoseValue(4, 3, 7).type === 'addition-error', 'Evaluate 4³ typed 7 → addition error');
+assert(diagnoseValue(2, 5, 25).type === 'swap-error', 'Evaluate 2⁵ typed 25 → swapped base/exponent');
+assert(diagnoseValue(7, 0, 0).type === 'zero-error', 'Evaluate 7⁰ typed 0 → zero exponent error');
+assert(diagnoseValue(7, 0, 7).type === 'zero-error', 'Evaluate 7⁰ typed 7 → zero exponent error');
+assert(diagnoseValue(1, 5, 5).type === 'one-base-error', 'Evaluate 1⁵ typed 5 → base-one error');
+assert(diagnoseValue(10, 4, 1000).type === 'power-of-ten', 'Evaluate 10⁴ typed 1,000 → zero-count error');
+assert(diagnoseValue(3, 4, 27).type === 'factor-count', 'Evaluate 3⁴ typed 27 → one factor short');
+assert(!diagnoseValue(4, 3, 12).correctFormula.includes('64'), 'Miss feedback does not reveal the answer');
+assert(diagnoseValue(4, 3, NaN).type === 'no-answer', 'Empty readout is handled');
 
-// Verify 64 MW can be solved by 2^6, 4^3, and 8^2
-const boss64 = bossSector.problems.find(p => p.targetMW === 64);
-assert(boss64 && boss64.validSolutions.length === 3, 'Boss 64 MW has 3 valid equivalent solutions');
-assert(
-  calculatePower(2, 6) === 64 && calculatePower(4, 3) === 64 && calculatePower(8, 2) === 64,
-  'All 3 boss solutions for 64 MW (2⁶, 4³, 8²) equal 64 MW'
-);
+const exp5 = { mode: 'expanded', base: 5, exponent: 3 };
+assert(diagnoseExpanded(exp5, 5, 3).correct === true, 'Expanded 5×5×5 → 5³ correct');
+assert(diagnoseExpanded(exp5, 3, 5).type === 'swap-error', 'Expanded 5×5×5 → 3⁵ is a swap error');
+assert(diagnoseExpanded(exp5, 5, 4).type === 'factor-count', 'Expanded 5×5×5 → 5⁴ is a factor-count error');
+assert(diagnoseExpanded({ mode: 'expanded', base: 9, exponent: 2 }, 3, 4).type === 'equivalent-form', 'Expanded 9×9 → 3⁴ is same value but wrong form');
+
+const cmp = { mode: 'compare', left: { base: 2, exponent: 5 }, right: { base: 5, exponent: 2 } };
+assert(compareAnswer(cmp) === 'left', '2⁵ (32) > 5² (25)');
+assert(diagnoseCompare(cmp, 'left').correct === true, 'Choosing 2⁵ is correct');
+assert(diagnoseCompare(cmp, 'equal').type === 'multiplication-error', 'Choosing "equal" for 2⁵ vs 5² → multiplication trap');
+assert(compareAnswer({ left: { base: 2, exponent: 6 }, right: { base: 4, exponent: 3 } }) === 'equal', '2⁶ = 4³');
+
+assert(sup(12) === '¹²' && powerText(3, 4) === '3⁴', 'Superscript formatting');
 
 // 6. Input parsing tests (Rule 3: Always test math input parsing with multiple formats)
 console.log('\n6. Testing Input Format Parsing ($15, 15, 15.00)');
@@ -129,31 +156,13 @@ for (let i = 0; i < expectedCombos.length; i++) {
   assert(combo === expectedCombos[i], `Combo step ${i + 1} scaled to x${expectedCombos[i]}`);
 }
 
-// 8. Base Locking for High Cognitive Load Mitigation (>200 MW non-multiples of 10)
+// 8. Base Locking
 console.log('\n8. Testing Base Locking Engine (>200 MW non-tens)');
-const s2_5 = CURRICULUM_SECTORS[1].problems.find(p => p.id === 's2-5'); // 216 MW
-const boss_2 = CURRICULUM_SECTORS[4].problems.find(p => p.id === 'boss-2'); // 243 MW
-const boss_3 = CURRICULUM_SECTORS[4].problems.find(p => p.id === 'boss-3'); // 256 MW
-const boss_4 = CURRICULUM_SECTORS[4].problems.find(p => p.id === 'boss-4'); // 1,000,000 MW (multiple of 10)
-const boss_5 = CURRICULUM_SECTORS[4].problems.find(p => p.id === 'boss-5'); // 512 MW
-const s1_1 = CURRICULUM_SECTORS[0].problems[0]; // 8 MW (< 200)
-const s3_3 = CURRICULUM_SECTORS[2].problems.find(p => p.targetMW === 10000); // 10,000 MW (multiple of 10)
-
-assert(isBaseLocked(s2_5) === true, 's2-5 (216 MW) base is locked');
-assert(getGivenBase(s2_5) === 6, 's2-5 locked base is 6');
-
-assert(isBaseLocked(boss_2) === true, 'boss-2 (243 MW) base is locked');
-assert(getGivenBase(boss_2) === 3, 'boss-2 locked base is 3');
-
-assert(isBaseLocked(boss_3) === true, 'boss-3 (256 MW) base is locked');
-assert(getGivenBase(boss_3) === 4, 'boss-3 locked base is 4');
-
-assert(isBaseLocked(boss_5) === true, 'boss-5 (512 MW) base is locked');
-assert(getGivenBase(boss_5) === 8, 'boss-5 locked base is 8');
-
-assert(isBaseLocked(boss_4) === false, 'boss-4 (1,000,000 MW) base is NOT locked (power of 10)');
-assert(isBaseLocked(s1_1) === false, 's1-1 (8 MW) base is NOT locked (<= 200 MW)');
-assert(isBaseLocked(s3_3) === false, 's3-3 (10,000 MW) base is NOT locked (power of 10)');
+assert(isBaseLocked({ targetMW: 243, validSolutions: [{ base: 3, exponent: 5 }] }) === true, '243 MW base is locked');
+assert(getGivenBase({ targetMW: 243, validSolutions: [{ base: 3, exponent: 5 }] }) === 3, '243 MW locked base is 3');
+assert(isBaseLocked({ targetMW: 1000000, validSolutions: [{ base: 10, exponent: 6 }] }) === false, '1,000,000 MW base is NOT locked (multiple of 10)');
+assert(isBaseLocked({ targetMW: 8, validSolutions: [{ base: 2, exponent: 3 }] }) === false, '8 MW base is NOT locked');
+assert(getGivenBase({ targetMW: 512, givenBase: 8 }) === 8, 'Explicit givenBase is respected');
 
 console.log(`\n========================================`);
 console.log(`Results: ${passedTests}/${totalTests} tests passed`);

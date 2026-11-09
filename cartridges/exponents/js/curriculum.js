@@ -3,53 +3,30 @@
  * Core Game Design Aligned: Combos, Failure States, Misconception Diagnostics & Boss Phase
  */
 
+/*
+ * Problem modes (all live inside the reactor loop, no pop-up quizzes):
+ *   find     – target MW given; student sets base/exponent dials to match.
+ *   evaluate – surge arrives as a power (b^e); student types its value in MW.
+ *   fix      – a trainee logged a wrong value for b^e; student types the correct value.
+ *   expanded – surge arrives as repeated multiplication (5 × 5 × 5); student sets dials.
+ *   compare  – two power lines; student routes power to the stronger one (or "equal").
+ */
+export const PROBLEM_MODES = ['find', 'evaluate', 'fix', 'expanded', 'compare'];
+
 export const CURRICULUM_SECTORS = [
   {
     id: 'sector-1',
     name: 'Sector 1: The Basics',
     tagline: 'Squares & Cubes',
     badge: 'CORE-I',
-    description: 'Master powers of small integers. Learn that 2³ means 2 × 2 × 2 (8), not 2 × 3.',
+    description: 'Master powers of small numbers. 2³ means 2 × 2 × 2 (8), not 2 × 3.',
     waveTimeLimit: 30,
     problems: [
-      {
-        id: 's1-1',
-        targetMW: 8,
-        validSolutions: [{ base: 2, exponent: 3 }],
-        hint: '2 multiplied by itself 3 times (2 × 2 × 2).',
-        conceptNote: '2³ = 2 × 2 × 2 = 8 MW',
-      },
-      {
-        id: 's1-2',
-        targetMW: 16,
-        validSolutions: [
-          { base: 4, exponent: 2 },
-          { base: 2, exponent: 4 },
-        ],
-        hint: '4 squared (4 × 4) or 2 to the 4th power.',
-        conceptNote: '4² = 16 MW and 2⁴ = 16 MW',
-      },
-      {
-        id: 's1-3',
-        targetMW: 25,
-        validSolutions: [{ base: 5, exponent: 2 }],
-        hint: 'What number squared gives 25?',
-        conceptNote: '5² = 5 × 5 = 25 MW',
-      },
-      {
-        id: 's1-4',
-        targetMW: 27,
-        validSolutions: [{ base: 3, exponent: 3 }],
-        hint: '3 used as a factor 3 times: 3 × 3 × 3.',
-        conceptNote: '3³ = 3 × 3 × 3 = 27 MW',
-      },
-      {
-        id: 's1-5',
-        targetMW: 36,
-        validSolutions: [{ base: 6, exponent: 2 }],
-        hint: '6 used as a factor 2 times.',
-        conceptNote: '6² = 6 × 6 = 36 MW',
-      },
+      { id: 's1-1', mode: 'find', targetMW: 8, validSolutions: [{ base: 2, exponent: 3 }], hint: '2 used as a factor 3 times: 2 × 2 × 2.' },
+      { id: 's1-2', mode: 'evaluate', base: 3, exponent: 2, hint: '3² means 3 × 3.' },
+      { id: 's1-3', mode: 'expanded', base: 4, exponent: 2, hint: 'What number repeats? How many times?' },
+      { id: 's1-4', mode: 'find', targetMW: 27, validSolutions: [{ base: 3, exponent: 3 }], hint: '3 × 3 × 3 = 27.' },
+      { id: 's1-5', mode: 'evaluate', base: 2, exponent: 4, hint: '2 × 2 = 4, × 2 = 8, × 2 = 16.' },
     ],
   },
   {
@@ -57,57 +34,14 @@ export const CURRICULUM_SECTORS = [
     name: 'Sector 2: Multiplication Trap',
     tagline: 'Trap Evasion Protocol',
     badge: 'CORE-II',
-    description: 'Reject multiplying base by exponent! Overcome 4 × 3 = 12 and calibrate 4³ = 64.',
+    description: 'Never multiply base × exponent! 4³ is 4 × 4 × 4 = 64, not 4 × 3 = 12.',
     waveTimeLimit: 30,
     problems: [
-      {
-        id: 's2-1',
-        targetMW: 64,
-        validSolutions: [
-          { base: 4, exponent: 3 },
-          { base: 8, exponent: 2 },
-          { base: 2, exponent: 6 },
-        ],
-        hint: 'Watch out: 4 × 3 is 12, but 4³ is 4 × 4 × 4 = 64!',
-        trapWarning: 'Common trap: 4 × 3 = 12. Exponents repeat multiplication!',
-        conceptNote: '4³ = 64 MW or 8² = 64 MW',
-      },
-      {
-        id: 's2-2',
-        targetMW: 81,
-        validSolutions: [
-          { base: 3, exponent: 4 },
-          { base: 9, exponent: 2 },
-        ],
-        hint: '9 × 9 = 81 means base 9 with exponent 2 (NOT exponent 9)!',
-        trapWarning: 'Do NOT set 9⁹! 9⁹ is over 387 million. 9² = 9 × 9 = 81.',
-        conceptNote: '3⁴ = 81 MW and 9² = 81 MW',
-      },
-      {
-        id: 's2-3',
-        targetMW: 32,
-        validSolutions: [{ base: 2, exponent: 5 }],
-        hint: '2 used as a factor 5 times. Notice 2 × 5 is only 10!',
-        trapWarning: '2 × 5 = 10 is multiplication. 2⁵ = 32 is exponential.',
-        conceptNote: '2⁵ = 2 × 2 × 2 × 2 × 2 = 32 MW',
-      },
-      {
-        id: 's2-4',
-        targetMW: 125,
-        validSolutions: [{ base: 5, exponent: 3 }],
-        hint: '5 used as a factor 3 times: 5 × 5 = 25, then 25 × 5 = 125.',
-        trapWarning: '5 × 3 = 15 is linear. The power is 5³ = 125.',
-        conceptNote: '5³ = 5 × 5 × 5 = 125 MW',
-      },
-      {
-        id: 's2-5',
-        targetMW: 216,
-        givenBase: 6,
-        validSolutions: [{ base: 6, exponent: 3 }],
-        hint: 'Base is locked to 6. What exponent gives 216 (36 × 6)?',
-        trapWarning: '6 × 3 = 18 is a trap! 6³ = 216.',
-        conceptNote: '6³ = 6 × 6 × 6 = 216 MW',
-      },
+      { id: 's2-1', mode: 'evaluate', base: 4, exponent: 3, hint: '4 × 4 = 16, then 16 × 4.' },
+      { id: 's2-2', mode: 'compare', left: { base: 2, exponent: 5 }, right: { base: 5, exponent: 2 }, hint: 'Work out each one: 2 × 2 × 2 × 2 × 2 and 5 × 5.' },
+      { id: 's2-3', mode: 'fix', base: 6, exponent: 2, wrongValue: 12, hint: 'The trainee did 6 × 2. What is 6 × 6?' },
+      { id: 's2-4', mode: 'find', targetMW: 81, validSolutions: [{ base: 3, exponent: 4 }, { base: 9, exponent: 2 }], hint: '9 × 9 = 81, so base 9 with exponent 2.' },
+      { id: 's2-5', mode: 'evaluate', base: 5, exponent: 3, hint: '5 × 5 = 25, then 25 × 5.' },
     ],
   },
   {
@@ -115,44 +49,14 @@ export const CURRICULUM_SECTORS = [
     name: 'Sector 3: Powers of 10 Flux',
     tagline: 'Zero Trajectory',
     badge: 'CORE-III',
-    description: '10ⁿ always has 1 followed by exactly n zeros. Match massive grid surges with precision.',
+    description: '10ⁿ is a 1 followed by n zeros.',
     waveTimeLimit: 30,
     problems: [
-      {
-        id: 's3-1',
-        targetMW: 100,
-        validSolutions: [{ base: 10, exponent: 2 }, { base: 100, exponent: 1 }],
-        hint: '10 with 2 trailing zeros: 10² = 100.',
-        conceptNote: '10² = 100 MW (2 zeros)',
-      },
-      {
-        id: 's3-2',
-        targetMW: 1000,
-        validSolutions: [{ base: 10, exponent: 3 }],
-        hint: '3 zeros means base 10 with exponent 3: 10³ = 1,000.',
-        conceptNote: '10³ = 1,000 MW (3 zeros)',
-      },
-      {
-        id: 's3-3',
-        targetMW: 10000,
-        validSolutions: [{ base: 10, exponent: 4 }],
-        hint: '10,000 has 4 zeros: 10⁴.',
-        conceptNote: '10⁴ = 10,000 MW (4 zeros)',
-      },
-      {
-        id: 's3-4',
-        targetMW: 100000,
-        validSolutions: [{ base: 10, exponent: 5 }],
-        hint: '100,000 has 5 zeros: 10⁵.',
-        conceptNote: '10⁵ = 100,000 MW (5 zeros)',
-      },
-      {
-        id: 's3-5',
-        targetMW: 10,
-        validSolutions: [{ base: 10, exponent: 1 }],
-        hint: '10 with 1 zero: Base 10 used as a factor 1 time.',
-        conceptNote: '10¹ = 10 MW (1 zero)',
-      },
+      { id: 's3-1', mode: 'find', targetMW: 1000, validSolutions: [{ base: 10, exponent: 3 }], hint: 'Count the zeros in 1,000.' },
+      { id: 's3-2', mode: 'evaluate', base: 10, exponent: 4, hint: 'A 1 followed by 4 zeros.' },
+      { id: 's3-3', mode: 'expanded', base: 10, exponent: 5, hint: 'Count how many 10s are multiplied.' },
+      { id: 's3-4', mode: 'fix', base: 10, exponent: 3, wrongValue: 30, hint: 'The trainee did 10 × 3. 10³ is 10 × 10 × 10.' },
+      { id: 's3-5', mode: 'find', targetMW: 100000, validSolutions: [{ base: 10, exponent: 5 }], hint: 'Count the zeros in 100,000.' },
     ],
   },
   {
@@ -160,69 +64,14 @@ export const CURRICULUM_SECTORS = [
     name: 'Sector 4: Zero & One Anomalies',
     tagline: 'Quantum Identity',
     badge: 'CORE-IV',
-    description: 'b⁰ = 1 for any non-zero base! And b¹ = b. Handle quantum identity fluctuations.',
+    description: 'b⁰ = 1 for any non-zero base, b¹ = b, and 1 to any power is 1.',
     waveTimeLimit: 30,
     problems: [
-      {
-        id: 's4-1',
-        targetMW: 1,
-        validSolutions: [
-          { base: 2, exponent: 0 },
-          { base: 3, exponent: 0 },
-          { base: 4, exponent: 0 },
-          { base: 5, exponent: 0 },
-          { base: 6, exponent: 0 },
-          { base: 7, exponent: 0 },
-          { base: 8, exponent: 0 },
-          { base: 9, exponent: 0 },
-          { base: 10, exponent: 0 },
-          { base: 1, exponent: 1 },
-          { base: 1, exponent: 2 },
-          { base: 1, exponent: 3 },
-          { base: 1, exponent: 4 },
-        ],
-        hint: 'Any base to power 0 equals 1! (e.g. 5⁰ = 1).',
-        trapWarning: 'b⁰ does NOT equal 0. Zero factors leave the multiplicative identity of 1.',
-        conceptNote: 'Zero Exponent Rule: b⁰ = 1',
-      },
-      {
-        id: 's4-2',
-        targetMW: 7,
-        validSolutions: [{ base: 7, exponent: 1 }],
-        hint: '7 used as a factor 1 time: 7¹ = 7.',
-        conceptNote: '7¹ = 7 MW. Power of 1 keeps the base.',
-      },
-      {
-        id: 's4-3',
-        targetMW: 9,
-        validSolutions: [
-          { base: 9, exponent: 1 },
-          { base: 3, exponent: 2 },
-        ],
-        hint: 'Can be 3² (3 × 3) or 9¹.',
-        conceptNote: '9¹ = 9 MW and 3² = 9 MW',
-      },
-      {
-        id: 's4-4',
-        targetMW: 4,
-        validSolutions: [
-          { base: 4, exponent: 1 },
-          { base: 2, exponent: 2 },
-        ],
-        hint: 'Can be 2² or 4¹.',
-        conceptNote: '4¹ = 4 MW and 2² = 4 MW',
-      },
-      {
-        id: 's4-5',
-        targetMW: 1,
-        validSolutions: [
-          { base: 8, exponent: 0 },
-          { base: 6, exponent: 0 },
-          { base: 1, exponent: 5 },
-        ],
-        hint: 'Use the zero power rule (b⁰ = 1) or 1 to any power.',
-        conceptNote: '8⁰ = 1 MW',
-      },
+      { id: 's4-1', mode: 'evaluate', base: 7, exponent: 0, hint: 'Any non-zero base to the power 0 is 1.' },
+      { id: 's4-2', mode: 'fix', base: 9, exponent: 0, wrongValue: 0, hint: 'b⁰ is not 0. It is 1.' },
+      { id: 's4-3', mode: 'evaluate', base: 1, exponent: 5, hint: '1 × 1 × 1 × 1 × 1.' },
+      { id: 's4-4', mode: 'compare', left: { base: 6, exponent: 1 }, right: { base: 1, exponent: 6 }, hint: '6¹ is one 6. 1⁶ is 1 × 1 × 1 × 1 × 1 × 1.' },
+      { id: 's4-5', mode: 'find', targetMW: 1, validSolutions: [{ base: 5, exponent: 0 }], hint: 'Use the zero exponent rule, or 1 to any power.' },
     ],
   },
   {
@@ -230,71 +79,46 @@ export const CURRICULUM_SECTORS = [
     name: 'Sector 5: Singularity Overcharge (BOSS)',
     tagline: 'Higher-Order Equivalence',
     badge: 'BOSS-CORE',
-    description: 'BOSS PHASE: High-voltage dilemmas with multiple equivalent exponential pathways!',
+    description: 'BOSS PHASE: mixed challenges and equivalent powers!',
     waveTimeLimit: 30,
     isBossSector: true,
     problems: [
-      {
-        id: 'boss-1',
-        targetMW: 64,
-        validSolutions: [
-          { base: 4, exponent: 3 },
-          { base: 8, exponent: 2 },
-          { base: 2, exponent: 6 },
-        ],
-        bossDilemma: 'Equivalent Powers: Find a valid base/exponent pair for 64 MW (can be 2⁶, 4³, or 8²)!',
-        hint: 'Can be formed by 2⁶ (2 doubled 6 times), 4³ (4 cubed), or 8² (8 squared)!',
-        conceptNote: 'Equivalence: 2⁶ = 4³ = 8² = 64 MW',
-      },
-      {
-        id: 'boss-2',
-        targetMW: 243,
-        givenBase: 3,
-        validSolutions: [{ base: 3, exponent: 5 }],
-        bossDilemma: 'Hyper-scaling: Base 3 locked! What power of 3 reaches 243?',
-        hint: 'Base is locked to 3. 3⁴ is 81. Multiply by 3 one more time: 3⁵ = 243.',
-        conceptNote: '3⁵ = 243 MW',
-      },
-      {
-        id: 'boss-3',
-        targetMW: 256,
-        givenBase: 4,
-        validSolutions: [
-          { base: 4, exponent: 4 },
-          { base: 2, exponent: 8 },
-          { base: 16, exponent: 2 },
-        ],
-        bossDilemma: 'Multi-Core Resonance: Base 4 locked! What power of 4 reaches 256?',
-        hint: 'Base is locked to 4. 4³ is 64. Multiply 64 × 4 = 256.',
-        conceptNote: '4⁴ = 256 MW',
-      },
-      {
-        id: 'boss-4',
-        targetMW: 1000000,
-        validSolutions: [
-          { base: 10, exponent: 6 },
-          { base: 100, exponent: 3 },
-          { base: 1000, exponent: 2 },
-        ],
-        bossDilemma: 'Megagrid Surge: 1 Million MW! Count the 6 zeros.',
-        hint: 'Base 10 with 6 zeros: 10⁶ = 1,000,000 MW.',
-        conceptNote: '10⁶ = 1,000,000 MW',
-      },
-      {
-        id: 'boss-5',
-        targetMW: 512,
-        givenBase: 8,
-        validSolutions: [
-          { base: 8, exponent: 3 },
-          { base: 2, exponent: 9 },
-        ],
-        bossDilemma: 'Core Singularity Finale: Base 8 locked! What power of 8 reaches 512?',
-        hint: 'Base is locked to 8. 8² is 64. 64 × 8 = 512.',
-        conceptNote: '8³ = 512 MW',
-      },
+      { id: 'boss-1', mode: 'find', targetMW: 64, validSolutions: [{ base: 4, exponent: 3 }, { base: 8, exponent: 2 }, { base: 2, exponent: 6 }], hint: '2⁶, 4³ and 8² all equal 64.' },
+      { id: 'boss-2', mode: 'compare', left: { base: 2, exponent: 6 }, right: { base: 4, exponent: 3 }, hint: 'Work out both. Different powers can be equal!' },
+      { id: 'boss-3', mode: 'find', targetMW: 243, givenBase: 3, validSolutions: [{ base: 3, exponent: 5 }], hint: '3⁴ is 81. Multiply by 3 one more time.' },
+      { id: 'boss-4', mode: 'fix', base: 3, exponent: 4, wrongValue: 12, hint: '3 × 3 × 3 × 3.' },
+      { id: 'boss-5', mode: 'find', targetMW: 512, givenBase: 8, validSolutions: [{ base: 8, exponent: 3 }, { base: 2, exponent: 9 }], hint: '8² is 64. 64 × 8 = ?' },
     ],
   },
 ];
+
+/** Superscript digits for plain-text formulas (e.g. 2⁵). */
+const SUPERSCRIPTS = { 0: '⁰', 1: '¹', 2: '²', 3: '³', 4: '⁴', 5: '⁵', 6: '⁶', 7: '⁷', 8: '⁸', 9: '⁹' };
+export function sup(n) {
+  return String(n).split('').map(d => SUPERSCRIPTS[d] || d).join('');
+}
+export function powerText(base, exponent) {
+  return `${base}${sup(exponent)}`;
+}
+export function expandedText(base, exponent) {
+  if (exponent === 0) return `${base}⁰`;
+  return Array(exponent).fill(base).join(' × ');
+}
+
+/** The value a problem is checked against (for value-based and dial-based modes). */
+export function problemTargetValue(problem) {
+  if (problem.mode === 'find') return problem.targetMW;
+  if (problem.mode === 'compare') return null;
+  return calculatePower(problem.base, problem.exponent);
+}
+
+/** Correct answer for a compare problem: 'left' | 'right' | 'equal'. */
+export function compareAnswer(problem) {
+  const a = calculatePower(problem.left.base, problem.left.exponent);
+  const b = calculatePower(problem.right.base, problem.right.exponent);
+  if (a === b) return 'equal';
+  return a > b ? 'left' : 'right';
+}
 
 /**
  * Mathematical evaluation helper for non-negative integers
@@ -354,7 +178,7 @@ export function diagnoseSubmission(base, exponent, targetMW) {
       multipliedResult,
       targetMW,
       explanation: 'REACTOR BALANCED! Output matches target surge frequency exactly.',
-      correctFormula: `${base}^${exponent} = ${targetMW.toLocaleString()} MW`,
+      correctFormula: `${powerText(base, exponent)} = ${targetMW.toLocaleString()} MW`,
     };
   }
 
@@ -368,8 +192,8 @@ export function diagnoseSubmission(base, exponent, targetMW) {
       studentResult,
       multipliedResult,
       targetMW,
-      explanation: `Exponent trap! ${base}^${exponent} means ${base} used as a factor ${exponent} times (${studentResult.toLocaleString()} MW), not ${base} × ${exponent} (${multipliedResult} MW).`,
-      correctFormula: `${base}^${exponent} = ${Array(exponent).fill(base).join(' × ')} = ${studentResult.toLocaleString()}`,
+      explanation: `Exponent trap! ${powerText(base, exponent)} means ${base} used as a factor ${exponent} times (${studentResult.toLocaleString()} MW), not ${base} × ${exponent} (${multipliedResult} MW).`,
+      correctFormula: `${powerText(base, exponent)} = ${expandedText(base, exponent)} = ${studentResult.toLocaleString()}`,
     };
   }
 
@@ -399,8 +223,8 @@ export function diagnoseSubmission(base, exponent, targetMW) {
       studentResult,
       multipliedResult,
       targetMW,
-      explanation: `Count the zeros! 10^${exponent} has ${exponent} zero${exponent === 1 ? '' : 's'} (${studentResult.toLocaleString()}). ${targetMW.toLocaleString()} has ${targetZeros} zero${targetZeros === 1 ? '' : 's'}.`,
-      correctFormula: `10^${targetZeros} = ${targetMW.toLocaleString()}`,
+      explanation: `Count the zeros! ${powerText(10, exponent)} has ${exponent} zero${exponent === 1 ? '' : 's'} (${studentResult.toLocaleString()}). ${targetMW.toLocaleString()} has ${targetZeros} zero${targetZeros === 1 ? '' : 's'}.`,
+      correctFormula: `${powerText(10, targetZeros)} = ${targetMW.toLocaleString()}`,
     };
   }
 
@@ -414,7 +238,7 @@ export function diagnoseSubmission(base, exponent, targetMW) {
     studentResult,
     multipliedResult,
     targetMW,
-    explanation: `${comparison}: ${base}^${exponent} = ${studentResult.toLocaleString()} MW, but the surge is ${targetMW.toLocaleString()} MW. ${studentResult > targetMW ? 'Try a smaller base or exponent.' : 'Try a bigger base or exponent.'}`,
+    explanation: `${comparison}: ${powerText(base, exponent)} = ${studentResult.toLocaleString()} MW, but the surge is ${targetMW.toLocaleString()} MW. ${studentResult > targetMW ? 'Try a smaller base or exponent.' : 'Try a bigger base or exponent.'}`,
     correctFormula: `${studentResult.toLocaleString()} ≠ ${targetMW.toLocaleString()}`,
   };
 }
@@ -451,3 +275,94 @@ export function getGivenBase(problem) {
   return null;
 }
 
+
+/**
+ * Diagnoses a typed value for an evaluate / fix problem (student computes b^e).
+ * Returns { correct, isTrap, type, explanation, correctFormula }.
+ */
+export function diagnoseValue(base, exponent, answer) {
+  const correctValue = calculatePower(base, exponent);
+  const p = powerText(base, exponent);
+  // On a miss, show the expansion but NOT the value, so the retry still requires computing it.
+  const shown = exponent === 0 ? `${p}: zero factors of ${base}` : `${p} = ${expandedText(base, exponent)}`;
+  const result = (isTrap, type, explanation) => ({
+    correct: false, isTrap, type, explanation, correctFormula: shown, correctValue,
+  });
+
+  if (!Number.isFinite(answer)) {
+    return result(false, 'no-answer', 'Type a value on the keypad first.');
+  }
+  if (answer === correctValue) {
+    return { correct: true, isTrap: false, type: 'exact-match', explanation: 'Correct!', correctFormula: shown, correctValue };
+  }
+  if (exponent === 0) {
+    if (answer === 0) return result(true, 'zero-error', `Zero exponent rule: ${p} is 1, not 0. Any non-zero base to the power 0 equals 1.`);
+    if (answer === base) return result(true, 'zero-error', `Zero exponent rule: ${p} is 1, not ${base}. Any non-zero base to the power 0 equals 1.`);
+  }
+  if (base === 1 && answer === exponent) {
+    return result(true, 'one-base-error', `1 times itself is always 1, so ${p} = 1, not ${exponent}.`);
+  }
+  if (answer === base * exponent && base * exponent !== correctValue) {
+    return result(true, 'multiplication-error', `Exponent trap! ${base} × ${exponent} = ${answer}, but ${p} means ${base} used as a factor ${exponent} time${exponent === 1 ? '' : 's'}.`);
+  }
+  if (answer === base + exponent && base + exponent !== correctValue) {
+    return result(true, 'addition-error', `${p} is not ${base} + ${exponent}. It means ${base} used as a factor ${exponent} times.`);
+  }
+  if (exponent > 0 && answer === calculatePower(exponent, base) && exponent !== base) {
+    return result(true, 'swap-error', `You found ${powerText(exponent, base)}. The big number is the base: ${p} means ${base} is the factor, ${exponent} times.`);
+  }
+  if (base === 10 && powerOfTenExponent(answer) !== null) {
+    const z = powerOfTenExponent(answer);
+    return result(true, 'power-of-ten', `Count the zeros! ${p} has ${exponent} zero${exponent === 1 ? '' : 's'}; you typed ${z}.`);
+  }
+  if (exponent >= 2 && (answer === calculatePower(base, exponent - 1) || answer === calculatePower(base, exponent + 1))) {
+    const fewer = answer === calculatePower(base, exponent - 1);
+    return result(false, 'factor-count', `Close! You multiplied one ${fewer ? 'too few' : 'too many'} times. ${p} has exactly ${exponent} factors of ${base}.`);
+  }
+  return result(false, 'off-target', `${p} is not ${answer.toLocaleString()}. Multiply it out one factor at a time.`);
+}
+
+/**
+ * Diagnoses dial settings for an expanded-form problem (e.g. 5 × 5 × 5 → 5³).
+ */
+export function diagnoseExpanded(problem, base, exponent) {
+  const target = powerText(problem.base, problem.exponent);
+  const shown = `${expandedText(problem.base, problem.exponent)} = ${target}`;
+  if (base === problem.base && exponent === problem.exponent) {
+    return { correct: true, isTrap: false, type: 'exact-match', explanation: 'Correct!', correctFormula: shown };
+  }
+  if (base === problem.exponent && exponent === problem.base) {
+    return { correct: false, isTrap: true, type: 'swap-error', explanation: `Base and exponent are swapped. The repeated factor (${problem.base}) is the base; how many times it appears (${problem.exponent}) is the exponent.`, correctFormula: shown };
+  }
+  if (calculatePower(base, exponent) === calculatePower(problem.base, problem.exponent)) {
+    return { correct: false, isTrap: false, type: 'equivalent-form', explanation: `${powerText(base, exponent)} has the same value, but this signature repeats ${problem.base}. Use ${problem.base} as the base.`, correctFormula: shown };
+  }
+  if (base !== problem.base) {
+    return { correct: false, isTrap: false, type: 'wrong-base', explanation: `The base is the number being repeated: ${problem.base}.`, correctFormula: shown };
+  }
+  return { correct: false, isTrap: false, type: 'factor-count', explanation: `Count the factors: ${problem.base} appears ${problem.exponent} time${problem.exponent === 1 ? '' : 's'}, so the exponent is ${problem.exponent}.`, correctFormula: shown };
+}
+
+/**
+ * Diagnoses a compare choice ('left' | 'right' | 'equal').
+ */
+export function diagnoseCompare(problem, choice) {
+  const { left, right } = problem;
+  const a = calculatePower(left.base, left.exponent);
+  const b = calculatePower(right.base, right.exponent);
+  const answer = compareAnswer(problem);
+  const sym = a === b ? '=' : a > b ? '>' : '<';
+  const shown = `${powerText(left.base, left.exponent)} = ${a.toLocaleString()}  ${sym}  ${powerText(right.base, right.exponent)} = ${b.toLocaleString()}`;
+  if (choice === answer) {
+    return { correct: true, isTrap: false, type: 'exact-match', explanation: 'Correct!', correctFormula: shown };
+  }
+  const swapped = left.base === right.exponent && left.exponent === right.base;
+  const sameProduct = left.base * left.exponent === right.base * right.exponent;
+  if (choice === 'equal' && (swapped || sameProduct)) {
+    return { correct: false, isTrap: true, type: 'multiplication-error', explanation: `Not equal! Base × exponent gives ${left.base * left.exponent} for both, but that's the trap. Exponents mean repeated multiplication.`, correctFormula: shown };
+  }
+  if (swapped) {
+    return { correct: false, isTrap: true, type: 'swap-error', explanation: 'Swapping the base and exponent changes the value. Work out each power.', correctFormula: shown };
+  }
+  return { correct: false, isTrap: false, type: 'compare-error', explanation: 'Work out both powers before you route power.', correctFormula: shown };
+}
