@@ -11,7 +11,24 @@
  *   expanded – surge arrives as repeated multiplication (5 × 5 × 5); student sets dials.
  *   compare  – two power lines; student routes power to the stronger one (or "equal").
  */
-export const PROBLEM_MODES = ['find', 'evaluate', 'fix', 'expanded', 'compare'];
+export const PROBLEM_MODES = ['find', 'evaluate', 'fix', 'expanded', 'compare', 'cards'];
+// cards (boss only) – pick the one charge card that produces the target; decoys are trap powers.
+
+/** Combo: climbs one level per clean hit (max x5); a hint holds it; a miss drops one level. */
+export const MAX_COMBO = 5;
+export function nextCombo(combo, hinted = false) {
+  return hinted ? combo : Math.min(MAX_COMBO, combo + 1);
+}
+export function comboAfterMiss(combo) {
+  return Math.max(1, combo - 1);
+}
+
+/** Sector stars: 3 = no misses & no hints, 2 = at most 2 misses, 1 = cleared. */
+export function sectorStars(misses, hints) {
+  if (misses === 0 && hints === 0) return 3;
+  if (misses <= 2) return 2;
+  return 1;
+}
 
 // Sector metadata. Problems are generated fresh each run by generator.js.
 export const CURRICULUM_SECTORS = [
@@ -21,7 +38,7 @@ export const CURRICULUM_SECTORS = [
     tagline: 'Squares & Cubes',
     badge: 'CORE-I',
     description: 'Master powers of small numbers. 2³ means 2 × 2 × 2 (8), not 2 × 3.',
-    waveTimeLimit: 30,
+    waveTimeLimit: 45,
   },
   {
     id: 'sector-2',
@@ -29,7 +46,7 @@ export const CURRICULUM_SECTORS = [
     tagline: 'Trap Evasion Protocol',
     badge: 'CORE-II',
     description: 'Never multiply base × exponent! 4³ is 4 × 4 × 4 = 64, not 4 × 3 = 12.',
-    waveTimeLimit: 30,
+    waveTimeLimit: 40,
   },
   {
     id: 'sector-3',
@@ -37,7 +54,7 @@ export const CURRICULUM_SECTORS = [
     tagline: 'Zero Trajectory',
     badge: 'CORE-III',
     description: '10ⁿ is a 1 followed by n zeros.',
-    waveTimeLimit: 30,
+    waveTimeLimit: 40,
   },
   {
     id: 'sector-4',
@@ -45,7 +62,7 @@ export const CURRICULUM_SECTORS = [
     tagline: 'Quantum Identity',
     badge: 'CORE-IV',
     description: 'b⁰ = 1 for any non-zero base, b¹ = b, and 1 to any power is 1.',
-    waveTimeLimit: 30,
+    waveTimeLimit: 35,
   },
   {
     id: 'sector-5',
@@ -331,4 +348,25 @@ export function diagnoseCompare(problem, choice) {
     return { correct: false, isTrap: true, type: 'swap-error', explanation: 'Swapping the base and exponent changes the value. Work out each power.', correctFormula: shown };
   }
   return { correct: false, isTrap: false, type: 'compare-error', explanation: 'Work out both powers before you route power.', correctFormula: shown };
+}
+
+/**
+ * Diagnoses a charge-card pick in the boss "cards" mode.
+ * Each card is { base, exponent, kind: 'correct' | 'swapped' | 'product-trap' | 'equivalent' }.
+ */
+export function diagnoseCards(problem, index) {
+  const card = problem.cards[index];
+  const target = problem.targetMW.toLocaleString();
+  const right = problem.cards.filter(c => calculatePower(c.base, c.exponent) === problem.targetMW).map(c => powerText(c.base, c.exponent)).join(' or ');
+  const shown = `${right} = ${target} MW`;
+  if (!card) return { correct: false, isTrap: false, type: 'no-answer', explanation: 'Pick a card.', correctFormula: '' };
+  const value = calculatePower(card.base, card.exponent);
+  const p = powerText(card.base, card.exponent);
+  if (value === problem.targetMW) return { correct: true, isTrap: false, type: 'exact-match', explanation: 'Correct!', correctFormula: shown };
+  // On a miss, explain the card they picked (not which card is right) so the retry still takes thinking.
+  const picked = `${p} = ${expandedText(card.base, card.exponent)} = ${value.toLocaleString()}`;
+  if (card.base * card.exponent === problem.targetMW) {
+    return { correct: false, isTrap: true, type: 'multiplication-error', explanation: `Trap card! ${card.base} × ${card.exponent} = ${target}, but ${p} means ${card.base} used as a factor ${card.exponent} times. That's way more than ${target}!`, correctFormula: picked };
+  }
+  return { correct: false, isTrap: true, type: 'swap-error', explanation: `${p} is not ${target}. Swapping the base and exponent changes the value.`, correctFormula: picked };
 }

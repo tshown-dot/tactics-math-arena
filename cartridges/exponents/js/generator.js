@@ -143,6 +143,33 @@ export function makeCompare(left, right) {
   };
 }
 
+/**
+ * Boss "charge cards": one correct power for the target, one swapped decoy,
+ * and one product-trap decoy (a power whose base × exponent equals the target).
+ */
+export const CARD_TARGETS = [P(2, 6), P(3, 4), P(5, 3), P(2, 5), P(6, 3), P(4, 3)];
+export function makeCards({ base, exponent }, rng) {
+  const target = calculatePower(base, exponent);
+  const swapped = P(exponent, base);
+  // product trap: d^(target/d), preferring exponent 2 or 3
+  let trap = null;
+  for (const e of [2, 3, 4, 5, 6]) {
+    if (target % e === 0 && calculatePower(target / e, e) !== target) { trap = P(target / e, e); break; }
+  }
+  const cards = shuffle(rng, [
+    { ...P(base, exponent), kind: 'correct' },
+    { ...swapped, kind: 'swapped' },
+    { ...trap, kind: 'product-trap' },
+  ]);
+  return {
+    id: nextId('cards'),
+    mode: 'cards',
+    targetMW: target,
+    cards,
+    hint: `Only one card makes exactly ${target} MW. Don't multiply base × exponent!`,
+  };
+}
+
 // ------------------------------------------------------------------
 // Sector plans: each sector mixes modes; order is shuffled per run.
 // ------------------------------------------------------------------
@@ -216,12 +243,13 @@ const SECTOR_PLANS = [
     const eq = shuffle(rng, pick(rng, POOLS.equalPairs.slice(0, 5)));
     const target = pick(rng, POOLS.equivTargets);
     const equivSol = dialSolutions(target).find(s => s.base > 1 && s.exponent > 1);
+    const valueTask = rng() < 0.5 ? makeFix(evals[0]) : makeEvaluate(evals[0]);
     return [
       makeFind(equivSol, { equivalent: true }),
       ...shuffle(rng, [
+        makeCards(pick(rng, CARD_TARGETS), rng),
         makeCompare(eq[0], eq[1]),
-        makeFix(evals[0]),
-        makeEvaluate(evals[1]),
+        valueTask,
       ]),
       makeFind(locked[0], { lockBase: true }), // finale: biggest surge
     ];

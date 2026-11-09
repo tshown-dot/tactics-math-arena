@@ -17,6 +17,10 @@ import {
   diagnoseValue,
   diagnoseExpanded,
   diagnoseCompare,
+  diagnoseCards,
+  nextCombo,
+  comboAfterMiss,
+  sectorStars,
   prepareSteps,
   isBaseLocked,
   getGivenBase,
@@ -43,6 +47,7 @@ const MODE_UI = {
   evaluate: { label: 'Calculate the Surge', console: 'Type the Value', fire: 'LOCK IN READOUT', panel: 'readout', keys: 'Type digits · Enter = Fire' },
   fix: { label: 'Fix the Trainee\'s Log', console: 'Type the Correct Value', fire: 'OVERRIDE LOG', panel: 'readout', keys: 'Type digits · Enter = Fire' },
   compare: { label: 'Two Lines Surging', console: 'Route the Beam', fire: '', panel: 'compare', keys: 'Keys 1 / 2 / 3' },
+  cards: { label: 'Boss Charge Cards', console: 'Pick the Right Card', fire: '', panel: 'cards', keys: 'Keys 1 / 2 / 3' },
 };
 
 /** HTML for a power like 2⁵ with styled base/exponent. */
@@ -62,6 +67,11 @@ class ExponentReactorGame {
     this.rng = createRng();
     this.run = generateRun(this.rng);       // run[sector] = array of problems
     this.followUpsThisSector = 0;
+    this.sectorMisses = 0;
+    this.sectorHints = 0;
+    this.starsBySector = [];
+    this.bossHitFlash = 0;
+    this.isSectorClearOpen = false;
 
     // Input State
     this.base = 2;
@@ -123,7 +133,9 @@ class ExponentReactorGame {
       'equation-display-card', 'equation-label', 'trainee-log', 'eq-left', 'eq-right', 'equation-operator',
       'discharge-result-container', 'discharge-evaluated-mw', 'discharge-unit', 'discharge-verdict-badge',
       'ribbon-summary', 'ribbon-nodes-container',
-      'console-mode-label', 'console-keys-label', 'dial-panel', 'readout-panel', 'compare-panel', 'readout-display',
+      'console-mode-label', 'console-keys-label', 'dial-panel', 'readout-panel', 'compare-panel', 'cards-panel', 'readout-display',
+      'boss-hp-panel', 'boss-hp-segments', 'modal-sector-clear', 'sector-clear-title', 'sector-clear-stars',
+      'sector-clear-stats', 'sector-clear-next', 'sector-clear-next-desc', 'sector-clear-continue-btn', 'debrief-stars',
       'compare-left-label', 'compare-right-label',
       'base-number-display', 'base-dec-btn', 'base-inc-btn', 'base-locked-badge', 'base-subtext',
       'exp-number-display', 'exp-dec-btn', 'exp-inc-btn', 'formula-base', 'formula-exp',
@@ -142,6 +154,7 @@ class ExponentReactorGame {
     this.expPresetBtns = document.querySelectorAll('.exp-preset-btn');
     this.keypadBtns = document.querySelectorAll('.keypad-btn');
     this.compareBtns = document.querySelectorAll('.compare-btn');
+    this.cardBtns = document.querySelectorAll('.card-btn');
     this.isBriefingOpen = true;
 
     this.updateAudioIcon();
@@ -211,6 +224,10 @@ class ExponentReactorGame {
     this.compareBtns.forEach(btn => btn.addEventListener('click', e => {
       this.handleDischarge(e.currentTarget.dataset.choice);
     }));
+    this.cardBtns.forEach(btn => btn.addEventListener('click', e => {
+      this.handleDischarge(parseInt(e.currentTarget.dataset.index, 10));
+    }));
+    el.sectorClearContinueBtn.addEventListener('click', () => this.continueAfterSectorClear());
 
     if (el.briefingStartBtn) el.briefingStartBtn.addEventListener('click', () => this.startGameFromBriefing());
     if (el.briefingBtn) el.briefingBtn.addEventListener('click', () => this.openBriefing());
@@ -225,6 +242,7 @@ class ExponentReactorGame {
       if (!el.hintStrip.classList.contains('hidden') && !this.hintUsedThisWave && this.hasStarted) {
         this.hintUsedThisWave = true;
         this.hintsUsed++;
+        this.sectorHints++;
       }
     });
 
@@ -258,6 +276,13 @@ class ExponentReactorGame {
       }
       return;
     }
+    if (this.isSectorClearOpen) {
+      if (e.code === 'Space' || e.code === 'Enter') {
+        e.preventDefault();
+        this.continueAfterSectorClear();
+      }
+      return;
+    }
     if (this.isBriefingOpen && (e.code === 'Space' || e.code === 'Enter')) {
       e.preventDefault();
       this.closeBriefing();
@@ -269,7 +294,7 @@ class ExponentReactorGame {
 
     if (e.code === 'Space' || e.code === 'Enter') {
       e.preventDefault();
-      if (mode !== 'compare') this.handleDischarge();
+      if (MODE_UI[mode].panel === 'dial' || MODE_UI[mode].panel === 'readout') this.handleDischarge();
       return;
     }
 
@@ -282,6 +307,10 @@ class ExponentReactorGame {
     if (mode === 'compare') {
       const map = { Digit1: 'left', Numpad1: 'left', Digit2: 'equal', Numpad2: 'equal', Digit3: 'right', Numpad3: 'right' };
       if (map[e.code]) this.handleDischarge(map[e.code]);
+    }
+    if (mode === 'cards') {
+      const map = { Digit1: 0, Numpad1: 0, Digit2: 1, Numpad2: 1, Digit3: 2, Numpad3: 2 };
+      if (map[e.code] !== undefined) this.handleDischarge(map[e.code]);
     }
   }
 
@@ -373,6 +402,7 @@ class ExponentReactorGame {
 
     this.setupModeUI(problem);
     this.resetEquationResult();
+    this.updateBossHP();
 
     if (sector.isBossSector) {
       el.threatBadge.className = 'text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-rose-950 border border-rose-600 text-rose-300 animate-pulse';
@@ -419,7 +449,8 @@ class ExponentReactorGame {
     el.dialPanel.classList.toggle('hidden', ui.panel !== 'dial');
     el.readoutPanel.classList.toggle('hidden', ui.panel !== 'readout');
     el.comparePanel.classList.toggle('hidden', ui.panel !== 'compare');
-    el.dischargeBtn.classList.toggle('hidden', ui.panel === 'compare');
+    el.cardsPanel.classList.toggle('hidden', ui.panel !== 'cards');
+    el.dischargeBtn.classList.toggle('hidden', ui.panel === 'compare' || ui.panel === 'cards');
     el.traineeLog.classList.add('hidden');
 
     this.applyBaseLock(problem.mode === 'find' ? problem : null);
@@ -435,6 +466,12 @@ class ExponentReactorGame {
         el.traineeLog.textContent = `⚠ Trainee's log says: ${powerText(problem.base, problem.exponent)} = ${problem.wrongValue.toLocaleString()} MW ✗`;
         el.traineeLog.classList.remove('hidden');
       }
+    } else if (problem.mode === 'cards') {
+      el.eqLeft.innerHTML = `<span class="text-4xl font-black text-white tracking-tight">${problem.targetMW.toLocaleString()}</span><span class="text-xs font-extrabold text-cyan-400 uppercase">MW</span>`;
+      el.eqRight.innerHTML = '<span id="eq-card" class="text-4xl font-black text-rose-300">?</span>';
+      problem.cards.forEach((c, i) => { this.$(`card-label-${i}`).textContent = powerText(c.base, c.exponent); });
+      this.base = 2;
+      this.exponent = 6;
     } else if (problem.mode === 'compare') {
       el.eqLeft.innerHTML = `<span class="text-[10px] font-sans font-black text-gray-500 mr-1">A</span>${powerHTML(problem.left.base, problem.left.exponent)}`;
       el.eqRight.innerHTML = `<span class="text-[10px] font-sans font-black text-gray-500 mr-1">B</span>${powerHTML(problem.right.base, problem.right.exponent, 'text-amber-300', 'text-cyan-300')}`;
@@ -504,6 +541,7 @@ class ExponentReactorGame {
     this.shake();
     this.setCombo(1);
     this.waveMisses++;
+    this.sectorMisses++;
 
     if (this.lives > 0) {
       this.lives--;
@@ -612,6 +650,11 @@ class ExponentReactorGame {
       el.corePowerCurveText.textContent = 'Work out both powers, then route the beam to the stronger line.';
       return;
     }
+    if (p && p.mode === 'cards') {
+      el.ribbonSummary.textContent = p.cards.map((c, i) => `[${i + 1}] ${powerText(c.base, c.exponent)}`).join('   ');
+      el.corePowerCurveText.textContent = 'Watch out: base × exponent is NOT the value of a power.';
+      return;
+    }
     if (p && p.mode === 'expanded' && !reveal) {
       el.ribbonSummary.textContent = 'Hidden until you fire: count the factors in the signature!';
       el.corePowerCurveText.textContent = 'The repeated number is the base. How many times it repeats is the exponent.';
@@ -668,6 +711,10 @@ class ExponentReactorGame {
         return { ...diagnoseValue(p.base, p.exponent, this.readout === '' ? NaN : Number(this.readout)), value: Number(this.readout) };
       case 'compare':
         return diagnoseCompare(p, choice);
+      case 'cards': {
+        const card = p.cards[choice];
+        return { ...diagnoseCards(p, choice), value: card ? calculatePower(card.base, card.exponent) : NaN, card };
+      }
       default:
         return { correct: false, isTrap: false, type: 'unknown', explanation: '', correctFormula: '' };
     }
@@ -688,6 +735,7 @@ class ExponentReactorGame {
     this.el.dischargeBtn.disabled = true;
     this.el.dischargeBtn.classList.add('opacity-50');
     this.compareBtns.forEach(b => { b.disabled = true; });
+    this.cardBtns.forEach(b => { b.disabled = true; });
 
     const diagnosis = this.diagnoseCurrent(choice);
 
@@ -696,7 +744,7 @@ class ExponentReactorGame {
     soundManager.playDischargeLaser();
     this.beamFiringProgress = 1.0;
     const { base, exponent } = this.ribbonPower();
-    const steps = p.mode === 'compare' ? [] : prepareSteps(base, exponent);
+    const steps = p.mode === 'compare' || p.mode === 'cards' ? [] : prepareSteps(base, exponent);
     const revealPartials = !isReadout || diagnosis.correct;
     if (p.mode === 'expanded') this.updateRibbon({ reveal: true });
     for (let i = 0; i < steps.length; i++) {
@@ -720,6 +768,7 @@ class ExponentReactorGame {
     } else {
       if (diagnosis.isTrap) this.trapHits++;
       this.waveMisses++;
+      this.sectorMisses++;
       this.scheduleFollowUp(diagnosis);
       soundManager.playStallBuzzer(diagnosis.isTrap);
       this.triggerCircuitBreach(
@@ -745,6 +794,16 @@ class ExponentReactorGame {
         ? 'ml-1 text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-emerald-950 border border-emerald-500 text-emerald-300'
         : 'ml-1 text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-rose-950 border border-rose-500 text-rose-300';
     };
+
+    if (p.mode === 'cards') {
+      const eqCard = this.$('eq-card');
+      if (eqCard && diagnosis.card) eqCard.textContent = powerText(diagnosis.card.base, diagnosis.card.exponent);
+      el.equationOperator.textContent = diagnosis.correct ? '=' : '≠';
+      el.dischargeEvaluatedMw.textContent = diagnosis.correct ? p.targetMW.toLocaleString() : diagnosis.value > 9999999 ? 'HUGE' : diagnosis.value.toLocaleString();
+      el.dischargeUnit.textContent = 'MW';
+      badge(diagnosis.correct ? 'MATCH' : 'TRAP CARD', diagnosis.correct);
+      return;
+    }
 
     if (p.mode === 'compare') {
       const a = calculatePower(p.left.base, p.left.exponent);
@@ -793,6 +852,7 @@ class ExponentReactorGame {
     this.el.dischargeBtn.disabled = false;
     this.el.dischargeBtn.classList.remove('opacity-50');
     this.compareBtns.forEach(b => { b.disabled = false; });
+    this.cardBtns.forEach(b => { b.disabled = false; });
   }
 
   handleMatchSuccess(targetMW) {
@@ -800,9 +860,7 @@ class ExponentReactorGame {
     this.wavesCleared++;
     if (this.waveMisses === 0) this.firstTryCorrect++;
 
-    if (!this.hintUsedThisWave) {
-      this.setCombo(Math.min(16, this.combo === 1 ? 2 : this.combo * 2));
-    }
+    this.setCombo(nextCombo(this.combo, this.hintUsedThisWave));
     this.maxCombo = Math.max(this.maxCombo, this.combo);
 
     const pointsEarned = (this.hintUsedThisWave ? 50 : 100) * this.combo;
@@ -821,25 +879,87 @@ class ExponentReactorGame {
     document.body.classList.add('glow-emerald');
     setTimeout(() => document.body.classList.remove('glow-emerald'), 500);
 
+    if (this.currentSector().isBossSector) {
+      this.bossHitFlash = 1;
+      this.updateBossHP(this.waveIndex + 1);
+    }
+
     setTimeout(() => {
       this.waveIndex++;
       if (this.waveIndex >= this.sectorProblems().length) {
-        this.waveIndex = 0;
-        this.sectorIndex++;
-        this.followUpsThisSector = 0;
-        if (this.sectorIndex >= CURRICULUM_SECTORS.length) {
-          this.endGame(true);
-          return;
-        }
+        this.completeSector();
+        return;
       }
       this.finishDischarge();
       this.startWave();
     }, 900);
   }
 
+  // ==========================================
+  // SECTOR CLEARED / BOSS HP
+  // ==========================================
+  completeSector() {
+    clearInterval(this.waveTimerInterval);
+    const stars = sectorStars(this.sectorMisses, this.sectorHints);
+    this.starsBySector[this.sectorIndex] = stars;
+    const finished = this.currentSector();
+    const misses = this.sectorMisses;
+    const hints = this.sectorHints;
+
+    this.waveIndex = 0;
+    this.sectorIndex++;
+    this.followUpsThisSector = 0;
+    this.sectorMisses = 0;
+    this.sectorHints = 0;
+
+    if (this.sectorIndex >= CURRICULUM_SECTORS.length) {
+      this.endGame(true);
+      return;
+    }
+
+    const { el } = this;
+    const next = this.currentSector();
+    el.sectorClearTitle.textContent = finished.name;
+    el.sectorClearStars.innerHTML = [1, 2, 3].map(i => `<span class="${i <= stars ? 'text-amber-300' : 'text-gray-700'}">★</span>`).join('');
+    el.sectorClearStats.textContent = `${misses} miss${misses === 1 ? '' : 'es'} · ${hints} hint${hints === 1 ? '' : 's'}${stars < 3 ? ' · 3 stars = no misses, no hints' : ' · Perfect sector!'}`;
+    el.sectorClearNext.textContent = next.name;
+    el.sectorClearNextDesc.textContent = next.description;
+    el.modalSectorClear.classList.remove('hidden');
+    this.isSectorClearOpen = true;
+    this.isPaused = true;
+    soundManager.playVictoryFanfare();
+  }
+
+  continueAfterSectorClear() {
+    if (!this.isSectorClearOpen) return;
+    soundManager.playClick();
+    this.isSectorClearOpen = false;
+    this.isPaused = false;
+    this.el.modalSectorClear.classList.add('hidden');
+    this.finishDischarge();
+    this.startWave();
+  }
+
+  /** Draws the boss health bar: one segment per boss wave; `cleared` segments are drained. */
+  updateBossHP(cleared = this.waveIndex) {
+    const { el } = this;
+    const isBoss = !!this.currentSector().isBossSector;
+    el.bossHpPanel.classList.toggle('hidden', !isBoss);
+    if (!isBoss) return;
+    const total = this.sectorProblems().length;
+    el.bossHpSegments.innerHTML = '';
+    for (let i = 0; i < total; i++) {
+      const seg = document.createElement('div');
+      const alive = i >= cleared;
+      seg.className = `w-9 h-2.5 rounded-sm transition-all duration-500 ${alive ? 'bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.8)]' : 'bg-gray-800'}`;
+      el.bossHpSegments.appendChild(seg);
+    }
+  }
+
   triggerCircuitBreach(title, explanation, formula) {
-    this.setCombo(1);
-    this.coreHealth = Math.max(0, this.coreHealth - 20);
+    this.setCombo(comboAfterMiss(this.combo));
+    const damage = this.currentSector().isBossSector ? 25 : 20;
+    this.coreHealth = Math.max(0, this.coreHealth - damage);
     this.updateHealthBar();
     this.shake();
     this.showInlineDiagnostic(false, title, explanation, formula);
@@ -853,11 +973,10 @@ class ExponentReactorGame {
         document.body.classList.add('glow-amber');
         setTimeout(() => document.body.classList.remove('glow-amber'), 600);
         const coresLeftStr = this.lives === 1 ? '1 backup core left' : `${this.lives} backup cores left`;
-        this.showInlineDiagnostic(false, `${title} · BACKUP CORE USED`, explanation, `${formula}  |  🔋 Rebooting sector (${coresLeftStr})`);
+        this.showInlineDiagnostic(false, `${title} · BACKUP CORE USED`, explanation, `${formula}  |  🔋 Health restored, retry this wave (${coresLeftStr})`);
         setTimeout(() => {
           this.coreHealth = 100;
           this.updateHealthBar();
-          this.waveIndex = 0;
           this.finishDischarge();
           this.startWave();
         }, 3500);
@@ -965,6 +1084,8 @@ class ExponentReactorGame {
       el.debriefSubtitle.textContent = 'Core integrity collapsed. Review the Field Guide and try again!';
     }
 
+    const starTotal = this.starsBySector.reduce((a, b) => a + (b || 0), 0);
+    el.debriefStars.textContent = isVictory ? `★ ${starTotal} / ${CURRICULUM_SECTORS.length * 3} sector stars` : '';
     el.debriefTime.textContent = timeStr;
     el.debriefWatts.textContent = `${this.totalWattsMitigated.toLocaleString()} MW`;
     el.debriefCombo.textContent = `x${this.maxCombo} Combo`;
@@ -979,6 +1100,7 @@ class ExponentReactorGame {
       sectorIndex: 0, waveIndex: 0, coreHealth: 100, lives: this.maxLives, score: 0, totalWattsMitigated: 0,
       maxCombo: 1, totalAttempts: 0, trapHits: 0, firstTryCorrect: 0, wavesCleared: 0, hintsUsed: 0,
       isGameOver: false, shiftStartTime: Date.now(), followUpsThisSector: 0,
+      sectorMisses: 0, sectorHints: 0, starsBySector: [],
     });
     this.run = generateRun(this.rng); // fresh problems every replay
     this.updateLivesDisplay();
@@ -1052,6 +1174,21 @@ class ExponentReactorGame {
       ctx.fill();
     }
     ctx.restore();
+
+    // Boss singularity ring (Sector 5): pulses rose, flashes white when hit
+    if (this.sectorIndex < CURRICULUM_SECTORS.length && this.currentSector().isBossSector) {
+      const pulse = 0.5 + 0.5 * Math.sin(Date.now() / 250);
+      ctx.save();
+      ctx.strokeStyle = this.bossHitFlash > 0 ? `rgba(255,255,255,${this.bossHitFlash})` : `rgba(244, 63, 94, ${0.35 + pulse * 0.4})`;
+      ctx.lineWidth = 3 + (this.bossHitFlash * 6);
+      ctx.shadowColor = '#f43f5e';
+      ctx.shadowBlur = 25;
+      ctx.beginPath();
+      ctx.arc(cx, cy, baseRadius + 22 + pulse * 6, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.restore();
+      if (this.bossHitFlash > 0) this.bossHitFlash = Math.max(0, this.bossHitFlash - 0.03);
+    }
 
     // Inner Core Orb
     const orbGrad = ctx.createRadialGradient(cx, cy, 2, cx, cy, 22);

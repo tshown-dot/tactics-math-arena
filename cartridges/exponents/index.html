@@ -202,6 +202,11 @@
           <div id="core-power-curve-text" class="text-[11px] font-mono-math text-gray-400 mt-0.5">
             Repeated Factors: Base multiplied by itself exponent times.
           </div>
+          <!-- Boss health (Sector 5 only) -->
+          <div id="boss-hp-panel" class="hidden mt-2 flex flex-col items-center">
+            <div class="text-[10px] font-black uppercase tracking-widest text-rose-400 mb-1">☢ Singularity Core Integrity</div>
+            <div id="boss-hp-segments" class="flex space-x-1"></div>
+          </div>
         </div>
 
         <!-- THE MAIN EQUATION BADGE BENEATH THE REACTOR ORB (content rendered per problem mode) -->
@@ -363,6 +368,20 @@
           </div>
         </div>
 
+        <!-- CARDS PANEL (boss cards mode): pick the one card that makes the target -->
+        <div id="cards-panel" class="hidden space-y-2">
+          <div class="text-[11px] text-gray-300 text-center">Only <strong class="text-white">one</strong> charge card makes the surge exactly. Two are traps!</div>
+          <button class="card-btn w-full py-3.5 rounded-xl bg-gray-900 hover:bg-rose-950 border-2 border-rose-800 font-mono-math font-black text-2xl text-white active:scale-98 transition-all" data-index="0">
+            <span class="text-[10px] font-sans uppercase tracking-wider text-gray-400 mr-2">[1]</span><span id="card-label-0">2⁶</span>
+          </button>
+          <button class="card-btn w-full py-3.5 rounded-xl bg-gray-900 hover:bg-rose-950 border-2 border-rose-800 font-mono-math font-black text-2xl text-white active:scale-98 transition-all" data-index="1">
+            <span class="text-[10px] font-sans uppercase tracking-wider text-gray-400 mr-2">[2]</span><span id="card-label-1">6²</span>
+          </button>
+          <button class="card-btn w-full py-3.5 rounded-xl bg-gray-900 hover:bg-rose-950 border-2 border-rose-800 font-mono-math font-black text-2xl text-white active:scale-98 transition-all" data-index="2">
+            <span class="text-[10px] font-sans uppercase tracking-wider text-gray-400 mr-2">[3]</span><span id="card-label-2">32²</span>
+          </button>
+        </div>
+
         <!-- COMPARE PANEL (compare mode): route power to the stronger line -->
         <div id="compare-panel" class="hidden space-y-2">
           <div class="text-[11px] text-gray-300 text-center">Which power line is <strong class="text-white">stronger</strong>? Route the beam there.</div>
@@ -486,6 +505,26 @@
   </div>
 
   <!-- ========================================== -->
+  <!-- SECTOR CLEARED (between sectors)           -->
+  <!-- ========================================== -->
+  <div id="modal-sector-clear" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-gray-950 border border-emerald-500/60 rounded-3xl w-full max-w-md p-6 shadow-2xl flex flex-col items-center text-center glow-emerald">
+      <div class="text-[10px] font-black uppercase tracking-widest text-emerald-400">Sector Cleared</div>
+      <h2 id="sector-clear-title" class="text-lg font-black uppercase text-white tracking-wide mt-1">Sector 1: The Basics</h2>
+      <div id="sector-clear-stars" class="text-5xl my-3 tracking-widest">★★★</div>
+      <div id="sector-clear-stats" class="text-xs text-gray-300">0 misses · 0 hints</div>
+      <div class="w-full bg-gray-900/80 border border-gray-800 rounded-2xl p-3 mt-4 text-left">
+        <div class="text-[10px] font-black uppercase text-gray-500">Next Up</div>
+        <div id="sector-clear-next" class="text-sm font-black text-cyan-300 mt-0.5">Sector 2</div>
+        <div id="sector-clear-next-desc" class="text-[11px] text-gray-400 mt-0.5"></div>
+      </div>
+      <button id="sector-clear-continue-btn" class="w-full mt-4 py-3 bg-gradient-to-r from-emerald-600 to-cyan-600 hover:from-emerald-500 hover:to-cyan-500 text-white rounded-xl font-black text-xs uppercase tracking-wider transition-all cursor-pointer">
+        CONTINUE ➔ <span class="opacity-60 font-mono-math">(Enter)</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- ========================================== -->
   <!-- MODAL 1: STATION SHIFT DEBRIEF (End of Run) -->
   <!-- ========================================== -->
   <div id="modal-debrief" class="fixed inset-0 bg-black/85 backdrop-blur-md z-50 flex items-center justify-center p-4 hidden">
@@ -499,6 +538,7 @@
       <p id="debrief-subtitle" class="text-xs text-gray-400 mt-1">
         All incoming power surges mitigated. Core temperature nominal.
       </p>
+      <div id="debrief-stars" class="text-sm font-black text-amber-300 mt-2"></div>
 
       <!-- Stat Grid -->
       <div class="grid grid-cols-2 gap-3 w-full my-4 text-left">
@@ -586,6 +626,6 @@
   </div>
 
   <!-- SCRIPT BOOTSTRAP (Cache-busted for student Chromebooks) -->
-  <script type="module" src="js/game.js?v=3.0"></script>
+  <script type="module" src="js/game.js?v=3.1"></script>
 </body>
 </html>

@@ -4,8 +4,12 @@
  * Boss equivalence dilemmas, and string input parsing formats ($15, 15, 15.00).
  */
 
-import { generateRun, createRng, makeFollowUp } from './js/generator.js';
+import { generateRun, createRng, makeFollowUp, makeCards, CARD_TARGETS } from './js/generator.js';
 import {
+  nextCombo,
+  comboAfterMiss,
+  sectorStars,
+  diagnoseCards,
   PROBLEM_MODES,
   diagnoseValue,
   diagnoseExpanded,
@@ -100,6 +104,7 @@ function problemErrors(p) {
   if (p.mode === 'fix' && p.wrongValue === calculatePower(p.base, p.exponent)) errs.push('fix wrong value is correct');
   if (p.mode === 'expanded' && (p.exponent < 2 || p.exponent > 6 || p.base > 10)) errs.push('expanded out of dial range');
   if (p.mode === 'compare' && !p.left && !p.right) errs.push('compare missing lines');
+  if (p.mode === 'cards' && p.cards.filter(c => calculatePower(c.base, c.exponent) === p.targetMW).length !== 1) errs.push('cards need exactly one correct');
   return errs;
 }
 
@@ -189,14 +194,28 @@ assert(parseMathInput('$15') === 15, 'Parses currency "$15"');
 assert(parseMathInput('15.00') === 15, 'Parses decimal "15.00"');
 assert(parseMathInput(' $15.00 ') === 15, 'Parses padded " $15.00 "');
 
-// 7. Combo Multiplier Scaling
-console.log('\n7. Testing Combo Multiplier Progression');
+// 7. Combo, Stars & Boss Cards
+console.log('\n7. Testing Combo, Sector Stars & Boss Cards');
 let combo = 1;
-const expectedCombos = [2, 4, 8, 16, 16];
-for (let i = 0; i < expectedCombos.length; i++) {
-  combo = Math.min(16, combo === 1 ? 2 : combo * 2);
-  assert(combo === expectedCombos[i], `Combo step ${i + 1} scaled to x${expectedCombos[i]}`);
+const climb = [];
+for (let i = 0; i < 6; i++) { combo = nextCombo(combo); climb.push(combo); }
+assert(JSON.stringify(climb) === JSON.stringify([2, 3, 4, 5, 5, 5]), 'Combo climbs x2 → x5 and caps at x5');
+assert(nextCombo(3, true) === 3, 'A hinted wave holds the combo');
+assert(comboAfterMiss(4) === 3 && comboAfterMiss(1) === 1, 'A miss drops the combo one level (not to x1)');
+assert(sectorStars(0, 0) === 3 && sectorStars(0, 1) === 2 && sectorStars(2, 0) === 2 && sectorStars(3, 0) === 1, 'Sector stars: 3 perfect, 2 for ≤2 misses, else 1');
+
+let cardsOk = true;
+const rngC = createRng(11);
+for (const t of CARD_TARGETS) {
+  const prob = makeCards(t, rngC);
+  const correctCards = prob.cards.filter(c => calculatePower(c.base, c.exponent) === prob.targetMW);
+  const trap = prob.cards.find(c => c.kind === 'product-trap');
+  if (correctCards.length !== 1 || !trap || trap.base * trap.exponent !== prob.targetMW) { cardsOk = false; console.error(prob); }
+  const trapIdx = prob.cards.indexOf(trap);
+  if (diagnoseCards(prob, trapIdx).type !== 'multiplication-error') cardsOk = false;
+  if (!diagnoseCards(prob, prob.cards.indexOf(correctCards[0])).correct) cardsOk = false;
 }
+assert(cardsOk, 'Every boss card set has exactly 1 correct card and a base × exponent trap card');
 
 // 8. Base Locking
 console.log('\n8. Testing Base Locking Engine (>200 MW non-tens)');
