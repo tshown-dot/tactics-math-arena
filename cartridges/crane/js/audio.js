@@ -349,6 +349,35 @@ class SoundEngine {
     osc.start(t);
     osc.stop(t + 0.03);
   }
+  /** Short blip for keypad presses. */
+  playKeyClick() {
+    this.tone(660, 0.04, 'square', 0.05);
+  }
+
+  /** Bright two-note ding for a correct step value. */
+  playCorrect() {
+    this.tone(880, 0.09, 'triangle', 0.22);
+    this.tone(1318.5, 0.14, 'triangle', 0.2, 0.07);
+  }
+
+  /** Small helper: one enveloped oscillator note. */
+  tone(freq, dur, type = 'sine', vol = 0.2, delay = 0) {
+    if (this.isMuted) return;
+    this.initContext();
+    if (!this.ctx) return;
+    const t = this.ctx.currentTime + delay;
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+    osc.type = type;
+    osc.frequency.setValueAtTime(freq, t);
+    gain.gain.setValueAtTime(0.001, t);
+    gain.gain.linearRampToValueAtTime(vol, t + 0.01);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + dur);
+    osc.connect(gain);
+    gain.connect(this.ctx.destination);
+    osc.start(t);
+    osc.stop(t + dur + 0.02);
+  }
 }
 
 export const soundEngine = new SoundEngine();

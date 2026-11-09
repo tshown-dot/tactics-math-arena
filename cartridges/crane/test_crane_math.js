@@ -1,171 +1,210 @@
 /**
- * Demolition Crane - Math Engine & Verification Gate Test Suite
- * Tests PEMDAS order of operations, multi-format currency/numerical input parsing,
- * level solving simulation, pedagogical misconception diagnostics, and Boss Phase validation.
+ * Demolition Crane - Math Engine & Generator Test Suite
+ * Order of operations legality (including independent steps), diagnoses,
+ * typed-answer formats ($15, 15, 15.00), generated buildings, and boss puzzles.
  */
 
 import {
   parseExpressionToTokens,
-  getLegalNextMove,
+  getLegalMoves,
   validateMove,
-  executeDemolitionStep,
+  applyOperation,
+  evaluateExpression,
+  evaluateTokens,
+  parseNumberInput,
   normalizeMathInput,
-  computeResult,
   formatMathHtml,
+  formatPlain,
+  tokensToText,
 } from './js/expressionParser.js';
-
-import { CURRICULUM_ZONES } from './js/curriculumLevels.js';
-import { BOSS_REACTOR_CHALLENGES } from './js/boss.js';
+import { ZONES, BOSS, FOLLOWUP_TEMPLATES, VIOLATION_SKILL } from './js/curriculum.js';
+import {
+  createRng,
+  TEMPLATES,
+  isGoodExpression,
+  makeBuilding,
+  makeCagePuzzle,
+  makeSpotMistake,
+  cagedExpression,
+  buildRun,
+  makeFollowUp,
+} from './js/generator.js';
 
 let passed = 0;
 let total = 0;
-
-function assert(condition, message) {
+function assert(cond, msg) {
   total++;
-  if (condition) {
+  if (cond) {
     passed++;
-    console.log(`  [PASS] ${message}`);
+    console.log(`  [PASS] ${msg}`);
   } else {
-    console.error(`  [FAIL] ${message}`);
+    console.error(`  [FAIL] ${msg}`);
   }
 }
 
+let t0;
+const legalOps = (expr) => {
+  const t = parseExpressionToTokens(expr);
+  return getLegalMoves(t).map((i) => t[i].value).join(' ');
+};
+const strike = (expr, nth) => {
+  const t = parseExpressionToTokens(expr);
+  const ops = t.filter((x) => x.type === 'operator' || x.type === 'fraction_bar');
+  return validateMove(t, ops[nth].id);
+};
+
 console.log('====================================================');
-console.log('🏗️ Demolition Crane: Order of Operations Math Verification');
+console.log('🏗️ Demolition Crane: Order of Operations Verification');
 console.log('====================================================\n');
 
-// 1. Multiple Format Gate ($15, 15, 15.00, etc.)
-console.log('--- 1. Verification Gate: Multiple Input Formats ($15, 15, 15.00) ---');
-const formatVariants = ['$15', '15', '15.00', '$15.00', '  $ 15  ', '15$'];
-formatVariants.forEach(variant => {
-  const norm = normalizeMathInput(variant);
-  const num = parseFloat(norm);
-  assert(num === 15, `Input variant "${variant}" normalizes to exact value 15 (got ${num})`);
+console.log('--- 1. Typed answer formats ($15, 15, 15.00) ---');
+for (const v of ['$15', '15', '15.00', '$15.00', '  $ 15  ', '15$', '1,5']) {
+  const expected = v === '1,5' ? 15 : 15;
+  assert(parseNumberInput(v) === expected, `"${v}" reads as ${expected}`);
+}
+assert(parseNumberInput('') === null && parseNumberInput('abc') === null && parseNumberInput('.') === null, 'Blank / junk input is rejected');
+assert(parseNumberInput('2.5') === 2.5, '"2.5" reads as 2.5');
+assert(normalizeMathInput('$1,200') === '1200', 'normalizeMathInput strips $ and commas');
+assert(evaluateExpression('$15 + 4.00 * 3') === 27, '"$15 + 4.00 * 3" evaluates to 27');
 
-  const tokens = parseExpressionToTokens(variant);
-  const hasValidNumber = tokens.length === 1 && tokens[0].type === 'number' && tokens[0].numericValue === 15;
-  assert(hasValidNumber, `Token stream for "${variant}" parses as single numeric token of value 15`);
-});
+console.log('\n--- 2. Which operations are legal right now ---');
+assert(legalOps('15 + 4 × 3') === '×', '15 + 4 × 3: only × can go first');
+assert(legalOps('28 - 12 ÷ 4 + 6') === '÷', '28 - 12 ÷ 4 + 6: only ÷');
+assert(legalOps('40 ÷ 5 × 2') === '÷', '40 ÷ 5 × 2: left to right, ÷ first');
+assert(legalOps('50 - 20 - 10 + 5') === '-', '50 - 20 - 10 + 5: only the first −');
+assert(legalOps('3 × 4 + 5 × 6') === '×', '3 × 4 + 5 × 6: strict order, only the first ×');
+assert(legalOps('(8 + 4) × (6 - 2)') === '+', '(8 + 4) × (6 - 2): strict order, left group first');
+assert(legalOps('3^2 + 4^2') === '^', '3² + 4²: strict order, only the first power');
+assert(legalOps('3^2 + 4 × 5') === '^', '3² + 4 × 5: exponent before the product');
+assert(legalOps('(2 + 3) × [10 - (1 + 1)]') === '+', 'Deepest group wins even when it is to the right');
+assert(legalOps('[4 × (8 - 6)] / (2^2 - 2)') === '-', 'Fraction: innermost first');
+assert(legalOps('2 × 5^2') === '^', '2 × 5²: power before product');
+assert(legalOps('(15 - 9)^2 ÷ 4') === '-', '(15 - 9)²: inside the group before the power');
+assert(legalOps('2 × [18 - (4 + 2)^2 ÷ 6]') === '+', 'Nested: innermost ( ) first');
+assert(legalOps('(3^2 + 7) / (5 - 1)') === '^', 'Fraction: the top is finished before the bottom; bar is not legal');
+t0 = parseExpressionToTokens('[4 × (8 - 6)] / (2^2 - 2)');
+t0 = applyOperation(t0, getLegalMoves(t0)[0]).tokens;
+assert(getLegalMoves(t0).map((i) => t0[i].value).join(' ') === '×', 'Fraction: whole top before the bottom\'s exponent');
+assert(legalOps('16 + 8 / 4') === '÷', 'A plain "/" without groups is ordinary division');
 
-const exprWithFormattedNumber = parseExpressionToTokens('$15 + 4.00 * 3');
-assert(exprWithFormattedNumber.length === 5, 'Expression "$15 + 4.00 * 3" parses correctly into 5 tokens');
-assert(exprWithFormattedNumber[0].numericValue === 15, 'First token has numericValue 15');
-assert(exprWithFormattedNumber[2].numericValue === 4, 'Second numeric token has numericValue 4');
+console.log('\n--- 3. Diagnoses for wrong strikes ---');
+let v = strike('15 + 4 × 3', 0);
+assert(!v.isLegal && v.violationType === 'MULT_DIV_FIRST', '+ in 15 + 4 × 3 → MULT_DIV_FIRST');
+assert(v.wrongValue === 57, 'Forcing 15 + 4 first would give 57');
+assert(/4 × 3 comes before 15 \+ 4/.test(v.message), `Message names both steps: "${v.message}"`);
+v = strike('40 ÷ 5 × 2', 1);
+assert(v.violationType === 'LEFT_TO_RIGHT' && v.wrongValue === 4, '× in 40 ÷ 5 × 2 → LEFT_TO_RIGHT, would give 4');
+v = strike('20 - 5 + 3', 1);
+assert(v.violationType === 'LEFT_TO_RIGHT' && v.wrongValue === 12, '+ in 20 - 5 + 3 → LEFT_TO_RIGHT, would give 12');
+v = strike('2 × 5^2', 0);
+assert(v.violationType === 'EXPONENT_FIRST' && v.wrongValue === 100, '× in 2 × 5² → EXPONENT_FIRST, would give 100');
+v = strike('4 × (12 - 5) + 6', 0);
+assert(v.violationType === 'GROUP_NOT_DONE' && v.wrongValue === null, '× next to an unfinished group → GROUP_NOT_DONE');
+v = strike('(15 - 9)^2 ÷ 4', 1);
+assert(v.violationType === 'GROUP_NOT_DONE' && /whole group/.test(v.message), 'Power on an unfinished group explains the exponent covers the group');
+v = strike('(8 + 4) × (6 - 2)', 2);
+assert(v.violationType === 'GROUP_ORDER' && /8 \+ 4 comes next/.test(v.message), `Right group first → GROUP_ORDER: "${v.message}"`);
+v = strike('3 × 4 + 5 × 6', 2);
+assert(v.violationType === 'LEFT_TO_RIGHT' && /3 × 4 comes first/.test(v.message), `Second × first → LEFT_TO_RIGHT: "${v.message}"`);
+v = strike('3^2 + 4 × 5', 2);
+assert(v.violationType === 'EXPONENT_FIRST', '× before 3² → EXPONENT_FIRST');
+v = strike('(3^2 + 7) / (5 - 1)', 2);
+assert(v.violationType === 'FRACTION_INCOMPLETE', 'Fraction bar too early → FRACTION_INCOMPLETE');
+for (const type of Object.keys(VIOLATION_SKILL)) {
+  assert(FOLLOWUP_TEMPLATES[type]?.every((t) => TEMPLATES[t]), `Follow-up templates exist for ${type}`);
+}
 
-// 2. PEMDAS Hierarchy & Tie-breaking Tests
-console.log('\n--- 2. PEMDAS Hierarchy & Tie-Breaking ---');
+console.log('\n--- 4. Executing steps ---');
+let t = parseExpressionToTokens('4 × (12 - 5) + 6');
+let res = applyOperation(t, getLegalMoves(t)[0]);
+assert(res.result === 7 && res.dissolved, '12 - 5 = 7 and the ( ) dissolves');
+assert(tokensToText(res.tokens) === '4 × 7 + 6', `Text after step: "${tokensToText(res.tokens)}"`);
+t = parseExpressionToTokens('(4^2 + 3 × 8) / (2^3)');
+const ev = evaluateTokens(t);
+assert(ev.value === 5 && ev.steps.at(-1).isFractionBar, '(4² + 3 × 8) / (2³) = 5, finishing on the fraction bar');
+assert(evaluateExpression('2 × [18 - (4 + 2)^2 ÷ 6]') === 24, '2 × [18 − (4 + 2)² ÷ 6] = 24');
+assert(evaluateExpression('[10 + (6 - 2)^2] ÷ 2') === 13, '[10 + (6 − 2)²] ÷ 2 = 13');
+assert(tokensToText(parseExpressionToTokens('(15 - 9)^2 ÷ 4')) === '(15 - 9)^2 ÷ 4', 'Text round-trips with a power on a group');
 
-const t1 = parseExpressionToTokens('15 + 4 × 3');
-const legal1 = getLegalNextMove(t1);
-assert(legal1 !== null && t1[legal1.legalIndex].value === '×', 'In "15 + 4 × 3", multiplication is legal first move');
+console.log('\n--- 5. Bad input is rejected with a readable message ---');
+for (const bad of ['3 +', '(4 + 5', '4 + 5)', '3 4 + 1', 'abc', '', '(4 + 5]']) {
+  let threw = false;
+  try { parseExpressionToTokens(bad); } catch (e) { threw = typeof e.message === 'string' && e.message.length > 0; }
+  assert(threw, `"${bad}" is rejected`);
+}
 
-const t2 = parseExpressionToTokens('28 - 12 ÷ 4 + 6');
-const legal2 = getLegalNextMove(t2);
-assert(legal2 !== null && t2[legal2.legalIndex].value === '÷', 'In "28 - 12 ÷ 4 + 6", division is legal first move');
+console.log('\n--- 6. Display helpers ---');
+assert(formatMathHtml('3^2 + 4').includes('<sup class="math-sup">2</sup>'), 'Carets become superscripts');
+assert(formatMathHtml('9 - 4') === '9 − 4', 'Hyphen minus becomes a real minus sign');
+assert(formatPlain('6^2 - 3') === '6² − 3', 'Plain text uses ² and −');
 
-const t3 = parseExpressionToTokens('40 ÷ 5 × 2');
-const legal3 = getLegalNextMove(t3);
-assert(legal3 !== null && t3[legal3.legalIndex].value === '÷', 'In "40 ÷ 5 × 2", left-to-right requires ÷ first');
-const wrongMultMove = validateMove(t3, t3.find(tok => tok.value === '×').id);
-assert(!wrongMultMove.isLegal && wrongMultMove.violationType === 'LEFT_TO_RIGHT', 'Targeting × in "40 ÷ 5 × 2" flags LEFT_TO_RIGHT violation');
+console.log('\n--- 7. Generated buildings (2,000 per template) ---');
+const rng = createRng(12345);
+for (const [id, tpl] of Object.entries(TEMPLATES)) {
+  assert(isGoodExpression(tpl.fallback), `${id}: fallback "${tpl.fallback}" is valid`);
+  let ok = true;
+  let fallbacks = 0;
+  for (let k = 0; k < 2000; k++) {
+    const b = makeBuilding(rng, id);
+    if (b.expr === tpl.fallback) fallbacks++;
+    if (!isGoodExpression(b.expr) || !Number.isInteger(b.answer) || b.answer < 0) ok = false;
+  }
+  assert(ok, `${id}: every step is a whole number 0-400 and order matters`);
+  assert(fallbacks < 100, `${id}: generator rarely needs its fallback (${fallbacks}/2000)`);
+}
+for (const z of ZONES) {
+  assert(z.templates.length >= z.buildings && z.templates.every((tid) => TEMPLATES[tid]), `${z.title}: templates exist`);
+}
+assert(BOSS.towerTemplates.every((tid) => TEMPLATES[tid]), 'Boss tower templates exist');
 
-const t4 = parseExpressionToTokens('50 - 20 - 10 + 5');
-const legal4 = getLegalNextMove(t4);
-assert(legal4 !== null && legal4.legalIndex === 1, 'In "50 - 20 - 10 + 5", first subtraction is legal move');
+console.log('\n--- 8. Runs and follow-ups ---');
+const run = buildRun(createRng(7));
+assert(run.zones.length === 4 && run.zones.every((z) => z.tasks.length === 3), 'A run has 4 zones of 3 buildings');
+assert(run.zones.every((z) => new Set(z.tasks.map((b) => b.template)).size === 3), 'No template repeats inside a zone');
+assert(run.boss.length === BOSS.sequence.length && run.boss.length === BOSS.hp, 'Boss has one attack per armor plate');
+const runB = buildRun(createRng(8));
+assert(run.zones[0].tasks[0].expr !== runB.zones[0].tasks[0].expr || run.zones[1].tasks[0].expr !== runB.zones[1].tasks[0].expr, 'Different seeds give different runs');
+const fu = makeFollowUp(createRng(3), 'EXPONENT_FIRST', FOLLOWUP_TEMPLATES.EXPONENT_FIRST);
+assert(fu.followUp && FOLLOWUP_TEMPLATES.EXPONENT_FIRST.includes(fu.template), 'Follow-up comes from the matching template pool');
 
-const t5 = parseExpressionToTokens('3^2 + 4 × 5');
-const legal5 = getLegalNextMove(t5);
-assert(legal5 !== null && t5[legal5.legalIndex].value === '^', 'In "3^2 + 4 × 5", exponent is legal first move');
-
-const t6 = parseExpressionToTokens('4 × (12 - 5) + 6');
-const legal6 = getLegalNextMove(t6);
-assert(legal6 !== null && t6[legal6.legalIndex].value === '-', 'In "4 × (12 - 5) + 6", subtraction inside ( ) is legal move');
-const prematureMult = validateMove(t6, t6.find(tok => tok.value === '×').id);
-assert(!prematureMult.isLegal && prematureMult.violationType === 'PARENTHESIS_FIRST', 'Outer × flags PARENTHESIS_FIRST violation');
-
-const t7 = parseExpressionToTokens('2 × [18 - (4 + 2)^2 ÷ 6]');
-const legal7 = getLegalNextMove(t7);
-assert(legal7 !== null && t7[legal7.legalIndex].value === '+', 'In nested expression, innermost (4 + 2) addition is legal move');
-
-const t8 = parseExpressionToTokens('(3^2 + 7) / (5 - 1)');
-const fractionBar = t8.find(tok => tok.type === 'fraction_bar');
-assert(fractionBar !== undefined, 'Top-level fraction contains fraction_bar token');
-const prematureFractionClick = validateMove(t8, fractionBar.id);
-assert(!prematureFractionClick.isLegal && prematureFractionClick.violationType === 'FRACTION_INCOMPLETE', 'Clicking fraction bar before evaluating tiers flags FRACTION_INCOMPLETE');
-
-// 3. Boss Dilemma Validation
-console.log('\n--- 3. Zone Capstone Boss Reactor Verification ---');
-BOSS_REACTOR_CHALLENGES.forEach(boss => {
-  const correctOpt = boss.options.find(o => o.isCorrect);
-  assert(correctOpt !== undefined, `Boss ${boss.title}: Correct option exists`);
-  assert(correctOpt.value === boss.targetValue, `Boss ${boss.title}: Correct option value (${correctOpt.value}) matches target (${boss.targetValue})`);
-});
-
-// 4. Complete Demolition Simulation Across All 5 Zones
-console.log('\n--- 4. Full Demolition Simulation for All Curriculum Levels ---');
-CURRICULUM_ZONES.forEach(zone => {
-  zone.levels.forEach(level => {
-    let tokens = parseExpressionToTokens(level.rawExpression);
-    let stepCount = 0;
-    const maxSteps = 20;
-
-    while (tokens.length > 1 && stepCount < maxSteps) {
-      const nextMove = getLegalNextMove(tokens);
-      if (!nextMove) break;
-      const { newTokens, step } = executeDemolitionStep(tokens, nextMove.legalTokenId);
-      tokens = newTokens;
-      stepCount++;
+console.log('\n--- 9. Boss: Cage Drop ---');
+let cageOk = true;
+let cageUnique = true;
+for (let k = 0; k < 300; k++) {
+  const p = makeCagePuzzle(rng);
+  const base = evaluateExpression(cagedExpression(p.numbers, p.ops, -1, -1));
+  if (base !== p.baseValue || p.target === p.baseValue) cageOk = false;
+  for (const [i, j] of p.solutions) {
+    if (evaluateExpression(cagedExpression(p.numbers, p.ops, i, j)) !== p.target) cageOk = false;
+  }
+  // Count every cage that hits the target: must be exactly the listed one.
+  let hits = 0;
+  for (let i = 0; i < p.numbers.length; i++) {
+    for (let j = i + 1; j < p.numbers.length; j++) {
+      if (i === 0 && j === p.numbers.length - 1) continue;
+      if (evaluateExpression(cagedExpression(p.numbers, p.ops, i, j)) === p.target) hits++;
     }
+  }
+  if (hits !== 1) cageUnique = false;
+}
+assert(cageOk, 'Cage puzzles: solution hits the target, which differs from the uncaged value');
+assert(cageUnique, 'Cage puzzles: exactly one cage hits the target');
+assert(cagedExpression([4, 6, 2], ['×', '+'], 1, 2) === '4 × (6 + 2)', 'cagedExpression places the parentheses');
 
-    const isComplete = tokens.length === 1 && tokens[0].type === 'number';
-    assert(
-      isComplete,
-      `Level ${level.id} (${level.rawExpression}) demolished in ${stepCount} steps to result: ${isComplete ? tokens[0].numericValue : 'INCOMPLETE'}`
-    );
-  });
-});
-
-// 5. Blueprint Math Typography & Proper Superscript Formatting
-console.log('\n--- 5. Blueprint Math Typography & Superscript Formatting ---');
-assert(
-  formatMathHtml('3^2 + 4 × 5') === '3<sup class="math-sup">2</sup> + 4 × 5',
-  'formatMathHtml converts numerical power "3^2" to proper superscript HTML'
-);
-assert(
-  formatMathHtml('(15 - 9)^2 ÷ 4') === '(15 - 9)<sup class="math-sup">2</sup> ÷ 4',
-  'formatMathHtml converts parenthesized power "(15 - 9)^2" to proper superscript HTML'
-);
-assert(
-  formatMathHtml('2 × [18 - (4 + 2)^2 ÷ 6]') === '2 × [18 - (4 + 2)<sup class="math-sup">2</sup> ÷ 6]',
-  'formatMathHtml handles complex nested bracket powers'
-);
-assert(
-  formatMathHtml('5^2 - 4^2 + 2') === '5<sup class="math-sup">2</sup> - 4<sup class="math-sup">2</sup> + 2',
-  'formatMathHtml converts multiple powers in the same expression'
-);
-assert(
-  formatMathHtml('(3^2 + 7) / (5 - 1)') === '(3<sup class="math-sup">2</sup> + 7) / (5 - 1)',
-  'formatMathHtml converts fraction girder numerator power'
-);
-assert(
-  formatMathHtml('10^3') === '10<sup class="math-sup">3</sup>',
-  'formatMathHtml handles multi-digit and base-10 powers'
-);
-assert(
-  formatMathHtml('2 × 5^(2)') === '2 × 5<sup class="math-sup">2</sup>',
-  'formatMathHtml handles parenthesized exponent notation'
-);
-assert(
-  formatMathHtml('15 + 4 × 3') === '15 + 4 × 3',
-  'formatMathHtml leaves non-power expressions unchanged'
-);
+console.log('\n--- 10. Boss: Spot the Mistake ---');
+let spotOk = true;
+for (let k = 0; k < 200; k++) {
+  const s = makeSpotMistake(rng);
+  if (evaluateExpression(s.expr) !== s.correctValue) spotOk = false;
+  if (Number(s.lines.at(-1)) !== s.wrongValue || s.wrongValue === s.correctValue) spotOk = false;
+  if (s.wrongLine < 1 || s.wrongLine >= s.lines.length) spotOk = false;
+  // Every line before the wrong one still has the correct value.
+  for (let i = 0; i < s.wrongLine; i++) if (evaluateExpression(s.lines[i]) !== s.correctValue) spotOk = false;
+  if (evaluateExpression(s.lines[s.wrongLine]) === s.correctValue) spotOk = false;
+}
+assert(spotOk, 'Spot puzzles: lines are right until the marked line, which changes the answer');
 
 console.log('\n====================================================');
 console.log(`Test Results: ${passed}/${total} assertions passed.`);
 console.log('====================================================');
-
-if (passed === total) {
-  process.exit(0);
-} else {
-  process.exit(1);
-}
+if (passed !== total) process.exit(1);
