@@ -13,6 +13,7 @@
  */
 export const PROBLEM_MODES = ['find', 'evaluate', 'fix', 'expanded', 'compare'];
 
+// Sector metadata. Problems are generated fresh each run by generator.js.
 export const CURRICULUM_SECTORS = [
   {
     id: 'sector-1',
@@ -21,13 +22,6 @@ export const CURRICULUM_SECTORS = [
     badge: 'CORE-I',
     description: 'Master powers of small numbers. 2³ means 2 × 2 × 2 (8), not 2 × 3.',
     waveTimeLimit: 30,
-    problems: [
-      { id: 's1-1', mode: 'find', targetMW: 8, validSolutions: [{ base: 2, exponent: 3 }], hint: '2 used as a factor 3 times: 2 × 2 × 2.' },
-      { id: 's1-2', mode: 'evaluate', base: 3, exponent: 2, hint: '3² means 3 × 3.' },
-      { id: 's1-3', mode: 'expanded', base: 4, exponent: 2, hint: 'What number repeats? How many times?' },
-      { id: 's1-4', mode: 'find', targetMW: 27, validSolutions: [{ base: 3, exponent: 3 }], hint: '3 × 3 × 3 = 27.' },
-      { id: 's1-5', mode: 'evaluate', base: 2, exponent: 4, hint: '2 × 2 = 4, × 2 = 8, × 2 = 16.' },
-    ],
   },
   {
     id: 'sector-2',
@@ -36,13 +30,6 @@ export const CURRICULUM_SECTORS = [
     badge: 'CORE-II',
     description: 'Never multiply base × exponent! 4³ is 4 × 4 × 4 = 64, not 4 × 3 = 12.',
     waveTimeLimit: 30,
-    problems: [
-      { id: 's2-1', mode: 'evaluate', base: 4, exponent: 3, hint: '4 × 4 = 16, then 16 × 4.' },
-      { id: 's2-2', mode: 'compare', left: { base: 2, exponent: 5 }, right: { base: 5, exponent: 2 }, hint: 'Work out each one: 2 × 2 × 2 × 2 × 2 and 5 × 5.' },
-      { id: 's2-3', mode: 'fix', base: 6, exponent: 2, wrongValue: 12, hint: 'The trainee did 6 × 2. What is 6 × 6?' },
-      { id: 's2-4', mode: 'find', targetMW: 81, validSolutions: [{ base: 3, exponent: 4 }, { base: 9, exponent: 2 }], hint: '9 × 9 = 81, so base 9 with exponent 2.' },
-      { id: 's2-5', mode: 'evaluate', base: 5, exponent: 3, hint: '5 × 5 = 25, then 25 × 5.' },
-    ],
   },
   {
     id: 'sector-3',
@@ -51,13 +38,6 @@ export const CURRICULUM_SECTORS = [
     badge: 'CORE-III',
     description: '10ⁿ is a 1 followed by n zeros.',
     waveTimeLimit: 30,
-    problems: [
-      { id: 's3-1', mode: 'find', targetMW: 1000, validSolutions: [{ base: 10, exponent: 3 }], hint: 'Count the zeros in 1,000.' },
-      { id: 's3-2', mode: 'evaluate', base: 10, exponent: 4, hint: 'A 1 followed by 4 zeros.' },
-      { id: 's3-3', mode: 'expanded', base: 10, exponent: 5, hint: 'Count how many 10s are multiplied.' },
-      { id: 's3-4', mode: 'fix', base: 10, exponent: 3, wrongValue: 30, hint: 'The trainee did 10 × 3. 10³ is 10 × 10 × 10.' },
-      { id: 's3-5', mode: 'find', targetMW: 100000, validSolutions: [{ base: 10, exponent: 5 }], hint: 'Count the zeros in 100,000.' },
-    ],
   },
   {
     id: 'sector-4',
@@ -66,13 +46,6 @@ export const CURRICULUM_SECTORS = [
     badge: 'CORE-IV',
     description: 'b⁰ = 1 for any non-zero base, b¹ = b, and 1 to any power is 1.',
     waveTimeLimit: 30,
-    problems: [
-      { id: 's4-1', mode: 'evaluate', base: 7, exponent: 0, hint: 'Any non-zero base to the power 0 is 1.' },
-      { id: 's4-2', mode: 'fix', base: 9, exponent: 0, wrongValue: 0, hint: 'b⁰ is not 0. It is 1.' },
-      { id: 's4-3', mode: 'evaluate', base: 1, exponent: 5, hint: '1 × 1 × 1 × 1 × 1.' },
-      { id: 's4-4', mode: 'compare', left: { base: 6, exponent: 1 }, right: { base: 1, exponent: 6 }, hint: '6¹ is one 6. 1⁶ is 1 × 1 × 1 × 1 × 1 × 1.' },
-      { id: 's4-5', mode: 'find', targetMW: 1, validSolutions: [{ base: 5, exponent: 0 }], hint: 'Use the zero exponent rule, or 1 to any power.' },
-    ],
   },
   {
     id: 'sector-5',
@@ -82,13 +55,6 @@ export const CURRICULUM_SECTORS = [
     description: 'BOSS PHASE: mixed challenges and equivalent powers!',
     waveTimeLimit: 30,
     isBossSector: true,
-    problems: [
-      { id: 'boss-1', mode: 'find', targetMW: 64, validSolutions: [{ base: 4, exponent: 3 }, { base: 8, exponent: 2 }, { base: 2, exponent: 6 }], hint: '2⁶, 4³ and 8² all equal 64.' },
-      { id: 'boss-2', mode: 'compare', left: { base: 2, exponent: 6 }, right: { base: 4, exponent: 3 }, hint: 'Work out both. Different powers can be equal!' },
-      { id: 'boss-3', mode: 'find', targetMW: 243, givenBase: 3, validSolutions: [{ base: 3, exponent: 5 }], hint: '3⁴ is 81. Multiply by 3 one more time.' },
-      { id: 'boss-4', mode: 'fix', base: 3, exponent: 4, wrongValue: 12, hint: '3 × 3 × 3 × 3.' },
-      { id: 'boss-5', mode: 'find', targetMW: 512, givenBase: 8, validSolutions: [{ base: 8, exponent: 3 }, { base: 2, exponent: 9 }], hint: '8² is 64. 64 × 8 = ?' },
-    ],
   },
 ];
 

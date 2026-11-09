@@ -25,6 +25,7 @@ import {
   problemTargetValue,
 } from './curriculum.js';
 
+import { generateRun, makeFollowUp, createRng } from './generator.js';
 import { soundManager } from './audio.js';
 
 const MAX_READOUT_DIGITS = 7;
@@ -58,6 +59,9 @@ class ExponentReactorGame {
     this.sectorIndex = 0;
     this.waveIndex = 0;
     this.problem = null;
+    this.rng = createRng();
+    this.run = generateRun(this.rng);       // run[sector] = array of problems
+    this.followUpsThisSector = 0;
 
     // Input State
     this.base = 2;
@@ -322,15 +326,45 @@ class ExponentReactorGame {
     return CURRICULUM_SECTORS[this.sectorIndex];
   }
 
+  sectorProblems() {
+    return this.run[this.sectorIndex];
+  }
+
+  totalWaves() {
+    return this.run.reduce((n, list) => n + list.length, 0);
+  }
+
+  /**
+   * After a first miss on a wave, schedule a follow-up problem aimed at that
+   * misconception. It goes right after the current wave and replaces one later
+   * regular problem (never the sector finale), so run length stays about the same.
+   */
+  scheduleFollowUp(diagnosis) {
+    if (this.waveMisses !== 1 || this.followUpsThisSector >= 2) return;
+    const current = this.problem;
+    if (current.isFollowUp) return;
+    const avoid = current.mode === 'compare' ? {} : { base: current.base ?? this.base, exponent: current.exponent ?? this.exponent };
+    const followUp = makeFollowUp(diagnosis.type, this.rng, avoid);
+    if (!followUp) return;
+
+    const list = this.sectorProblems();
+    const insertAt = this.waveIndex + 1;
+    const removable = list.findIndex((p, i) => i > this.waveIndex && i < list.length - 1 && !p.isFollowUp);
+    if (removable !== -1) list.splice(removable, 1);
+    list.splice(insertAt, 0, followUp);
+    this.followUpsThisSector++;
+  }
+
   startWave({ silent = false } = {}) {
     const { el } = this;
     const sector = this.currentSector();
-    const problem = sector.problems[this.waveIndex];
+    const problems = this.sectorProblems();
+    const problem = problems[this.waveIndex];
     this.problem = problem;
 
     el.sectorBadge.textContent = sector.badge;
     el.sectorTitle.textContent = `${sector.name} (${sector.tagline})`;
-    el.waveCounter.textContent = `${this.waveIndex + 1} / ${sector.problems.length}`;
+    el.waveCounter.textContent = `${this.waveIndex + 1} / ${problems.length}`;
 
     el.hintText.textContent = problem.hint;
     el.hintStrip.classList.add('hidden');
@@ -350,6 +384,10 @@ class ExponentReactorGame {
       el.threatBadge.textContent = 'ACTIVE SURGE';
       el.coreStatusText.textContent = 'REACTOR MODULATOR READY';
       el.coreStatusText.className = 'text-xs uppercase font-mono-math font-black tracking-widest text-cyan-400';
+    }
+    if (problem.isFollowUp) {
+      el.threatBadge.className = 'text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-amber-950 border border-amber-500 text-amber-300';
+      el.threatBadge.textContent = `🎯 Follow-up: ${problem.followUpSkill}`;
     }
 
     clearInterval(this.waveTimerInterval);
@@ -681,6 +719,8 @@ class ExponentReactorGame {
       this.handleMatchSuccess(problemTargetValue(p) ?? 0);
     } else {
       if (diagnosis.isTrap) this.trapHits++;
+      this.waveMisses++;
+      this.scheduleFollowUp(diagnosis);
       soundManager.playStallBuzzer(diagnosis.isTrap);
       this.triggerCircuitBreach(
         diagnosis.isTrap ? 'EXPONENT TRAP!' : 'MISS',
@@ -783,9 +823,10 @@ class ExponentReactorGame {
 
     setTimeout(() => {
       this.waveIndex++;
-      if (this.waveIndex >= this.currentSector().problems.length) {
+      if (this.waveIndex >= this.sectorProblems().length) {
         this.waveIndex = 0;
         this.sectorIndex++;
+        this.followUpsThisSector = 0;
         if (this.sectorIndex >= CURRICULUM_SECTORS.length) {
           this.endGame(true);
           return;
@@ -797,7 +838,6 @@ class ExponentReactorGame {
   }
 
   triggerCircuitBreach(title, explanation, formula) {
-    this.waveMisses++;
     this.setCombo(1);
     this.coreHealth = Math.max(0, this.coreHealth - 20);
     this.updateHealthBar();
@@ -897,7 +937,7 @@ class ExponentReactorGame {
     const mins = Math.floor(shiftSeconds / 60);
     const secs = shiftSeconds % 60;
     const timeStr = `${mins}m ${secs < 10 ? '0' : ''}${secs}s`;
-    const totalWaves = CURRICULUM_SECTORS.reduce((n, sec) => n + sec.problems.length, 0);
+    const totalWaves = this.totalWaves();
     const firstTryPct = this.wavesCleared > 0 ? Math.round((this.firstTryCorrect / this.wavesCleared) * 100) : 0;
 
     if (isVictory) {
@@ -938,8 +978,9 @@ class ExponentReactorGame {
     Object.assign(this, {
       sectorIndex: 0, waveIndex: 0, coreHealth: 100, lives: this.maxLives, score: 0, totalWattsMitigated: 0,
       maxCombo: 1, totalAttempts: 0, trapHits: 0, firstTryCorrect: 0, wavesCleared: 0, hintsUsed: 0,
-      isGameOver: false, shiftStartTime: Date.now(),
+      isGameOver: false, shiftStartTime: Date.now(), followUpsThisSector: 0,
     });
+    this.run = generateRun(this.rng); // fresh problems every replay
     this.updateLivesDisplay();
     this.setCombo(1);
     this.el.scoreDisplay.textContent = '0';
@@ -1054,5 +1095,7 @@ class ExponentReactorGame {
 }
 
 window.addEventListener('DOMContentLoaded', () => {
-  new ExponentReactorGame();
+  const game = new ExponentReactorGame();
+  // ?debug exposes the game object for automated play-testing only.
+  if (new URLSearchParams(location.search).has('debug')) window.__reactor = game;
 });

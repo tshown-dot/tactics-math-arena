@@ -4,6 +4,7 @@
  * Boss equivalence dilemmas, and string input parsing formats ($15, 15, 15.00).
  */
 
+import { generateRun, createRng, makeFollowUp } from './js/generator.js';
 import {
   PROBLEM_MODES,
   diagnoseValue,
@@ -78,31 +79,72 @@ const stepsCubes = prepareSteps(2, 3);
 assert(stepsCubes.length === 3, '2³ produces 3 animation steps');
 assert(stepsCubes[0].currentValue === 2 && stepsCubes[1].currentValue === 4 && stepsCubes[2].currentValue === 8, '2³ produces values [2, 4, 8]');
 
-// 4. Sector Problem Integrity (all modes)
-console.log('\n4. Testing Curriculum Sector Integrity');
+// 4. Generated Run Integrity (500 random runs)
+console.log('\n4. Testing Generated Runs (500 seeds)');
 assert(CURRICULUM_SECTORS.length === 5, 'All 5 curriculum sectors defined');
+assert(CURRICULUM_SECTORS.find(s => s.isBossSector) !== undefined, 'Sector 5 is flagged as boss sector');
 
-let allProblemsValid = true;
-let totalSectorProblems = 0;
-for (const sec of CURRICULUM_SECTORS) {
-  for (const p of sec.problems) {
-    totalSectorProblems++;
-    if (!PROBLEM_MODES.includes(p.mode)) { allProblemsValid = false; console.error(`Bad mode in ${p.id}`); }
-    if (p.mode === 'find') {
-      for (const sol of p.validSolutions) {
-        if (calculatePower(sol.base, sol.exponent) !== p.targetMW) { allProblemsValid = false; console.error(`Mismatch in ${p.id}`); }
-      }
-      // Every find problem must be reachable with the dials (base 1-10, exponent 0-6)
-      const reachable = p.validSolutions.some(sol => sol.base <= 10 && sol.exponent <= 6 && (!isBaseLocked(p) || sol.base === getGivenBase(p)));
-      if (!reachable) { allProblemsValid = false; console.error(`Unreachable ${p.id}`); }
-    }
-    if (p.mode === 'fix' && p.wrongValue === calculatePower(p.base, p.exponent)) { allProblemsValid = false; console.error(`Fix problem ${p.id} wrong value is actually right`); }
-    if (p.mode === 'expanded' && (p.exponent < 2 || p.exponent > 6)) { allProblemsValid = false; console.error(`Expanded ${p.id} out of dial range`); }
+function problemErrors(p) {
+  const errs = [];
+  if (!PROBLEM_MODES.includes(p.mode)) errs.push('bad mode');
+  if (!p.hint) errs.push('missing hint');
+  if (p.mode === 'find') {
+    if (!p.validSolutions.length) errs.push('no solutions');
+    for (const sol of p.validSolutions) if (calculatePower(sol.base, sol.exponent) !== p.targetMW) errs.push('bad solution');
+    const reachable = p.validSolutions.some(sol => sol.base <= 10 && sol.exponent <= 6 && (!isBaseLocked(p) || sol.base === getGivenBase(p)));
+    if (!reachable) errs.push('unreachable on dials');
+  }
+  if (p.mode === 'evaluate' || p.mode === 'fix') {
+    if (String(calculatePower(p.base, p.exponent)).length > 7) errs.push('answer too long for keypad');
+  }
+  if (p.mode === 'fix' && p.wrongValue === calculatePower(p.base, p.exponent)) errs.push('fix wrong value is correct');
+  if (p.mode === 'expanded' && (p.exponent < 2 || p.exponent > 6 || p.base > 10)) errs.push('expanded out of dial range');
+  if (p.mode === 'compare' && !p.left && !p.right) errs.push('compare missing lines');
+  return errs;
+}
+
+let runErrors = 0;
+let sectorSizesOk = true;
+let trivialFinds = 0;
+let dupFindValues = 0;
+const firstWaveSignatures = new Set();
+for (let seed = 1; seed <= 500; seed++) {
+  const run = generateRun(createRng(seed));
+  if (run.length !== 5 || run.some(list => list.length !== 5)) sectorSizesOk = false;
+  firstWaveSignatures.add(JSON.stringify(run[0][0].targetMW));
+  run.forEach((list, si) => {
+    const findValues = list.filter(p => p.mode === 'find').map(p => p.targetMW);
+    if (new Set(findValues).size !== findValues.length) dupFindValues++;
+    list.forEach(p => {
+      const errs = problemErrors(p);
+      if (errs.length) { runErrors++; if (runErrors < 5) console.error(`seed ${seed} sector ${si + 1}`, p, errs); }
+      // b¹ must not be a free answer for find problems outside the zero/one sector
+      if (p.mode === 'find' && si !== 3 && p.targetMW <= 10) trivialFinds++;
+    });
+  });
+}
+assert(sectorSizesOk, 'Every run has 5 sectors × 5 waves');
+assert(runErrors === 0, 'Every generated problem is well-formed and solvable with the controls');
+assert(trivialFinds === 0, 'No find targets ≤ 10 outside Sector 4 (b¹ loophole closed)');
+assert(dupFindValues === 0, 'No duplicate find targets within a sector');
+assert(firstWaveSignatures.size > 3, `Runs vary between replays (${firstWaveSignatures.size} different openers)`);
+const stripIds = run => JSON.stringify(run).replace(/"id":"[a-z]+-\d+",/g, '');
+assert(stripIds(generateRun(createRng(42))) === stripIds(generateRun(createRng(42))), 'Seeded runs are reproducible');
+
+// Adaptive follow-ups
+const followUpTypes = ['multiplication-error', 'addition-error', 'swap-error', 'zero-error', 'one-base-error', 'power-of-ten', 'factor-count', 'equivalent-form', 'wrong-base', 'compare-error'];
+let followUpsOk = true;
+const rngF = createRng(7);
+for (const type of followUpTypes) {
+  for (let i = 0; i < 50; i++) {
+    const f = makeFollowUp(type, rngF, { base: 7, exponent: 0 });
+    if (!f || !f.isFollowUp || !f.followUpSkill || problemErrors(f).length) { followUpsOk = false; console.error(type, f); break; }
   }
 }
-assert(totalSectorProblems === 25, 'Total sector problems is 25 (5 sectors x 5 waves)');
-assert(allProblemsValid, 'Every problem is well-formed, correct, and solvable with the dials');
-assert(CURRICULUM_SECTORS.find(s => s.isBossSector) !== undefined, 'Sector 5 is flagged as boss sector');
+assert(followUpsOk, 'Every misconception type produces a valid follow-up problem');
+assert(makeFollowUp('zero-error', createRng(1), { base: 7, exponent: 0 }).mode === 'evaluate', 'Zero-exponent miss → evaluate b⁰ follow-up');
+assert(makeFollowUp('zero-error', createRng(3), { base: 7, exponent: 0 }).base !== 7, 'Follow-up avoids the exact problem just missed');
+assert(makeFollowUp('off-target', createRng(1)) === null, 'Generic misses do not trigger follow-ups');
 
 // 5. New mode diagnosers
 console.log('\n5. Testing Evaluate / Expanded / Compare Diagnosis');
