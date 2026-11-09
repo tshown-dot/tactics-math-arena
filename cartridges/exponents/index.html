@@ -99,10 +99,16 @@
         <span id="wave-counter" class="text-xs font-mono-math font-extrabold text-cyan-300">1 / 5</span>
       </div>
 
+      <!-- Practice mode badge (replaces timer/health/cores in practice) -->
+      <div id="practice-badge" class="hidden items-center space-x-2 bg-emerald-950/70 border border-emerald-600/70 px-3 py-1 rounded-xl">
+        <span class="text-xs">🧪</span>
+        <span class="text-[10px] uppercase font-black text-emerald-300 tracking-wider">Practice Mode · No Timer · No Damage</span>
+      </div>
+
       <!-- Surge Countdown Timer -->
-      <div class="flex items-center space-x-2 bg-gray-900/90 border border-gray-800 px-3 py-1 rounded-xl">
+      <div id="stakes-timer" class="flex items-center space-x-2 bg-gray-900/90 border border-gray-800 px-3 py-1 rounded-xl">
         <span class="text-xs">⏱️</span>
-        <span class="text-[10px] uppercase font-extrabold text-gray-400 tracking-wider">Surge In:</span>
+        <span class="text-[10px] uppercase font-extrabold text-gray-400 tracking-wider">Time:</span>
         <span id="timer-display" class="text-sm font-mono-math font-black text-amber-300">30s</span>
         <div class="w-16 h-2 bg-gray-800 rounded-full overflow-hidden p-0.5">
           <div id="timer-bar" class="h-full bg-amber-400 rounded-full transition-all duration-300" style="width: 100%;"></div>
@@ -110,7 +116,7 @@
       </div>
 
       <!-- Core Integrity (Health Pool) -->
-      <div class="flex items-center space-x-2 bg-gray-900/90 border border-gray-800 px-3 py-1 rounded-xl">
+      <div id="stakes-health" class="flex items-center space-x-2 bg-gray-900/90 border border-gray-800 px-3 py-1 rounded-xl">
         <span class="text-xs">🛡️</span>
         <span class="text-[10px] uppercase font-extrabold text-gray-400 tracking-wider">Core Health:</span>
         <div class="w-24 h-2.5 bg-gray-800 rounded-full overflow-hidden p-0.5">
@@ -120,7 +126,7 @@
       </div>
 
       <!-- Backup Cores (Sector Retries / Lives) -->
-      <div class="flex items-center space-x-1.5 bg-gray-900/90 border border-gray-800 px-2.5 py-1 rounded-xl" title="Emergency Backup Cores: 3 sector retries before full station reset">
+      <div id="stakes-cores" class="flex items-center space-x-1.5 bg-gray-900/90 border border-gray-800 px-2.5 py-1 rounded-xl" title="Backup cores: if Core Health hits 0, a backup core restores it and you retry the wave">
         <span class="text-[10px] uppercase font-extrabold text-gray-400 tracking-wider">Cores:</span>
         <div id="lives-container" class="flex items-center space-x-1 text-xs">
           <span class="core-life-icon transition-all duration-300">🔋</span>
@@ -180,13 +186,13 @@
 
         <button id="hint-toggle-btn" class="px-2.5 py-1 bg-gray-900 hover:bg-gray-800 border border-cyan-900/50 rounded-xl text-xs font-bold text-cyan-300 hover:text-white transition-all flex items-center space-x-1.5 cursor-pointer">
           <span>💡</span>
-          <span>Tactical Hint</span>
+          <span>Hint <span class="text-gray-500 font-mono-math">(H)</span></span>
         </button>
       </div>
 
       <!-- Hint Floating Strip (Toggled) -->
       <div id="hint-strip" class="hidden bg-gray-900/95 border border-cyan-800/80 rounded-xl px-3 py-1.5 text-xs text-cyan-200 shrink-0">
-        <span class="font-extrabold text-amber-400">💡 Tactical Intel: </span>
+        <span class="font-extrabold text-amber-400">💡 Hint: </span>
         <span id="hint-text">Think of 2 multiplied by itself 3 times.</span>
       </div>
 
@@ -442,65 +448,61 @@
       <!-- 3 Key Directives -->
       <div class="grid grid-cols-3 gap-3 my-4">
         <!-- Card 1: Objective -->
-        <div class="bg-gray-900/90 border border-cyan-900/50 p-3.5 rounded-2xl flex flex-col justify-between">
-          <div>
-            <div class="w-8 h-8 rounded-xl bg-cyan-950 border border-cyan-500/50 flex items-center justify-center text-base mb-2">🎯</div>
-            <h3 class="text-xs font-black uppercase text-cyan-300 tracking-wide">1. Incoming Surges</h3>
-            <p class="text-[11px] text-gray-300 mt-1 leading-relaxed">
-              Energy waves (e.g. <strong class="text-white font-mono-math">64 MW</strong>) threaten to breach the grid. You must match the exact wattage before the <strong class="text-amber-400">Surge Timer</strong> hits zero!
-            </p>
-          </div>
-          <div class="mt-2 text-[10px] font-bold text-cyan-400 bg-cyan-950/60 px-2 py-1 rounded">5 Waves per Sector</div>
+        <div class="bg-gray-900/90 border border-cyan-900/50 p-3.5 rounded-2xl flex flex-col">
+          <div class="w-8 h-8 rounded-xl bg-cyan-950 border border-cyan-500/50 flex items-center justify-center text-base mb-2">🎯</div>
+          <h3 class="text-xs font-black uppercase text-cyan-300 tracking-wide">1. Stop the Surges</h3>
+          <p class="text-[11px] text-gray-300 mt-1 leading-relaxed">Each wave is an exponent challenge:</p>
+          <ul class="text-[11px] text-gray-300 mt-1 space-y-0.5 leading-snug">
+            <li>⚙️ <strong class="text-white">Match</strong> a number with the dials</li>
+            <li>⌨️ <strong class="text-white">Calculate</strong> a power like 4³</li>
+            <li>🛠️ <strong class="text-white">Fix</strong> a trainee's mistake</li>
+            <li>✖️ <strong class="text-white">Write</strong> 5 × 5 × 5 as a power</li>
+            <li>⚖️ <strong class="text-white">Compare</strong> two powers</li>
+          </ul>
         </div>
 
-        <!-- Card 2: Controls -->
-        <div class="bg-gray-900/90 border border-amber-900/50 p-3.5 rounded-2xl flex flex-col justify-between">
-          <div>
-            <div class="w-8 h-8 rounded-xl bg-amber-950 border border-amber-500/50 flex items-center justify-center text-base mb-2">⚙️</div>
-            <h3 class="text-xs font-black uppercase text-amber-300 tracking-wide">2. Core Controls</h3>
-            <p class="text-[11px] text-gray-300 mt-1 leading-relaxed">
-              Dial the <strong class="text-cyan-400">Base (b)</strong> as the repeated factor and the <strong class="text-amber-400">Exponent (x)</strong> as how many times it multiplies.
-            </p>
-          </div>
-          <div class="mt-2 text-[10px] font-mono-math font-bold text-amber-300 bg-amber-950/60 px-2 py-1 rounded text-center">bˣ = b × b × ... × b</div>
+        <!-- Card 2: The Trap Warning -->
+        <div class="bg-gray-900/90 border border-rose-900/50 p-3.5 rounded-2xl flex flex-col">
+          <div class="w-8 h-8 rounded-xl bg-rose-950 border border-rose-500/50 flex items-center justify-center text-base mb-2">⚠️</div>
+          <h3 class="text-xs font-black uppercase text-rose-300 tracking-wide">2. Avoid the Trap!</h3>
+          <p class="text-[11px] text-gray-300 mt-1 leading-relaxed">
+            The exponent tells how many times the base is used as a factor.<br>
+            <span class="text-rose-300 font-mono-math font-bold">4³ ≠ 4 × 3 = 12</span><br>
+            <span class="text-emerald-300 font-mono-math font-bold">4³ = 4 × 4 × 4 = 64</span>
+          </p>
         </div>
 
-        <!-- Card 3: The Trap Warning -->
-        <div class="bg-gray-900/90 border border-rose-900/50 p-3.5 rounded-2xl flex flex-col justify-between">
-          <div>
-            <div class="w-8 h-8 rounded-xl bg-rose-950 border border-rose-500/50 flex items-center justify-center text-base mb-2">⚠️</div>
-            <h3 class="text-xs font-black uppercase text-rose-300 tracking-wide">3. Avoid The Trap!</h3>
-            <p class="text-[11px] text-gray-300 mt-1 leading-relaxed">
-              <strong class="text-rose-400">Never multiply base by exponent!</strong><br>
-              <span class="text-rose-300 font-mono-math font-bold">4³ ≠ 4 × 3 (12)</span><br>
-              <span class="text-emerald-300 font-mono-math font-bold">4³ = 4 × 4 × 4 = 64</span>
-            </p>
-          </div>
-          <div class="mt-2 text-[10px] font-bold text-rose-400 bg-rose-950/60 px-2 py-1 rounded">Traps damage Core Health (-20%)</div>
+        <!-- Card 3: Stakes -->
+        <div class="bg-gray-900/90 border border-amber-900/50 p-3.5 rounded-2xl flex flex-col">
+          <div class="w-8 h-8 rounded-xl bg-amber-950 border border-amber-500/50 flex items-center justify-center text-base mb-2">🔋</div>
+          <h3 class="text-xs font-black uppercase text-amber-300 tracking-wide">3. Stakes</h3>
+          <p class="text-[11px] text-gray-300 mt-1 leading-relaxed">
+            Misses damage <strong class="text-white">Core Health</strong>. If it hits 0 or time runs out, a <strong class="text-white">backup core</strong> lets you retry the wave. Lose all 3 and the reactor melts down!
+          </p>
+          <p class="text-[11px] text-gray-300 mt-1 leading-relaxed">Clean hits build your <strong class="text-indigo-300">combo (up to x5)</strong>.</p>
         </div>
       </div>
 
-      <!-- Quick Shortcuts & Flow banner -->
-      <div class="bg-indigo-950/40 border border-indigo-800/40 p-3 rounded-2xl flex flex-col gap-1.5 text-xs mb-4">
-        <div class="flex items-center space-x-2">
-          <span class="text-base">🔋</span>
-          <span class="text-gray-300">
-            <strong>3 Backup Cores:</strong> If your Core Health collapses, you have <strong>3 sector retries</strong> to reboot the sector without starting over at Sector 1!
-          </span>
-        </div>
-        <div class="flex items-center space-x-2">
-          <span class="text-base">⌨️</span>
-          <span class="text-gray-300">
-            Press <kbd class="px-2 py-0.5 bg-gray-800 border border-gray-700 rounded font-mono-math font-bold text-white">Space</kbd> or <kbd class="px-2 py-0.5 bg-gray-800 border border-gray-700 rounded font-mono-math font-bold text-white">Enter</kbd> to discharge. Consecutive hits scale your combo (<strong class="text-indigo-300 font-mono-math">x2, x4, x8, x16</strong>)!
-          </span>
-        </div>
+      <!-- Controls banner -->
+      <div class="bg-indigo-950/40 border border-indigo-800/40 px-3 py-2 rounded-2xl text-[11px] text-gray-300 mb-4 flex flex-wrap gap-x-4 gap-y-1">
+        <span>⌨️ <kbd class="px-1.5 bg-gray-800 border border-gray-700 rounded font-mono-math text-white">Enter</kbd> fire</span>
+        <span><kbd class="px-1.5 bg-gray-800 border border-gray-700 rounded font-mono-math text-white">←</kbd><kbd class="px-1.5 bg-gray-800 border border-gray-700 rounded font-mono-math text-white">→</kbd> base</span>
+        <span><kbd class="px-1.5 bg-gray-800 border border-gray-700 rounded font-mono-math text-white">↑</kbd><kbd class="px-1.5 bg-gray-800 border border-gray-700 rounded font-mono-math text-white">↓</kbd> exponent</span>
+        <span><kbd class="px-1.5 bg-gray-800 border border-gray-700 rounded font-mono-math text-white">0-9</kbd> type a value</span>
+        <span><kbd class="px-1.5 bg-gray-800 border border-gray-700 rounded font-mono-math text-white">1</kbd><kbd class="px-1.5 bg-gray-800 border border-gray-700 rounded font-mono-math text-white">2</kbd><kbd class="px-1.5 bg-gray-800 border border-gray-700 rounded font-mono-math text-white">3</kbd> pick a choice</span>
+        <span><kbd class="px-1.5 bg-gray-800 border border-gray-700 rounded font-mono-math text-white">H</kbd> hint</span>
       </div>
 
-      <!-- Action Button -->
-      <button id="briefing-start-btn" class="w-full py-3.5 bg-gradient-to-r from-cyan-600 via-blue-600 to-indigo-600 hover:from-cyan-500 hover:to-indigo-500 text-white rounded-2xl font-black text-sm uppercase tracking-wider shadow-lg shadow-cyan-600/40 active:scale-98 transition-all flex items-center justify-center space-x-2 cursor-pointer">
-        <span class="text-base">⚡</span>
-        <span>BEGIN STATION SHIFT (START GAME)</span>
-      </button>
+      <!-- Action Buttons -->
+      <div class="grid grid-cols-3 gap-3">
+        <button id="briefing-start-btn" class="col-span-2 py-3.5 bg-gradient-to-r from-cyan-600 via-blue-600 to-indigo-600 hover:from-cyan-500 hover:to-indigo-500 text-white rounded-2xl font-black text-sm uppercase tracking-wider shadow-lg shadow-cyan-600/40 active:scale-98 transition-all flex items-center justify-center space-x-2 cursor-pointer">
+          <span class="text-base">⚡</span>
+          <span id="briefing-start-label">START MISSION (Enter)</span>
+        </button>
+        <button id="briefing-practice-btn" class="py-3.5 bg-emerald-950/70 hover:bg-emerald-900/70 border border-emerald-600/70 text-emerald-300 rounded-2xl font-black text-xs uppercase tracking-wider active:scale-98 transition-all cursor-pointer" title="No timer and no damage. Practice runs don't unlock the next area.">
+          🧪 Practice<br><span class="text-[10px] font-bold text-emerald-500 normal-case">no timer · no damage</span>
+        </button>
+      </div>
     </div>
   </div>
 
@@ -528,7 +530,7 @@
   <!-- MODAL 1: STATION SHIFT DEBRIEF (End of Run) -->
   <!-- ========================================== -->
   <div id="modal-debrief" class="fixed inset-0 bg-black/85 backdrop-blur-md z-50 flex items-center justify-center p-4 hidden">
-    <div class="bg-gray-950 border border-cyan-500/60 rounded-3xl w-full max-w-lg p-6 shadow-2xl flex flex-col items-center text-center">
+    <div class="bg-gray-950 border border-cyan-500/60 rounded-3xl w-full max-w-3xl p-5 shadow-2xl flex flex-col items-center text-center max-h-[94vh] overflow-y-auto">
       <div id="debrief-icon" class="w-16 h-16 rounded-3xl bg-cyan-950 border-2 border-cyan-500/60 flex items-center justify-center text-3xl mb-3 glow-cyan">
         🏆
       </div>
@@ -540,8 +542,9 @@
       </p>
       <div id="debrief-stars" class="text-sm font-black text-amber-300 mt-2"></div>
 
+      <div class="grid grid-cols-2 gap-4 w-full my-3 text-left">
       <!-- Stat Grid -->
-      <div class="grid grid-cols-2 gap-3 w-full my-4 text-left">
+      <div class="grid grid-cols-2 gap-2.5 content-start">
         <div class="bg-gray-900/90 border border-gray-800 p-3 rounded-2xl">
           <span class="text-[10px] font-black uppercase text-gray-500">Shift Duration</span>
           <div id="debrief-time" class="text-lg font-black font-mono-math text-white mt-0.5">3m 12s</div>
@@ -560,6 +563,15 @@
         </div>
       </div>
 
+      <!-- Skill Breakdown (on screen only; nothing here is saved or sent) -->
+      <div class="bg-gray-900/90 border border-gray-800 p-3 rounded-2xl">
+        <div class="text-[10px] font-black uppercase text-gray-500 mb-1.5">Skills (first-try correct)</div>
+        <div id="debrief-skills" class="space-y-1.5 text-xs"></div>
+        <div class="text-[10px] font-black uppercase text-gray-500 mt-3 mb-1">Mistakes to review</div>
+        <div id="debrief-mistakes" class="text-[11px] text-gray-300 space-y-0.5"></div>
+      </div>
+      </div>
+
       <!-- Backup Cores Summary Banner -->
       <div class="w-full bg-gray-900/70 border border-gray-800 px-3 py-2 rounded-xl flex items-center justify-between text-xs mb-4">
         <span class="text-gray-400 font-bold uppercase text-[10px]">Backup Cores Remaining:</span>
@@ -572,7 +584,7 @@
 
       <!-- Action Button (Instant Restart Loop) -->
       <button id="debrief-restart-btn" class="w-full py-3 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white rounded-xl font-black text-xs uppercase tracking-wider shadow-lg shadow-cyan-600/30 transition-all cursor-pointer">
-        START NEXT STATION SHIFT (REPLAY)
+        PLAY AGAIN (NEW PROBLEMS)
       </button>
     </div>
   </div>
@@ -604,7 +616,7 @@
         <div class="bg-gray-900/60 p-3 rounded-xl border border-rose-900/40">
           <h4 class="font-black text-rose-300 text-sm mb-1">2. The Multiplication Trap!</h4>
           <p class="text-gray-300 leading-relaxed">
-            Do NOT multiply base by exponent! <strong class="text-rose-400">4³ is NOT 4 × 3 = 12</strong>. Exponents grow exponentially: 4 × 4 × 4 = 64!
+            Don't multiply the base by the exponent! <strong class="text-rose-400">4³ is NOT 4 × 3 = 12</strong>. It's 4 × 4 × 4 = 64.
           </p>
         </div>
 
@@ -618,7 +630,21 @@
         <div class="bg-gray-900/60 p-3 rounded-xl border border-emerald-900/40">
           <h4 class="font-black text-emerald-300 text-sm mb-1">4. Zero Exponent Rule (b⁰ = 1)</h4>
           <p class="text-gray-300 leading-relaxed">
-            Any non-zero base to power 0 equals 1! Zero factors leave the multiplicative identity: 7⁰ = 1 MW.
+            Any non-zero base to the power 0 equals 1. So 7⁰ = 1, not 0 and not 7.
+          </p>
+        </div>
+
+        <div class="bg-gray-900/60 p-3 rounded-xl border border-indigo-900/40">
+          <h4 class="font-black text-indigo-300 text-sm mb-1">5. Exponent of 1 and Base of 1</h4>
+          <p class="text-gray-300 leading-relaxed">
+            b¹ = b (the base used once): 6¹ = 6. And 1 to any power is 1: 1⁵ = 1 × 1 × 1 × 1 × 1 = 1.
+          </p>
+        </div>
+
+        <div class="bg-gray-900/60 p-3 rounded-xl border border-cyan-900/40">
+          <h4 class="font-black text-cyan-300 text-sm mb-1">6. Swapping Changes the Value</h4>
+          <p class="text-gray-300 leading-relaxed">
+            2⁵ = 32 but 5² = 25. Always work out each power before you compare. Sometimes different powers ARE equal: 2⁶ = 4³ = 8² = 64.
           </p>
         </div>
       </div>
@@ -626,6 +652,6 @@
   </div>
 
   <!-- SCRIPT BOOTSTRAP (Cache-busted for student Chromebooks) -->
-  <script type="module" src="js/game.js?v=3.1"></script>
+  <script type="module" src="js/game.js?v=3.2"></script>
 </body>
 </html>

@@ -42,12 +42,40 @@ const CARD_CLASS = {
 };
 
 const MODE_UI = {
-  find: { label: 'Incoming Surge = Your Power', console: 'Set the Dials', fire: 'DISCHARGE MATCHING BEAM', panel: 'dial', keys: 'Enter = Fire' },
-  expanded: { label: 'Surge Signature: write it as a power', console: 'Set the Dials', fire: 'DISCHARGE MATCHING BEAM', panel: 'dial', keys: 'Enter = Fire' },
-  evaluate: { label: 'Calculate the Surge', console: 'Type the Value', fire: 'LOCK IN READOUT', panel: 'readout', keys: 'Type digits · Enter = Fire' },
+  find: { label: 'Match the Surge: set the base and exponent', console: 'Set the Dials', fire: 'FIRE BEAM', panel: 'dial', keys: '← → base · ↑ ↓ exponent · Enter' },
+  expanded: { label: 'Write it as a power', console: 'Set the Dials', fire: 'FIRE BEAM', panel: 'dial', keys: '← → base · ↑ ↓ exponent · Enter' },
+  evaluate: { label: 'Calculate the Surge', console: 'Type the Value', fire: 'FIRE BEAM', panel: 'readout', keys: 'Type digits · Enter = Fire' },
   fix: { label: 'Fix the Trainee\'s Log', console: 'Type the Correct Value', fire: 'OVERRIDE LOG', panel: 'readout', keys: 'Type digits · Enter = Fire' },
-  compare: { label: 'Two Lines Surging', console: 'Route the Beam', fire: '', panel: 'compare', keys: 'Keys 1 / 2 / 3' },
+  compare: { label: 'Which power is bigger?', console: 'Route the Beam', fire: '', panel: 'compare', keys: 'Keys 1 / 2 / 3' },
   cards: { label: 'Boss Charge Cards', console: 'Pick the Right Card', fire: '', panel: 'cards', keys: 'Keys 1 / 2 / 3' },
+};
+
+/** What each mode practices (for the end-of-run skill breakdown). */
+const SKILL_OF_MODE = {
+  find: 'Match a number with a power',
+  evaluate: 'Calculate powers',
+  fix: 'Calculate powers',
+  expanded: 'Write repeated multiplication as a power',
+  compare: 'Compare powers',
+  cards: 'Compare powers',
+};
+
+/** Student-friendly names for each misconception the diagnosers detect. */
+const MISTAKE_LABEL = {
+  'multiplication-error': 'Multiplied base × exponent (4³ is not 12)',
+  'addition-error': 'Added base + exponent',
+  'swap-error': 'Swapped the base and exponent',
+  'zero-error': 'Zero exponent rule (b⁰ = 1)',
+  'one-base-error': 'Powers of 1 (1ⁿ = 1)',
+  'power-of-ten': 'Counting zeros in powers of 10',
+  'factor-count': 'Multiplied one factor too many or too few',
+  'equivalent-form': 'Used a different base than the one repeated',
+  'wrong-base': 'Used a different base than the one repeated',
+  'compare-error': 'Compared without working out both powers',
+  'over-exponentiation': 'Other calculation slips',
+  'under-exponentiation': 'Other calculation slips',
+  'off-target': 'Other calculation slips',
+  timeout: 'Ran out of time',
 };
 
 /** HTML for a power like 2⁵ with styled base/exponent. */
@@ -72,6 +100,9 @@ class ExponentReactorGame {
     this.starsBySector = [];
     this.bossHitFlash = 0;
     this.isSectorClearOpen = false;
+    this.isPractice = false;
+    this.skillStats = {};     // skill -> { waves, firstTry }   (on-screen only, never saved or sent)
+    this.mistakeCounts = {};  // label -> count
 
     // Input State
     this.base = 2;
@@ -136,6 +167,8 @@ class ExponentReactorGame {
       'console-mode-label', 'console-keys-label', 'dial-panel', 'readout-panel', 'compare-panel', 'cards-panel', 'readout-display',
       'boss-hp-panel', 'boss-hp-segments', 'modal-sector-clear', 'sector-clear-title', 'sector-clear-stars',
       'sector-clear-stats', 'sector-clear-next', 'sector-clear-next-desc', 'sector-clear-continue-btn', 'debrief-stars',
+      'briefing-practice-btn', 'briefing-start-label', 'practice-badge', 'stakes-timer', 'stakes-health', 'stakes-cores',
+      'debrief-skills', 'debrief-mistakes',
       'compare-left-label', 'compare-right-label',
       'base-number-display', 'base-dec-btn', 'base-inc-btn', 'base-locked-badge', 'base-subtext',
       'exp-number-display', 'exp-dec-btn', 'exp-inc-btn', 'formula-base', 'formula-exp',
@@ -229,7 +262,8 @@ class ExponentReactorGame {
     }));
     el.sectorClearContinueBtn.addEventListener('click', () => this.continueAfterSectorClear());
 
-    if (el.briefingStartBtn) el.briefingStartBtn.addEventListener('click', () => this.startGameFromBriefing());
+    if (el.briefingStartBtn) el.briefingStartBtn.addEventListener('click', () => this.startGameFromBriefing(false));
+    if (el.briefingPracticeBtn) el.briefingPracticeBtn.addEventListener('click', () => this.startGameFromBriefing(true));
     if (el.briefingBtn) el.briefingBtn.addEventListener('click', () => this.openBriefing());
 
     el.dischargeBtn.addEventListener('click', () => this.handleDischarge());
@@ -272,10 +306,11 @@ class ExponentReactorGame {
     if (!this.hasStarted) {
       if (e.code === 'Space' || e.code === 'Enter') {
         e.preventDefault();
-        this.startGameFromBriefing();
+        this.startGameFromBriefing(false);
       }
       return;
     }
+    if (!this.el.modalDebrief.classList.contains('hidden')) return;
     if (this.isSectorClearOpen) {
       if (e.code === 'Space' || e.code === 'Enter') {
         e.preventDefault();
@@ -296,6 +331,26 @@ class ExponentReactorGame {
       e.preventDefault();
       if (MODE_UI[mode].panel === 'dial' || MODE_UI[mode].panel === 'readout') this.handleDischarge();
       return;
+    }
+
+    if (e.code === 'KeyH') {
+      this.el.hintToggleBtn.click();
+      return;
+    }
+
+    if (MODE_UI[mode].panel === 'dial') {
+      const arrows = {
+        ArrowLeft: () => this.setBase(Math.max(1, this.base - 1)),
+        ArrowRight: () => this.setBase(Math.min(10, this.base + 1)),
+        ArrowUp: () => this.setExponent(Math.min(6, this.exponent + 1)),
+        ArrowDown: () => this.setExponent(Math.max(0, this.exponent - 1)),
+      };
+      if (arrows[e.key]) {
+        e.preventDefault();
+        if (!this.inputLocked) soundManager.playClick();
+        arrows[e.key]();
+        return;
+      }
     }
 
     if (MODE_UI[mode].panel === 'readout') {
@@ -321,10 +376,11 @@ class ExponentReactorGame {
   // ==========================================
   // BRIEFING
   // ==========================================
-  startGameFromBriefing() {
+  startGameFromBriefing(practice = false) {
     if (!this.hasStarted) {
       this.hasStarted = true;
       this.isBriefingOpen = false;
+      this.setPracticeMode(practice);
       soundManager.playClick();
       soundManager.playSuccessChord();
       if (this.el.modalBriefing) this.el.modalBriefing.classList.add('hidden');
@@ -335,11 +391,31 @@ class ExponentReactorGame {
     }
   }
 
+  /** Practice mode: no timer, no core damage, no backup cores, and no completion message to the hub. */
+  setPracticeMode(practice) {
+    const { el } = this;
+    this.isPractice = practice;
+    el.practiceBadge.classList.toggle('hidden', !practice);
+    el.practiceBadge.classList.toggle('flex', practice);
+    [el.stakesTimer, el.stakesHealth, el.stakesCores].forEach(box => box.classList.toggle('hidden', practice));
+  }
+
   openBriefing() {
     this.isBriefingOpen = true;
     soundManager.playClick();
-    if (this.el.briefingStartBtn) this.el.briefingStartBtn.textContent = 'RESUME MISSION ➔';
+    if (this.hasStarted) {
+      this.el.briefingStartLabel.textContent = 'RESUME (Enter)';
+      this.el.briefingPracticeBtn.classList.add('hidden');
+      this.el.briefingStartBtn.classList.replace('col-span-2', 'col-span-3');
+    }
     if (this.el.modalBriefing) this.el.modalBriefing.classList.remove('hidden');
+  }
+
+  /** Resets the briefing to its first-launch state (mode choice visible). */
+  resetBriefingButtons() {
+    this.el.briefingStartLabel.textContent = 'START MISSION (Enter)';
+    this.el.briefingPracticeBtn.classList.remove('hidden');
+    this.el.briefingStartBtn.classList.replace('col-span-3', 'col-span-2');
   }
 
   closeBriefing() {
@@ -423,7 +499,7 @@ class ExponentReactorGame {
     clearInterval(this.waveTimerInterval);
     this.waveTimeRemaining = sector.waveTimeLimit;
     this.updateTimerDisplay();
-    if (silent) return;
+    if (silent || this.isPractice) return;
 
     this.waveTimerInterval = setInterval(() => {
       if (this.isPaused || this.isGameOver || this.isDischarging || this.isBriefingOpen) return;
@@ -542,6 +618,7 @@ class ExponentReactorGame {
     this.setCombo(1);
     this.waveMisses++;
     this.sectorMisses++;
+    this.recordMistake('timeout');
 
     if (this.lives > 0) {
       this.lives--;
@@ -769,6 +846,7 @@ class ExponentReactorGame {
       if (diagnosis.isTrap) this.trapHits++;
       this.waveMisses++;
       this.sectorMisses++;
+      this.recordMistake(diagnosis.type);
       this.scheduleFollowUp(diagnosis);
       soundManager.playStallBuzzer(diagnosis.isTrap);
       this.triggerCircuitBreach(
@@ -833,6 +911,11 @@ class ExponentReactorGame {
     }
   }
 
+  recordMistake(type) {
+    const label = MISTAKE_LABEL[type];
+    if (label) this.mistakeCounts[label] = (this.mistakeCounts[label] || 0) + 1;
+  }
+
   setCombo(value) {
     this.combo = value;
     const { el } = this;
@@ -859,6 +942,10 @@ class ExponentReactorGame {
     soundManager.playSuccessChord();
     this.wavesCleared++;
     if (this.waveMisses === 0) this.firstTryCorrect++;
+    const skill = SKILL_OF_MODE[this.problem.mode];
+    const stat = this.skillStats[skill] || (this.skillStats[skill] = { waves: 0, firstTry: 0 });
+    stat.waves++;
+    if (this.waveMisses === 0) stat.firstTry++;
 
     this.setCombo(nextCombo(this.combo, this.hintUsedThisWave));
     this.maxCombo = Math.max(this.maxCombo, this.combo);
@@ -872,8 +959,8 @@ class ExponentReactorGame {
 
     this.showInlineDiagnostic(
       true,
-      'SURGE MITIGATED!',
-      'Reactor grid locked!',
+      'CORRECT! SURGE BLOCKED',
+      this.waveMisses === 0 ? 'First try!' : 'You fixed it. Nice recovery!',
       `+${pointsEarned} pts (Combo x${this.combo})${this.hintUsedThisWave ? ' · hint used' : ''}`
     );
     document.body.classList.add('glow-emerald');
@@ -958,7 +1045,7 @@ class ExponentReactorGame {
 
   triggerCircuitBreach(title, explanation, formula) {
     this.setCombo(comboAfterMiss(this.combo));
-    const damage = this.currentSector().isBossSector ? 25 : 20;
+    const damage = this.isPractice ? 0 : this.currentSector().isBossSector ? 25 : 20;
     this.coreHealth = Math.max(0, this.coreHealth - damage);
     this.updateHealthBar();
     this.shake();
@@ -1059,13 +1146,20 @@ class ExponentReactorGame {
     const totalWaves = this.totalWaves();
     const firstTryPct = this.wavesCleared > 0 ? Math.round((this.firstTryCorrect / this.wavesCleared) * 100) : 0;
 
-    if (isVictory) {
+    if (isVictory && this.isPractice) {
+      soundManager.playVictoryFanfare();
+      el.debriefIcon.textContent = '🧪';
+      el.debriefIcon.className = 'w-16 h-16 rounded-3xl bg-emerald-950 border-2 border-emerald-500/60 flex items-center justify-center text-3xl mb-3 glow-emerald';
+      el.debriefTitle.textContent = 'PRACTICE RUN COMPLETE!';
+      el.debriefSubtitle.textContent = "Nice work! Practice runs don't unlock the next area. Play Mission mode when you're ready.";
+    } else if (isVictory) {
       soundManager.playVictoryFanfare();
       el.debriefIcon.textContent = '🏆';
       el.debriefIcon.className = 'w-16 h-16 rounded-3xl bg-cyan-950 border-2 border-cyan-500/60 flex items-center justify-center text-3xl mb-3 glow-cyan';
       el.debriefTitle.textContent = 'SECTOR GRID STABILIZED!';
       el.debriefSubtitle.textContent = 'All 5 sectors cleared. Singularity Boss Core subdued and grid secured!';
       try {
+        // Mission mode only. Same payload shape as before: no new data is sent.
         window.parent.postMessage({
           type: 'CARTRIDGE_COMPLETE',
           payload: {
@@ -1092,7 +1186,28 @@ class ExponentReactorGame {
     el.debriefEvasion.textContent = `${firstTryPct}%`;
     if (el.debriefCores) el.debriefCores.textContent = `${this.lives} / ${this.maxLives}`;
     if (el.debriefHints) el.debriefHints.textContent = String(this.hintsUsed);
+    this.renderSkillBreakdown();
     el.modalDebrief.classList.remove('hidden');
+  }
+
+  /** On-screen skill summary for the student/teacher. Not saved or sent anywhere. */
+  renderSkillBreakdown() {
+    const { el } = this;
+    const skills = Object.entries(this.skillStats);
+    el.debriefSkills.innerHTML = skills.length ? '' : '<div class="text-gray-500">No waves cleared yet.</div>';
+    skills.forEach(([name, { waves, firstTry }]) => {
+      const pct = Math.round((firstTry / waves) * 100);
+      const color = pct >= 80 ? 'bg-emerald-500' : pct >= 50 ? 'bg-amber-500' : 'bg-rose-500';
+      const row = document.createElement('div');
+      row.innerHTML = `
+        <div class="flex justify-between text-gray-300"><span>${name}</span><span class="font-mono-math font-black text-white">${firstTry}/${waves}</span></div>
+        <div class="h-1.5 bg-gray-800 rounded-full overflow-hidden mt-0.5"><div class="h-full ${color}" style="width:${pct}%"></div></div>`;
+      el.debriefSkills.appendChild(row);
+    });
+    const mistakes = Object.entries(this.mistakeCounts).sort((a, b) => b[1] - a[1]);
+    el.debriefMistakes.innerHTML = mistakes.length
+      ? mistakes.map(([label, n]) => `<div>• ${label} <span class="font-mono-math font-black text-rose-300">×${n}</span></div>`).join('')
+      : '<div class="text-emerald-300">None. Clean run! 🎉</div>';
   }
 
   resetFullStationShift() {
@@ -1100,7 +1215,7 @@ class ExponentReactorGame {
       sectorIndex: 0, waveIndex: 0, coreHealth: 100, lives: this.maxLives, score: 0, totalWattsMitigated: 0,
       maxCombo: 1, totalAttempts: 0, trapHits: 0, firstTryCorrect: 0, wavesCleared: 0, hintsUsed: 0,
       isGameOver: false, shiftStartTime: Date.now(), followUpsThisSector: 0,
-      sectorMisses: 0, sectorHints: 0, starsBySector: [],
+      sectorMisses: 0, sectorHints: 0, starsBySector: [], skillStats: {}, mistakeCounts: {},
     });
     this.run = generateRun(this.rng); // fresh problems every replay
     this.updateLivesDisplay();
@@ -1108,7 +1223,12 @@ class ExponentReactorGame {
     this.el.scoreDisplay.textContent = '0';
     this.updateHealthBar();
     this.finishDischarge();
-    this.startWave();
+    this.startWave({ silent: true });
+    // Back to the briefing so the student can choose Mission or Practice again.
+    this.hasStarted = false;
+    this.isBriefingOpen = true;
+    this.resetBriefingButtons();
+    this.el.modalBriefing.classList.remove('hidden');
   }
 
   // ==========================================
