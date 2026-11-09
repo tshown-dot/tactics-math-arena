@@ -64,6 +64,22 @@
     .animate-urgent {
       animation: timerUrgent 0.6s infinite ease-in-out;
     }
+    /* Floating "+points" over the score badge */
+    @keyframes scorePop {
+      0% { opacity: 0; transform: translate(-50%, 4px) scale(0.8); }
+      20% { opacity: 1; transform: translate(-50%, -6px) scale(1.15); }
+      100% { opacity: 0; transform: translate(-50%, -26px) scale(1); }
+    }
+    .score-pop {
+      position: absolute;
+      left: 50%;
+      top: -4px;
+      pointer-events: none;
+      font-weight: 900;
+      color: #6ee7b7;
+      text-shadow: 0 0 8px rgba(16, 185, 129, 0.8);
+      animation: scorePop 0.9s ease-out forwards;
+    }
 
     /* Background Grid */
     .reactor-grid-bg {
@@ -84,10 +100,10 @@
       </div>
       <div>
         <div class="flex items-center space-x-2">
-          <h1 class="text-xs font-black tracking-wider text-cyan-400 uppercase">Charge Runner</h1>
-          <span id="sector-badge" class="px-1.5 py-0.5 rounded text-[10px] font-mono-math font-black bg-cyan-950 border border-cyan-800 text-cyan-300">CORE-I</span>
+          <h1 class="text-xs font-black tracking-wider text-cyan-400 uppercase whitespace-nowrap">Charge Runner</h1>
+          <span id="sector-badge" class="whitespace-nowrap px-1.5 py-0.5 rounded text-[10px] font-mono-math font-black bg-cyan-950 border border-cyan-800 text-cyan-300">CORE-I</span>
         </div>
-        <p id="sector-title" class="text-[11px] font-bold text-gray-400 tracking-tight">Sector 1: The Basics (Squares & Cubes)</p>
+        <p id="sector-title" class="text-[11px] font-bold text-gray-400 tracking-tight whitespace-nowrap">Sector 1: The Basics</p>
       </div>
     </div>
 
@@ -96,7 +112,7 @@
       <!-- Wave Progress -->
       <div class="flex items-center space-x-1.5">
         <span class="text-[10px] uppercase font-bold text-gray-500">Wave:</span>
-        <span id="wave-counter" class="text-xs font-mono-math font-extrabold text-cyan-300">1 / 5</span>
+        <span id="wave-counter" class="text-xs font-mono-math font-extrabold text-cyan-300 whitespace-nowrap">1 / 5</span>
       </div>
 
       <!-- Practice mode badge (replaces timer/health/cores in practice) -->
@@ -146,7 +162,7 @@
       </div>
 
       <!-- Score & Watts -->
-      <div class="flex items-center space-x-1.5 bg-gray-900/90 border border-gray-800 px-2.5 py-1 rounded-xl font-mono-math text-xs">
+      <div class="relative flex items-center space-x-1.5 bg-gray-900/90 border border-gray-800 px-2.5 py-1 rounded-xl font-mono-math text-xs">
         <span class="text-amber-400">⭐</span>
         <span id="score-display" class="font-black text-amber-300">0</span>
       </div>
@@ -405,7 +421,7 @@
 
       <!-- BOTTOM SECTION: INLINE RAPID DIAGNOSTIC HUD & DISCHARGE BUTTON (NO BLOCKING POPUPS!) -->
       <div class="space-y-2.5 mt-2">
-        <!-- Rapid Inline Diagnostic Banner (Auto-clears in 1.4s) -->
+        <!-- Inline feedback: success clears itself; errors stay until the answer changes -->
         <div id="inline-diagnostic-hud" class="hidden rounded-xl border p-2.5 transition-all">
           <div class="flex items-center space-x-2">
             <span id="diagnostic-icon" class="text-base">⚠️</span>
@@ -441,7 +457,7 @@
             <span>MISSION BRIEFING: EXPONENT REACTOR</span>
             <span class="px-2 py-0.5 rounded text-[10px] font-mono-math bg-cyan-950 border border-cyan-700 text-cyan-300">GRID DEFENSE</span>
           </h2>
-          <p class="text-xs text-gray-400">Tactical Math Station &bull; Grade 6/7 Exponents (enVision 2.0 Topic 3)</p>
+          <p class="text-xs text-gray-400">Tactical Math Station &bull; Grade 6 Exponents (enVision 2.0 Topic 3)</p>
         </div>
       </div>
 
@@ -559,7 +575,7 @@
         </div>
         <div class="bg-gray-900/90 border border-gray-800 p-3 rounded-2xl">
           <span class="text-[10px] font-black uppercase text-gray-500">First-Try Accuracy</span>
-          <div id="debrief-evasion" class="text-lg font-black font-mono-math text-emerald-300 mt-0.5">100%</div>
+          <div id="debrief-accuracy" class="text-lg font-black font-mono-math text-emerald-300 mt-0.5">100%</div>
         </div>
       </div>
 
@@ -652,6 +668,6 @@
   </div>
 
   <!-- SCRIPT BOOTSTRAP (Cache-busted for student Chromebooks) -->
-  <script type="module" src="js/game.js?v=3.2"></script>
+  <script type="module" src="js/game.js?v=3.3"></script>
 </body>
 </html>

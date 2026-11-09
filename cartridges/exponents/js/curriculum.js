@@ -1,18 +1,19 @@
 /**
- * Charge Runner: Exponent Reactor - Curriculum & Diagnostics Engine
- * Core Game Design Aligned: Combos, Failure States, Misconception Diagnostics & Boss Phase
- */
-
-/*
+ * Charge Runner: Exponent Reactor - Math & Diagnosis Engine
+ * Pure functions only (no DOM), so everything here is unit-tested.
+ *
  * Problem modes (all live inside the reactor loop, no pop-up quizzes):
  *   find     – target MW given; student sets base/exponent dials to match.
  *   evaluate – surge arrives as a power (b^e); student types its value in MW.
  *   fix      – a trainee logged a wrong value for b^e; student types the correct value.
  *   expanded – surge arrives as repeated multiplication (5 × 5 × 5); student sets dials.
  *   compare  – two power lines; student routes power to the stronger one (or "equal").
+ *   cards    – (boss) pick the one card that makes the target; decoys are trap powers.
+ *
+ * Every diagnoser returns { correct, isTrap, type, explanation, correctFormula }.
+ * On a miss, correctFormula never reveals the answer, so the retry still takes thinking.
  */
 export const PROBLEM_MODES = ['find', 'evaluate', 'fix', 'expanded', 'compare', 'cards'];
-// cards (boss only) – pick the one charge card that produces the target; decoys are trap powers.
 
 /** Combo: climbs one level per clean hit (max x5); a hint holds it; a miss drops one level. */
 export const MAX_COMBO = 5;
@@ -103,127 +104,56 @@ export function compareAnswer(problem) {
   return a > b ? 'left' : 'right';
 }
 
-/**
- * Mathematical evaluation helper for non-negative integers
- */
+/** b^e for non-negative whole-number exponents. */
 export function calculatePower(base, exponent) {
   if (exponent === 0) return 1;
   return Math.pow(base, exponent);
 }
 
 /**
- * Builds step-by-step animation factor models for the Visualizer Ribbon
+ * Factor-by-factor steps for the ribbon animation: 2³ → [{factor 2, running 2}, {2, 4}, {2, 8}].
+ * A zero exponent has a single identity step (value 1).
  */
-export function prepareSteps(b, exp) {
-  if (exp === 0) {
-    return [
-      {
-        stepIndex: 0,
-        currentValue: 1,
-        factor: 0,
-        formula: `${b}⁰ = 1`,
-        label: 'Zero Factor State (Identity = 1 MW)',
-      },
-    ];
-  }
-
-  const result = [];
+export function prepareSteps(base, exponent) {
+  if (exponent === 0) return [{ factor: 0, currentValue: 1 }];
+  const steps = [];
   let acc = 1;
-  for (let i = 0; i < exp; i++) {
-    acc *= b;
-    result.push({
-      stepIndex: i,
-      currentValue: acc,
-      factor: b,
-      formula: `${b}^${i + 1} = ${acc}`,
-      label: i === 0 ? `Base Factor (${b})` : `Multiply by ${b} ➔ ${acc.toLocaleString()}`,
-    });
+  for (let i = 0; i < exponent; i++) {
+    acc *= base;
+    steps.push({ factor: base, currentValue: acc });
   }
-  return result;
+  return steps;
 }
 
 /**
- * Rapid Diagnostic Analyzer:
- * Provides diagnostic feedback for instantaneous (<1.5s) HUD alerts without blocking popups.
+ * Diagnoses dial settings for a find problem (student set base^exponent to match targetMW).
  */
 export function diagnoseSubmission(base, exponent, targetMW) {
-  const studentResult = calculatePower(base, exponent);
-  const multipliedResult = base * exponent;
+  const value = calculatePower(base, exponent);
+  const p = powerText(base, exponent);
+  const miss = (isTrap, type, explanation, correctFormula) => ({ correct: false, isTrap, type, explanation, correctFormula });
 
-  // Case 1: Exact match!
-  if (studentResult === targetMW) {
-    return {
-      isTrap: false,
-      type: 'exact-match',
-      studentBase: base,
-      studentExponent: exponent,
-      studentResult,
-      multipliedResult,
-      targetMW,
-      explanation: 'REACTOR BALANCED! Output matches target surge frequency exactly.',
-      correctFormula: `${powerText(base, exponent)} = ${targetMW.toLocaleString()} MW`,
-    };
+  if (value === targetMW) {
+    return { correct: true, isTrap: false, type: 'exact-match', explanation: 'Correct!', correctFormula: `${p} = ${targetMW.toLocaleString()} MW` };
   }
-
-  // Case 2: The classic Multiplication Trap!
-  if (multipliedResult === targetMW) {
-    return {
-      isTrap: true,
-      type: 'multiplication-error',
-      studentBase: base,
-      studentExponent: exponent,
-      studentResult,
-      multipliedResult,
-      targetMW,
-      explanation: `Exponent trap! ${powerText(base, exponent)} means ${base} used as a factor ${exponent} times (${studentResult.toLocaleString()} MW), not ${base} × ${exponent} (${multipliedResult} MW).`,
-      correctFormula: `${powerText(base, exponent)} = ${expandedText(base, exponent)} = ${studentResult.toLocaleString()}`,
-    };
+  if (base * exponent === targetMW) {
+    return miss(true, 'multiplication-error',
+      `Exponent trap! ${p} means ${base} used as a factor ${exponent} times (${value.toLocaleString()} MW), not ${base} × ${exponent} (${targetMW.toLocaleString()} MW).`,
+      `${p} = ${expandedText(base, exponent)} = ${value.toLocaleString()}`);
   }
-
-  // Case 3: Student entered b^0 expecting 0 or wrong value
   if (exponent === 0 && targetMW !== 1) {
-    return {
-      isTrap: true,
-      type: 'zero-error',
-      studentBase: base,
-      studentExponent: exponent,
-      studentResult,
-      multipliedResult,
-      targetMW,
-      explanation: `Zero exponent rule: any non-zero base to the power 0 equals 1, so ${base}⁰ = 1 MW.`,
-      correctFormula: `${base}⁰ = 1`,
-    };
+    return miss(true, 'zero-error', `Zero exponent rule: any non-zero base to the power 0 equals 1, so ${p} = 1 MW.`, `${p} = 1`);
   }
-
-  // Case 4: Power of 10 error (only meaningful when the target itself is a power of 10)
   const targetZeros = powerOfTenExponent(targetMW);
   if (base === 10 && targetZeros !== null) {
-    return {
-      isTrap: true,
-      type: 'power-of-ten',
-      studentBase: base,
-      studentExponent: exponent,
-      studentResult,
-      multipliedResult,
-      targetMW,
-      explanation: `Count the zeros! ${powerText(10, exponent)} has ${exponent} zero${exponent === 1 ? '' : 's'} (${studentResult.toLocaleString()}). ${targetMW.toLocaleString()} has ${targetZeros} zero${targetZeros === 1 ? '' : 's'}.`,
-      correctFormula: `${powerText(10, targetZeros)} = ${targetMW.toLocaleString()}`,
-    };
+    return miss(true, 'power-of-ten',
+      `Count the zeros! ${p} has ${exponent} zero${exponent === 1 ? '' : 's'} (${value.toLocaleString()}). ${targetMW.toLocaleString()} has ${targetZeros} zero${targetZeros === 1 ? '' : 's'}.`,
+      `${p} = ${value.toLocaleString()}`);
   }
-
-  // Case 5: General off-target
-  const comparison = studentResult > targetMW ? 'Too much power' : 'Not enough power';
-  return {
-    isTrap: false,
-    type: studentResult > targetMW ? 'over-exponentiation' : 'under-exponentiation',
-    studentBase: base,
-    studentExponent: exponent,
-    studentResult,
-    multipliedResult,
-    targetMW,
-    explanation: `${comparison}: ${powerText(base, exponent)} = ${studentResult.toLocaleString()} MW, but the surge is ${targetMW.toLocaleString()} MW. ${studentResult > targetMW ? 'Try a smaller base or exponent.' : 'Try a bigger base or exponent.'}`,
-    correctFormula: `${studentResult.toLocaleString()} ≠ ${targetMW.toLocaleString()}`,
-  };
+  const over = value > targetMW;
+  return miss(false, over ? 'over-exponentiation' : 'under-exponentiation',
+    `${over ? 'Too much power' : 'Not enough power'}: ${p} = ${value.toLocaleString()} MW, but the surge is ${targetMW.toLocaleString()} MW. Try a ${over ? 'smaller' : 'bigger'} base or exponent.`,
+    `${value.toLocaleString()} ≠ ${targetMW.toLocaleString()}`);
 }
 
 /**
@@ -234,30 +164,6 @@ export function powerOfTenExponent(value) {
   const str = String(value);
   return /^10+$/.test(str) ? str.length - 1 : null;
 }
-
-/**
- * Determines whether a problem has a locked base.
- * Criteria: Explicit problem.givenBase OR targetMW > 200 and not a multiple of 10.
- * Reduces excessive student cognitive load for non-tens large surges.
- */
-export function isBaseLocked(problem) {
-  if (!problem) return false;
-  if (problem.givenBase !== undefined) return true;
-  return problem.targetMW > 200 && (problem.targetMW % 10 !== 0);
-}
-
-/**
- * Returns the locked base for a problem if applicable.
- */
-export function getGivenBase(problem) {
-  if (!problem) return null;
-  if (problem.givenBase !== undefined) return problem.givenBase;
-  if (problem.targetMW > 200 && (problem.targetMW % 10 !== 0)) {
-    return problem.validSolutions && problem.validSolutions[0] ? problem.validSolutions[0].base : null;
-  }
-  return null;
-}
-
 
 /**
  * Diagnoses a typed value for an evaluate / fix problem (student computes b^e).

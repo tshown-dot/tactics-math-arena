@@ -73,7 +73,7 @@ export function makeFind({ base, exponent }, opts = {}) {
   const zeros = powerOfTenExponent(target);
   const lockBase = opts.lockBase ?? (target > 200 && zeros === null);
   const solutions = dialSolutions(target);
-  // Put the generating pair first so getGivenBase() locks to it.
+  // Generating pair first (it's the intended answer; a locked base uses it).
   solutions.sort((a, b) => (a.base === base && a.exponent === exponent ? -1 : b.base === base && b.exponent === exponent ? 1 : 0));
   let hint;
   if (lockBase) hint = `Base is locked to ${base}. Multiply ${base} by itself until you reach ${target.toLocaleString()}.`;

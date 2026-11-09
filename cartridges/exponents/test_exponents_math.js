@@ -4,7 +4,7 @@
  * Boss equivalence dilemmas, and string input parsing formats ($15, 15, 15.00).
  */
 
-import { generateRun, createRng, makeFollowUp, makeCards, CARD_TARGETS } from './js/generator.js';
+import { generateRun, createRng, makeFollowUp, makeCards, makeFind, CARD_TARGETS } from './js/generator.js';
 import {
   nextCombo,
   comboAfterMiss,
@@ -22,8 +22,6 @@ import {
   diagnoseSubmission,
   prepareSteps,
   CURRICULUM_SECTORS,
-  isBaseLocked,
-  getGivenBase,
 } from './js/curriculum.js';
 
 let totalTests = 0;
@@ -95,7 +93,7 @@ function problemErrors(p) {
   if (p.mode === 'find') {
     if (!p.validSolutions.length) errs.push('no solutions');
     for (const sol of p.validSolutions) if (calculatePower(sol.base, sol.exponent) !== p.targetMW) errs.push('bad solution');
-    const reachable = p.validSolutions.some(sol => sol.base <= 10 && sol.exponent <= 6 && (!isBaseLocked(p) || sol.base === getGivenBase(p)));
+    const reachable = p.validSolutions.some(sol => sol.base <= 10 && sol.exponent <= 6 && (p.givenBase === undefined || sol.base === p.givenBase));
     if (!reachable) errs.push('unreachable on dials');
   }
   if (p.mode === 'evaluate' || p.mode === 'fix') {
@@ -219,11 +217,11 @@ assert(cardsOk, 'Every boss card set has exactly 1 correct card and a base × ex
 
 // 8. Base Locking
 console.log('\n8. Testing Base Locking Engine (>200 MW non-tens)');
-assert(isBaseLocked({ targetMW: 243, validSolutions: [{ base: 3, exponent: 5 }] }) === true, '243 MW base is locked');
-assert(getGivenBase({ targetMW: 243, validSolutions: [{ base: 3, exponent: 5 }] }) === 3, '243 MW locked base is 3');
-assert(isBaseLocked({ targetMW: 1000000, validSolutions: [{ base: 10, exponent: 6 }] }) === false, '1,000,000 MW base is NOT locked (multiple of 10)');
-assert(isBaseLocked({ targetMW: 8, validSolutions: [{ base: 2, exponent: 3 }] }) === false, '8 MW base is NOT locked');
-assert(getGivenBase({ targetMW: 512, givenBase: 8 }) === 8, 'Explicit givenBase is respected');
+assert(makeFind({ base: 3, exponent: 5 }).givenBase === 3, '243 MW comes with base 3 locked');
+assert(makeFind({ base: 10, exponent: 6 }).givenBase === undefined, '1,000,000 MW is NOT locked (power of 10)');
+assert(makeFind({ base: 2, exponent: 3 }).givenBase === undefined, '8 MW is NOT locked');
+assert(makeFind({ base: 2, exponent: 6 }).validSolutions.length === 3, '64 MW accepts 2⁶, 4³ and 8²');
+assert(!diagnoseSubmission(10, 3, 10000).correctFormula.includes('10⁴'), 'Powers-of-10 miss does not reveal the answer (10⁴)');
 
 console.log(`\n========================================`);
 console.log(`Results: ${passedTests}/${totalTests} tests passed`);

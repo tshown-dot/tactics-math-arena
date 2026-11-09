@@ -1,13 +1,11 @@
 /**
- * Charge Runner: Exponent Reactor - Game Engine
- * Core Game Design Aligned:
- *   1. Combo & Scaling Progression
- *   2. Real Stakes & Failure States (surge timer, core health, backup cores, meltdown)
- *   3. Rapid inline misconception feedback (no blocking modals)
- *   4. Boss climax phase (Sector 5)
- *   5. Chromebook 1366x768 station flow (canvas beam, screen shake, audio)
+ * Charge Runner: Exponent Reactor - Game Engine (DOM, timers, canvas, flow)
+ *   - Combo progression, real stakes (timer, core health, backup cores, meltdown)
+ *   - Inline misconception feedback, no blocking pop-ups mid-wave
+ *   - Boss climax in Sector 5, sector-cleared stars between sectors
+ *   - Mission mode (timed, reports completion to the hub) and Practice mode (untimed, reports nothing)
  *
- * Problem modes (see curriculum.js): find, evaluate, fix, expanded, compare.
+ * Math and diagnosis live in curriculum.js; problem generation in generator.js.
  */
 
 import {
@@ -22,8 +20,6 @@ import {
   comboAfterMiss,
   sectorStars,
   prepareSteps,
-  isBaseLocked,
-  getGivenBase,
   powerText,
   expandedText,
   problemTargetValue,
@@ -119,8 +115,6 @@ class ExponentReactorGame {
     this.totalWattsMitigated = 0;
     this.combo = 1;
     this.maxCombo = 1;
-    this.totalAttempts = 0;
-    this.trapHits = 0;
     this.firstTryCorrect = 0;
     this.wavesCleared = 0;
     this.waveMisses = 0;
@@ -175,7 +169,7 @@ class ExponentReactorGame {
       'inline-diagnostic-hud', 'diagnostic-icon', 'diagnostic-title', 'diagnostic-message', 'diagnostic-formula',
       'discharge-btn', 'discharge-label',
       'modal-debrief', 'debrief-icon', 'debrief-title', 'debrief-subtitle', 'debrief-time', 'debrief-watts',
-      'debrief-combo', 'debrief-evasion', 'debrief-cores', 'debrief-hints', 'debrief-restart-btn',
+      'debrief-combo', 'debrief-accuracy', 'debrief-cores', 'debrief-hints', 'debrief-restart-btn',
       'modal-field-guide', 'close-field-guide-btn', 'modal-briefing', 'briefing-start-btn', 'briefing-btn',
     ];
     this.el = {};
@@ -271,9 +265,10 @@ class ExponentReactorGame {
     window.addEventListener('keydown', e => this.handleKeydown(e));
 
     el.hintToggleBtn.addEventListener('click', () => {
+      if (!this.hasStarted || this.isPaused || this.isGameOver || this.isBriefingOpen) return;
       soundManager.playClick();
       el.hintStrip.classList.toggle('hidden');
-      if (!el.hintStrip.classList.contains('hidden') && !this.hintUsedThisWave && this.hasStarted) {
+      if (!el.hintStrip.classList.contains('hidden') && !this.hintUsedThisWave) {
         this.hintUsedThisWave = true;
         this.hintsUsed++;
         this.sectorHints++;
@@ -285,15 +280,8 @@ class ExponentReactorGame {
       this.updateAudioIcon();
     });
 
-    el.fieldGuideBtn.addEventListener('click', () => {
-      soundManager.playClick();
-      this.isPaused = true;
-      el.modalFieldGuide.classList.remove('hidden');
-    });
-    el.closeFieldGuideBtn.addEventListener('click', () => {
-      this.isPaused = false;
-      el.modalFieldGuide.classList.add('hidden');
-    });
+    el.fieldGuideBtn.addEventListener('click', () => this.openFieldGuide());
+    el.closeFieldGuideBtn.addEventListener('click', () => this.closeFieldGuide());
 
     el.debriefRestartBtn.addEventListener('click', () => {
       soundManager.playClick();
@@ -303,10 +291,24 @@ class ExponentReactorGame {
   }
 
   handleKeydown(e) {
+    if (this.isFieldGuideOpen) {
+      if (e.key === 'Escape' || e.code === 'Enter' || e.code === 'Space') {
+        e.preventDefault();
+        this.closeFieldGuide();
+      }
+      return;
+    }
     if (!this.hasStarted) {
       if (e.code === 'Space' || e.code === 'Enter') {
         e.preventDefault();
         this.startGameFromBriefing(false);
+      }
+      return;
+    }
+    if (this.isBriefingOpen) {
+      if (e.code === 'Space' || e.code === 'Enter' || e.key === 'Escape') {
+        e.preventDefault();
+        this.closeBriefing();
       }
       return;
     }
@@ -316,11 +318,6 @@ class ExponentReactorGame {
         e.preventDefault();
         this.continueAfterSectorClear();
       }
-      return;
-    }
-    if (this.isBriefingOpen && (e.code === 'Space' || e.code === 'Enter')) {
-      e.preventDefault();
-      this.closeBriefing();
       return;
     }
     if (this.isPaused || this.isGameOver || this.isBriefingOpen) return;
@@ -367,6 +364,25 @@ class ExponentReactorGame {
       const map = { Digit1: 0, Numpad1: 0, Digit2: 1, Numpad2: 1, Digit3: 2, Numpad3: 2 };
       if (map[e.code] !== undefined) this.handleDischarge(map[e.code]);
     }
+  }
+
+  get isFieldGuideOpen() {
+    return !this.el.modalFieldGuide.classList.contains('hidden');
+  }
+
+  openFieldGuide() {
+    if (this.isFieldGuideOpen) return;
+    soundManager.playClick();
+    this.wasPausedBeforeGuide = this.isPaused;
+    this.isPaused = true;
+    this.el.modalFieldGuide.classList.remove('hidden');
+  }
+
+  closeFieldGuide() {
+    if (!this.isFieldGuideOpen) return;
+    // Restore the previous pause state (e.g. still paused if the sector-cleared screen is up).
+    this.isPaused = this.wasPausedBeforeGuide || false;
+    this.el.modalFieldGuide.classList.add('hidden');
   }
 
   updateAudioIcon() {
@@ -468,7 +484,8 @@ class ExponentReactorGame {
     this.problem = problem;
 
     el.sectorBadge.textContent = sector.badge;
-    el.sectorTitle.textContent = `${sector.name} (${sector.tagline})`;
+    el.sectorTitle.textContent = sector.name;
+    el.sectorTitle.title = sector.tagline;
     el.waveCounter.textContent = `${this.waveIndex + 1} / ${problems.length}`;
 
     el.hintText.textContent = problem.hint;
@@ -556,7 +573,12 @@ class ExponentReactorGame {
       this.base = Math.max(problem.left.base, problem.right.base);
       this.exponent = Math.max(problem.left.exponent, problem.right.exponent);
     } else {
-      // Dial modes: find / expanded
+      // Dial modes: find / expanded. Start from a neutral setting that is never the answer,
+      // so the previous wave's answer doesn't linger on the dials.
+      if (!this.isBaseLocked) this.base = 2;
+      this.exponent = 2;
+      const answer = problem.mode === 'find' ? problem.targetMW : calculatePower(problem.base, problem.exponent);
+      if (calculatePower(this.base, this.exponent) === answer) this.exponent = this.isBaseLocked ? 1 : 3;
       if (problem.mode === 'find') {
         el.eqLeft.innerHTML = `<span class="text-4xl font-black text-white tracking-tight">${problem.targetMW.toLocaleString()}</span><span class="text-xs font-extrabold text-cyan-400 uppercase">MW</span>`;
       } else {
@@ -571,11 +593,12 @@ class ExponentReactorGame {
     this.updateRibbon();
   }
 
+  /** Big non-power-of-10 targets come with a given base (set by the generator) to keep the load reasonable. */
   applyBaseLock(findProblem) {
     const { el } = this;
-    const locked = !!findProblem && isBaseLocked(findProblem);
+    const locked = !!findProblem && findProblem.givenBase !== undefined;
     this.isBaseLocked = locked;
-    if (locked) this.base = getGivenBase(findProblem);
+    if (locked) this.base = findProblem.givenBase;
     el.baseLockedBadge.classList.toggle('hidden', !locked);
     el.baseSubtext.textContent = locked ? 'GIVEN BASE' : 'Repeated Factor';
     el.baseSubtext.className = locked ? 'text-[10px] text-cyan-400 font-black tracking-wider' : 'text-[10px] text-gray-400 font-medium';
@@ -639,6 +662,7 @@ class ExponentReactorGame {
 
     this.coreHealth = 0;
     this.updateHealthBar();
+    this.isDischarging = true; // lock input until the debrief appears
     soundManager.playMeltdown();
     this.showInlineDiagnostic(false, 'TIME UP! NO BACKUP CORES LEFT', 'The surge breached the core and all backup cores are used.', 'Core meltdown');
     setTimeout(() => this.endGame(false), 1500);
@@ -777,10 +801,8 @@ class ExponentReactorGame {
   diagnoseCurrent(choice) {
     const p = this.problem;
     switch (p.mode) {
-      case 'find': {
-        const d = diagnoseSubmission(this.base, this.exponent, p.targetMW);
-        return { ...d, correct: d.type === 'exact-match', value: calculatePower(this.base, this.exponent) };
-      }
+      case 'find':
+        return { ...diagnoseSubmission(this.base, this.exponent, p.targetMW), value: calculatePower(this.base, this.exponent) };
       case 'expanded':
         return { ...diagnoseExpanded(p, this.base, this.exponent), value: calculatePower(this.base, this.exponent) };
       case 'evaluate':
@@ -808,7 +830,6 @@ class ExponentReactorGame {
     }
 
     this.isDischarging = true;
-    this.totalAttempts++;
     this.el.dischargeBtn.disabled = true;
     this.el.dischargeBtn.classList.add('opacity-50');
     this.compareBtns.forEach(b => { b.disabled = true; });
@@ -843,7 +864,6 @@ class ExponentReactorGame {
     if (diagnosis.correct) {
       this.handleMatchSuccess(problemTargetValue(p) ?? 0);
     } else {
-      if (diagnosis.isTrap) this.trapHits++;
       this.waveMisses++;
       this.sectorMisses++;
       this.recordMistake(diagnosis.type);
@@ -911,6 +931,16 @@ class ExponentReactorGame {
     }
   }
 
+  /** Floating "+200" over the score badge. */
+  popScore(points) {
+    const anchor = this.el.scoreDisplay.parentElement;
+    const pop = document.createElement('span');
+    pop.className = 'score-pop';
+    pop.textContent = `+${points}`;
+    anchor.appendChild(pop);
+    setTimeout(() => pop.remove(), 900);
+  }
+
   recordMistake(type) {
     const label = MISTAKE_LABEL[type];
     if (label) this.mistakeCounts[label] = (this.mistakeCounts[label] || 0) + 1;
@@ -956,6 +986,7 @@ class ExponentReactorGame {
     this.coreHealth = Math.min(100, this.coreHealth + 10);
     this.updateHealthBar();
     this.el.scoreDisplay.textContent = this.score.toLocaleString();
+    this.popScore(pointsEarned);
 
     this.showInlineDiagnostic(
       true,
@@ -1183,9 +1214,9 @@ class ExponentReactorGame {
     el.debriefTime.textContent = timeStr;
     el.debriefWatts.textContent = `${this.totalWattsMitigated.toLocaleString()} MW`;
     el.debriefCombo.textContent = `x${this.maxCombo} Combo`;
-    el.debriefEvasion.textContent = `${firstTryPct}%`;
-    if (el.debriefCores) el.debriefCores.textContent = `${this.lives} / ${this.maxLives}`;
-    if (el.debriefHints) el.debriefHints.textContent = String(this.hintsUsed);
+    el.debriefAccuracy.textContent = `${firstTryPct}%`;
+    el.debriefCores.textContent = this.isPractice ? '—' : `${this.lives} / ${this.maxLives}`;
+    el.debriefHints.textContent = String(this.hintsUsed);
     this.renderSkillBreakdown();
     el.modalDebrief.classList.remove('hidden');
   }
@@ -1213,7 +1244,7 @@ class ExponentReactorGame {
   resetFullStationShift() {
     Object.assign(this, {
       sectorIndex: 0, waveIndex: 0, coreHealth: 100, lives: this.maxLives, score: 0, totalWattsMitigated: 0,
-      maxCombo: 1, totalAttempts: 0, trapHits: 0, firstTryCorrect: 0, wavesCleared: 0, hintsUsed: 0,
+      maxCombo: 1, firstTryCorrect: 0, wavesCleared: 0, hintsUsed: 0,
       isGameOver: false, shiftStartTime: Date.now(), followUpsThisSector: 0,
       sectorMisses: 0, sectorHints: 0, starsBySector: [], skillStats: {}, mistakeCounts: {},
     });
