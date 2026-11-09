@@ -5,6 +5,7 @@
  */
 
 import {
+  powerOfTenExponent,
   calculatePower,
   diagnoseSubmission,
   prepareSteps,
@@ -42,8 +43,12 @@ console.log('\n2. Testing Trap Diagnosis Engine');
 const trap1 = diagnoseSubmission(4, 3, 12);
 assert(trap1.isTrap === true && trap1.type === 'multiplication-error', 'Catches 4^3 for target 12 as multiplication-error');
 
-const trap2 = diagnoseSubmission(9, 9, 81);
-assert(trap2.isTrap === true && trap2.type === 'over-exponentiation', 'Catches 9^9 for target 81 as over-exponentiation warning');
+const trap2 = diagnoseSubmission(6, 6, 36);
+assert(trap2.isTrap === true && trap2.type === 'multiplication-error', 'Catches 6^6 for target 36 as multiplication-error');
+
+const notTen = diagnoseSubmission(10, 2, 64);
+assert(notTen.type !== 'power-of-ten', 'Base 10 on a non-power-of-10 target (64) is NOT diagnosed as a zero-count error');
+assert(powerOfTenExponent(10000) === 4 && powerOfTenExponent(64) === null && powerOfTenExponent(1) === null, 'powerOfTenExponent detects powers of 10 only');
 
 const trap3 = diagnoseSubmission(5, 0, 5);
 assert(trap3.isTrap === true && trap3.type === 'zero-error', 'Catches 5^0 for target 5 as zero-error');

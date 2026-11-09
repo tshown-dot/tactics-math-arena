@@ -360,20 +360,6 @@ export function diagnoseSubmission(base, exponent, targetMW) {
 
   // Case 2: The classic Multiplication Trap!
   if (multipliedResult === targetMW) {
-    if (base === 9 && exponent === 9 && targetMW === 81) {
-      return {
-        isTrap: true,
-        type: 'over-exponentiation',
-        studentBase: base,
-        studentExponent: exponent,
-        studentResult,
-        multipliedResult,
-        targetMW,
-        explanation: 'CIRCUIT STALL! 9⁹ is over 387 Million MW, not 81! 9 used as a factor 2 times is 9² = 81.',
-        correctFormula: '9² = 9 × 9 = 81 MW (or 3⁴ = 81)',
-      };
-    }
-
     return {
       isTrap: true,
       type: 'multiplication-error',
@@ -382,8 +368,8 @@ export function diagnoseSubmission(base, exponent, targetMW) {
       studentResult,
       multipliedResult,
       targetMW,
-      explanation: `CIRCUIT STALL! Exponent Trap! ${base}^${exponent} means ${Array(exponent).fill(base).join(' × ')} (${studentResult.toLocaleString()} MW), NOT ${base} × ${exponent} (${multipliedResult} MW).`,
-      correctFormula: `Repeated factors: ${base}^${exponent} = ${studentResult.toLocaleString()} MW`,
+      explanation: `Exponent trap! ${base}^${exponent} means ${base} used as a factor ${exponent} times (${studentResult.toLocaleString()} MW), not ${base} × ${exponent} (${multipliedResult} MW).`,
+      correctFormula: `${base}^${exponent} = ${Array(exponent).fill(base).join(' × ')} = ${studentResult.toLocaleString()}`,
     };
   }
 
@@ -397,14 +383,14 @@ export function diagnoseSubmission(base, exponent, targetMW) {
       studentResult,
       multipliedResult,
       targetMW,
-      explanation: `CIRCUIT STALL! Zero Exponent Rule: Any non-zero base to power 0 equals 1 (${base}⁰ = 1 MW).`,
-      correctFormula: `${base}⁰ = 1 MW`,
+      explanation: `Zero exponent rule: any non-zero base to the power 0 equals 1, so ${base}⁰ = 1 MW.`,
+      correctFormula: `${base}⁰ = 1`,
     };
   }
 
-  // Case 4: Power of 10 error
-  if (base === 10) {
-    const trailingZeros = targetMW.toString().length - 1;
+  // Case 4: Power of 10 error (only meaningful when the target itself is a power of 10)
+  const targetZeros = powerOfTenExponent(targetMW);
+  if (base === 10 && targetZeros !== null) {
     return {
       isTrap: true,
       type: 'power-of-ten',
@@ -413,13 +399,13 @@ export function diagnoseSubmission(base, exponent, targetMW) {
       studentResult,
       multipliedResult,
       targetMW,
-      explanation: `POWER OF 10 STALL! 10^${exponent} has ${exponent} zeros (${studentResult.toLocaleString()} MW). Target ${targetMW.toLocaleString()} requires ${trailingZeros} zeros (10^${trailingZeros}).`,
-      correctFormula: `10^${trailingZeros} = ${targetMW.toLocaleString()} MW`,
+      explanation: `Count the zeros! 10^${exponent} has ${exponent} zero${exponent === 1 ? '' : 's'} (${studentResult.toLocaleString()}). ${targetMW.toLocaleString()} has ${targetZeros} zero${targetZeros === 1 ? '' : 's'}.`,
+      correctFormula: `10^${targetZeros} = ${targetMW.toLocaleString()}`,
     };
   }
 
   // Case 5: General off-target
-  const comparison = studentResult > targetMW ? 'OVERLOAD' : 'UNDERPOWER';
+  const comparison = studentResult > targetMW ? 'Too much power' : 'Not enough power';
   return {
     isTrap: false,
     type: studentResult > targetMW ? 'over-exponentiation' : 'under-exponentiation',
@@ -428,9 +414,18 @@ export function diagnoseSubmission(base, exponent, targetMW) {
     studentResult,
     multipliedResult,
     targetMW,
-    explanation: `REACTOR ${comparison}! ${base}^${exponent} produces ${studentResult.toLocaleString()} MW, but target surge requires ${targetMW.toLocaleString()} MW.`,
-    correctFormula: `Current: ${studentResult.toLocaleString()} MW ≠ Target: ${targetMW.toLocaleString()} MW`,
+    explanation: `${comparison}: ${base}^${exponent} = ${studentResult.toLocaleString()} MW, but the surge is ${targetMW.toLocaleString()} MW. ${studentResult > targetMW ? 'Try a smaller base or exponent.' : 'Try a bigger base or exponent.'}`,
+    correctFormula: `${studentResult.toLocaleString()} ≠ ${targetMW.toLocaleString()}`,
   };
+}
+
+/**
+ * Returns n if value === 10^n (n >= 1), otherwise null.
+ */
+export function powerOfTenExponent(value) {
+  if (!Number.isInteger(value) || value < 10) return null;
+  const str = String(value);
+  return /^10+$/.test(str) ? str.length - 1 : null;
 }
 
 /**

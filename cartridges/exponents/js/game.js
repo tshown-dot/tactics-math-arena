@@ -41,6 +41,11 @@ class ExponentReactorGame {
     this.maxCombo = 1;
     this.totalAttempts = 0;
     this.trapHits = 0;
+    this.firstTryCorrect = 0;   // waves solved with no misses on that wave
+    this.wavesCleared = 0;
+    this.waveMisses = 0;        // misses on the current wave
+    this.hintsUsed = 0;
+    this.hintUsedThisWave = false;
 
     // Run / Station Timer
     this.shiftStartTime = Date.now();
@@ -141,6 +146,7 @@ class ExponentReactorGame {
     this.debriefCombo = document.getElementById('debrief-combo');
     this.debriefEvasion = document.getElementById('debrief-evasion');
     this.debriefCores = document.getElementById('debrief-cores');
+    this.debriefHints = document.getElementById('debrief-hints');
     this.debriefRestartBtn = document.getElementById('debrief-restart-btn');
 
     this.modalFieldGuide = document.getElementById('modal-field-guide');
@@ -263,6 +269,10 @@ class ExponentReactorGame {
     this.hintToggleBtn.addEventListener('click', () => {
       soundManager.playClick();
       this.hintStrip.classList.toggle('hidden');
+      if (!this.hintStrip.classList.contains('hidden') && !this.hintUsedThisWave && this.hasStarted) {
+        this.hintUsedThisWave = true;
+        this.hintsUsed++;
+      }
     });
 
     // Sound Toggle
@@ -367,6 +377,8 @@ class ExponentReactorGame {
     this.targetMWDisplay.textContent = problem.targetMW.toLocaleString();
     this.hintText.textContent = problem.hint;
     this.hintStrip.classList.add('hidden');
+    this.hintUsedThisWave = false;
+    this.waveMisses = 0;
 
     // Reset Equation Card Display
     if (this.dischargeResultContainer) {
@@ -538,6 +550,7 @@ class ExponentReactorGame {
   // ==========================================
   setBase(val, force = false) {
     if (this.isBaseLocked && !force) return;
+    if (!force) this.hideErrorDiagnostic();
 
     this.base = val;
     this.baseNumberDisplay.textContent = val;
@@ -556,6 +569,7 @@ class ExponentReactorGame {
   }
 
   setExponent(val) {
+    this.hideErrorDiagnostic();
     this.exponent = val;
     this.expNumberDisplay.textContent = val;
     const depExp = this.deployedExp || document.getElementById('deployed-exp');
@@ -724,13 +738,18 @@ class ExponentReactorGame {
   handleMatchSuccess(targetMW) {
     soundManager.playSuccessChord();
 
-    // Exponential scaling combo: x1 -> x2 -> x4 -> x8 -> x16
-    this.combo = Math.min(16, this.combo === 1 ? 2 : this.combo * 2);
+    this.wavesCleared++;
+    if (this.waveMisses === 0) this.firstTryCorrect++;
+
+    // Exponential scaling combo: x1 -> x2 -> x4 -> x8 -> x16 (a hint holds the combo where it is)
+    if (!this.hintUsedThisWave) {
+      this.combo = Math.min(16, this.combo === 1 ? 2 : this.combo * 2);
+    }
     if (this.combo > this.maxCombo) {
       this.maxCombo = this.combo;
     }
 
-    const basePoints = 100;
+    const basePoints = this.hintUsedThisWave ? 50 : 100;
     const pointsEarned = basePoints * this.combo;
     this.score += pointsEarned;
     this.totalWattsMitigated += targetMW;
@@ -749,7 +768,7 @@ class ExponentReactorGame {
       true,
       'SURGE MITIGATED!',
       `Beam calibrated to ${targetMW.toLocaleString()} MW. Reactor grid locked!`,
-      `+${pointsEarned} pts (Combo x${this.combo})`
+      `+${pointsEarned} pts (Combo x${this.combo})${this.hintUsedThisWave ? ' · hint used' : ''}`
     );
 
     // Visual green flash
@@ -781,6 +800,8 @@ class ExponentReactorGame {
   }
 
   triggerCircuitBreach(title, explanation, formula) {
+    this.waveMisses++;
+
     // Reset combo to x1
     this.combo = 1;
     this.comboMultiplierDisplay.textContent = 'x1';
@@ -811,12 +832,13 @@ class ExponentReactorGame {
         document.body.classList.add('glow-amber');
         setTimeout(() => document.body.classList.remove('glow-amber'), 600);
 
-        const coresLeftStr = this.lives === 1 ? '1 backup core remaining' : `${this.lives} backup cores remaining`;
+        // Keep the math explanation visible: the student needs to see WHY this miss was wrong.
+        const coresLeftStr = this.lives === 1 ? '1 backup core left' : `${this.lives} backup cores left`;
         this.showInlineDiagnostic(
           false,
-          'EMERGENCY REBOOT ENGAGED!',
-          `Backup core consumed! Restoring 100% health for Sector ${this.sectorIndex + 1}.`,
-          `Rebooting sector at Wave 1 (${coresLeftStr})`
+          `${title} · BACKUP CORE USED`,
+          explanation,
+          `${formula}  |  🔋 Rebooting sector (${coresLeftStr})`
         );
 
         setTimeout(() => {
@@ -827,13 +849,13 @@ class ExponentReactorGame {
           this.dischargeBtn.disabled = false;
           this.dischargeBtn.classList.remove('opacity-50');
           this.startWave();
-        }, 1500);
+        }, 3500);
         return;
       }
 
       // OUT OF BACKUP CORES: TOTAL GRID MELTDOWN
       soundManager.playMeltdown();
-      setTimeout(() => this.endGame(false), 900);
+      setTimeout(() => this.endGame(false), 3000);
       return;
     }
 
@@ -870,10 +892,21 @@ class ExponentReactorGame {
       this.diagnosticFormula.className = 'font-mono-math font-extrabold text-[11px] mt-1 text-amber-300';
     }
 
-    // Auto clear HUD after 2.2 seconds so screen remains clean
-    this.hudClearTimeout = setTimeout(() => {
+    // Success messages clear themselves; error explanations stay until the student
+    // changes a dial so there is time to read them.
+    this.hudShowingError = !isSuccess;
+    if (isSuccess) {
+      this.hudClearTimeout = setTimeout(() => {
+        this.inlineDiagnosticHud.classList.add('hidden');
+      }, 1800);
+    }
+  }
+
+  hideErrorDiagnostic() {
+    if (this.hudShowingError && !this.isDischarging) {
       this.inlineDiagnosticHud.classList.add('hidden');
-    }, 2200);
+      this.hudShowingError = false;
+    }
   }
 
   updateHealthBar() {
@@ -907,6 +940,10 @@ class ExponentReactorGame {
     const evasionRate = this.totalAttempts > 0
       ? Math.round(((this.totalAttempts - this.trapHits) / this.totalAttempts) * 100)
       : 100;
+    const totalWaves = CURRICULUM_SECTORS.reduce((n, sec) => n + sec.problems.length, 0);
+    const firstTryPct = this.wavesCleared > 0
+      ? Math.round((this.firstTryCorrect / this.wavesCleared) * 100)
+      : 0;
 
     if (isVictory) {
       soundManager.playVictoryFanfare();
@@ -920,8 +957,9 @@ class ExponentReactorGame {
           type: 'CARTRIDGE_COMPLETE',
           payload: {
             lessonId: 'G06_U03_L01',
-            score: Math.max(1, this.totalAttempts - this.trapHits),
-            total: Math.max(1, this.totalAttempts),
+            // score = waves solved on the first try; total = waves in the run
+            score: this.firstTryCorrect,
+            total: totalWaves,
             evasionRate: evasionRate,
             bossDefeated: true
           }
@@ -937,7 +975,8 @@ class ExponentReactorGame {
     this.debriefTime.textContent = timeStr;
     this.debriefWatts.textContent = `${this.totalWattsMitigated.toLocaleString()} MW`;
     this.debriefCombo.textContent = `x${this.maxCombo} Combo`;
-    this.debriefEvasion.textContent = `${evasionRate}%`;
+    this.debriefEvasion.textContent = `${firstTryPct}%`;
+    if (this.debriefHints) this.debriefHints.textContent = String(this.hintsUsed);
     if (this.debriefCores) {
       this.debriefCores.textContent = `${this.lives} / ${this.maxLives}`;
     }
@@ -957,6 +996,9 @@ class ExponentReactorGame {
     this.maxCombo = 1;
     this.totalAttempts = 0;
     this.trapHits = 0;
+    this.firstTryCorrect = 0;
+    this.wavesCleared = 0;
+    this.hintsUsed = 0;
     this.isGameOver = false;
     this.isDischarging = false;
     this.isBaseLocked = false;
