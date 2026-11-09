@@ -518,9 +518,9 @@ class NumeriaHub {
         <ellipse cx="1130" cy="640" rx="250" ry="130" fill="#15803d" stroke="#052e16" stroke-width="4" opacity="0.65" />
 
         <!-- Sparkling Town River between 3-3 and 3-4 -->
-        <path d="M 650 0 C 610 220, 690 450, 635 768" stroke="#fde047" stroke-width="64" fill="none" opacity="0.5" />
-        <path d="M 650 0 C 610 220, 690 450, 635 768" stroke="url(#riverGrad)" stroke-width="52" fill="none" />
-        <path d="M 650 0 C 610 220, 690 450, 635 768" stroke="#bae6fd" stroke-width="4" stroke-dasharray="14 18" fill="none" opacity="0.7" />
+        <path d="M 575 0 C 540 220, 610 450, 565 768" stroke="#fde047" stroke-width="64" fill="none" opacity="0.5" />
+        <path d="M 575 0 C 540 220, 610 450, 565 768" stroke="url(#riverGrad)" stroke-width="52" fill="none" />
+        <path d="M 575 0 C 540 220, 610 450, 565 768" stroke="#bae6fd" stroke-width="4" stroke-dasharray="14 18" fill="none" opacity="0.7" />
     `;
 
     // Draw Cobblestone Path connecting each building's front doorstep (mapCoords.y + 68)

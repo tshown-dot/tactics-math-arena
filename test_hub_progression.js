@@ -41,22 +41,24 @@ assert(parseMathInput('25%') === 25, 'Parses "25%" to 25');
 assert(parseMathInput('invalid') === null, 'Rejects invalid string');
 
 console.log('\n--- TEST 2: Realm Node Registry & Lesson Alignment ---');
-assert(REALM_NODES.length === 7, 'Has exactly 7 realm nodes configured');
+assert(REALM_NODES.length === 8, 'Has exactly 8 realm nodes configured');
 assert(REALM_NODES[0].id === 'node_3_1' && REALM_NODES[0].lessonCode === '3-1', 'First node is Lesson 3-1');
 assert(REALM_NODES[1].id === 'node_3_2' && REALM_NODES[1].lessonCode === '3-2', 'Second node is Lesson 3-2');
 assert(REALM_NODES[2].id === 'node_3_3' && REALM_NODES[2].lessonCode === '3-3', 'Third node is Lesson 3-3');
 assert(REALM_NODES[3].id === 'node_3_4' && REALM_NODES[3].lessonCode === '3-4', 'Fourth node is Lesson 3-4');
-assert(REALM_NODES[4].id === 'node_3_6' && REALM_NODES[4].lessonCode === '3-6', 'Fifth node is reserved Lesson 3-6');
-assert(REALM_NODES[4].isWip === true, 'Lesson 3-6 is flagged isWip: true');
-assert(REALM_NODES[5].id === 'node_3_7' && REALM_NODES[5].lessonCode === '3-7', 'Sixth node is Lesson 3-7');
-assert(REALM_NODES[6].id === 'node_apex', 'Final node is Apex Boss');
+assert(REALM_NODES[4].id === 'node_3_5' && REALM_NODES[4].lessonCode === '3-5', 'Fifth node is Lesson 3-5 (Variable Vault)');
+assert(REALM_NODES[5].id === 'node_3_6' && REALM_NODES[5].lessonCode === '3-6', 'Sixth node is reserved Lesson 3-6');
+assert(REALM_NODES[5].isWip === true, 'Lesson 3-6 is flagged isWip: true');
+assert(REALM_NODES[6].id === 'node_3_7' && REALM_NODES[6].lessonCode === '3-7', 'Seventh node is Lesson 3-7');
+assert(REALM_NODES[7].id === 'node_apex', 'Final node is Apex Boss');
 
 console.log('\n--- TEST 3: Effective Prerequisite with Lesson 3-6 WIP Bypass ---');
 assert(getEffectivePrerequisite('node_3_1') === null, 'Node 3-1 has no prerequisite');
 assert(getEffectivePrerequisite('node_3_2') === 'node_3_1', 'Node 3-2 requires 3-1');
 assert(getEffectivePrerequisite('node_3_3') === 'node_3_2', 'Node 3-3 requires 3-2');
 assert(getEffectivePrerequisite('node_3_4') === 'node_3_3', 'Node 3-4 requires 3-3');
-assert(getEffectivePrerequisite('node_3_7') === 'node_3_4', 'Node 3-7 effectively bridges to 3-4 while 3-6 is WIP');
+assert(getEffectivePrerequisite('node_3_5') === 'node_3_4', 'Node 3-5 requires 3-4');
+assert(getEffectivePrerequisite('node_3_7') === 'node_3_5', 'Node 3-7 effectively bridges to 3-5 while 3-6 is WIP');
 
 console.log('\n--- TEST 4: Progression Locking & Unlock Sequence ---');
 // Fresh adventurer with only 3-1
@@ -77,13 +79,18 @@ await gcfTestPlayer.processCartridgeCompletion('node_3_2', { score: 10, total: 1
 assert(gcfTestPlayer.isNodeUnlocked('node_3_3') === true, 'Node 3-3 (Crane) unlocks after 3-2');
 assert(gcfTestPlayer.isNodeUnlocked('node_3_4') === true, 'Node 3-4 (LCM) unlocks after 3-2');
 
-// Test PlayerState processCartridgeCompletion from 3-4 skipping WIP 3-6 to unlock 3-7
+// Test PlayerState processCartridgeCompletion from 3-4 unlocking 3-5 (Variable Vault)
 const testPlayer = new PlayerState();
 testPlayer.unlockedNodes = ['node_3_1', 'node_3_2', 'node_3_3', 'node_3_4'];
-// Simulate completion of node_3_4
-const completionResult = await testPlayer.processCartridgeCompletion('node_3_4', { score: 10, total: 10 });
-assert(completionResult.nextUnlockedNode !== null, 'Found next unlocked node');
-assert(completionResult.nextUnlockedNode.id === 'node_3_7', 'Bypassed WIP 3-6 to unlock node_3_7');
+const completionResult34 = await testPlayer.processCartridgeCompletion('node_3_4', { score: 10, total: 10 });
+assert(completionResult34.nextUnlockedNode !== null, 'Found next unlocked node after 3-4');
+assert(completionResult34.nextUnlockedNode.id === 'node_3_5', 'Node 3-4 unlocks node_3_5');
+assert(testPlayer.isNodeUnlocked('node_3_5') === true, 'Node 3-5 is now unlocked in player state');
+
+// Test PlayerState processCartridgeCompletion from 3-5 skipping WIP 3-6 to unlock 3-7
+const completionResult35 = await testPlayer.processCartridgeCompletion('node_3_5', { score: 10, total: 10 });
+assert(completionResult35.nextUnlockedNode !== null, 'Found next unlocked node after 3-5');
+assert(completionResult35.nextUnlockedNode.id === 'node_3_7', 'Bypassed WIP 3-6 to unlock node_3_7');
 assert(testPlayer.isNodeUnlocked('node_3_7') === true, 'Node 3-7 is now unlocked in player state');
 
 console.log('\n--- TEST 5: Teacher Override Mode (PIN: 7777) ---');
@@ -130,6 +137,7 @@ assert(fullAccessPlayer.isNodeUnlocked('node_3_1') === true, 'Node 3-1 unlocked 
 assert(fullAccessPlayer.isNodeUnlocked('node_3_2') === true, 'Node 3-2 unlocked with full access');
 assert(fullAccessPlayer.isNodeUnlocked('node_3_3') === true, 'Node 3-3 unlocked with full access');
 assert(fullAccessPlayer.isNodeUnlocked('node_3_4') === true, 'Node 3-4 unlocked with full access');
+assert(fullAccessPlayer.isNodeUnlocked('node_3_5') === true, 'Node 3-5 unlocked with full access');
 assert(fullAccessPlayer.isNodeUnlocked('node_3_7') === true, 'Node 3-7 unlocked with full access');
 assert(fullAccessPlayer.isNodeUnlocked('node_apex') === true, 'Node Apex Boss unlocked with full access');
 
