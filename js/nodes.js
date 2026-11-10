@@ -194,7 +194,7 @@ export const REALM_NODES = [
     buildingType: 'arcade',
     regionName: 'East Boardwalk',
     subtitle: 'Combining Like Terms',
-    description: 'Enter the Town Target Arcade! Aim your turret and pop matching algebraic terms to simplify expressions before the swarm reaches the door.',
+    description: 'Enter the Town Target Arcade! Fire terms into the stack: like terms combine, opposites cancel to zero and pop, and unlike terms just stick. Beat the shape-shifting Term Colossus!',
     standard: 'enVision 2.0 Lesson 3-7: Simplify Algebraic Expressions by Combining Like Terms',
     cartridgeUrl: './cartridges/shooter/index.html',
     icon: '🎯',
