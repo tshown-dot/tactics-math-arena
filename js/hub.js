@@ -1,30 +1,60 @@
 /**
- * Super Mario World Style Overworld Controller - "Expression Town" (Topic 3)
- * 
+ * World 3 Overworld Controller - "Expression Town" (Topic 3)
+ *
  * Features:
- * - Walkable player sprite that moves along town cobblestone paths between buildings
- * - Keyboard (Arrows / WASD / Enter / Space), Click-to-Walk, and On-Screen D-Pad controls
- * - Building doors that are Open (3-1), Padlocked (until unlocked), or Under Construction (3-6)
- * - Multi-chapter / multi-town world switcher ready for future topics
+ * - One hand-drawn SVG world (see worldArt.js): island, river, roads, themed buildings
+ * - Hero walks the actual road (around corners, across the bridge) between stages
+ * - Keyboard (Arrows / WASD / Enter / Space), click-to-walk, and on-screen D-pad + A button
+ * - Stage states: Open, Cleared (flag + star), Locked (grey + chained door), Under Construction (3-6)
+ * - Status bar with P-meter XP, coins, and a badge card for every stage
+ * - Multi-world selector ready for future topics
  */
 
-import { REALM_NODES, WORLD_CHAPTERS, getEffectivePrerequisite } from './nodes.js';
-import { playerState } from './state.js';
+import { REALM_NODES, WORLD_CHAPTERS, getEffectivePrerequisite } from './nodes.js?v=w3map1';
+import { playerState } from './state.js?v=w3map1';
 import { hubAudio } from './audio.js';
 import { CartridgeHarness } from './cartridgeHarness.js';
+import {
+  MAP_W, MAP_H, PALETTE,
+  worldDefs, terrainSvg, scenerySvg, cloudsSvg,
+  routeBetween, roadsSvg, bridgeSvg, stageTileSvg,
+  buildingArt, lockOverlay, clearedFlag, nameplateSvg,
+  badgeIconSvg, heroSvg, cloud,
+} from './worldArt.js?v=w3map1';
+
+const BRIDGE_POS = { x: 580, y: 490 };
+const PMETER_SEGMENTS = 8;
+const WALK_SPEED = 430; // map px per second
+
+const ICON_SOUND_ON = '<svg viewBox="0 0 20 20" width="18" height="18" aria-hidden="true"><path d="M3 8h3l4-4v12l-4-4H3z" fill="#1d1433"/><path d="M13 7q2 3 0 6M15.5 5q4 5 0 10" fill="none" stroke="#1d1433" stroke-width="2.2" stroke-linecap="round"/></svg>';
+const ICON_SOUND_OFF = '<svg viewBox="0 0 20 20" width="18" height="18" aria-hidden="true"><path d="M3 8h3l4-4v12l-4-4H3z" fill="#1d1433"/><path d="M13 7l5 6M18 7l-5 6" fill="none" stroke="#e5484d" stroke-width="2.6" stroke-linecap="round"/></svg>';
+
+function svgStar(filled, size = 22, extra = '') {
+  const pts = [];
+  for (let i = 0; i < 10; i++) {
+    const a = (Math.PI / 5) * i - Math.PI / 2;
+    const r = i % 2 === 0 ? 10 : 4.6;
+    pts.push(`${(Math.cos(a) * r).toFixed(1)},${(Math.sin(a) * r).toFixed(1)}`);
+  }
+  return `<svg viewBox="-12 -12 24 24" width="${size}" height="${size}" ${extra} aria-hidden="true"><polygon points="${pts.join(' ')}" fill="${filled ? PALETTE.gold : '#d9c69c'}" stroke="${PALETTE.ink}" stroke-width="2" stroke-linejoin="round"/></svg>`;
+}
 
 class NumeriaHub {
   constructor() {
     this.selectedNode = null;
     this.harness = null;
-    this.playerNodeIndex = 0; // Index in REALM_NODES where player sprite is standing
+    this.playerNodeIndex = 0; // Index in REALM_NODES where the hero is standing
     this.isWalking = false;
     this.facingLeft = false;
     this.toastTimeout = null;
+    this.heroPos = { ...REALM_NODES[0].mapCoords };
+    this.pendingWalkIdx = null;
+    this.walkRaf = null;
 
     this.dom = {
       // Screens
       loginScreen: document.getElementById('loginScreen'),
+      loginBackdrop: document.getElementById('loginBackdrop'),
       worldScreen: document.getElementById('worldScreen'),
 
       // Login elements
@@ -36,13 +66,15 @@ class NumeriaHub {
       quickPin7777: document.getElementById('quickPin7777'),
       loginError: document.getElementById('loginError'),
 
-      // Top SMB3 HUD
+      // HUD
       hudPlayerPin: document.getElementById('hudPlayerPin'),
       hudPlayerLevel: document.getElementById('hudPlayerLevel'),
       hudXpCurrent: document.getElementById('hudXpCurrent'),
       hudXpNext: document.getElementById('hudXpNext'),
-      hudXpBar: document.getElementById('hudXpBar'),
+      pmeterSegs: document.getElementById('pmeterSegs'),
+      pmeterP: document.getElementById('pmeterP'),
       hudCoins: document.getElementById('hudCoins'),
+      badgeSlots: document.getElementById('badgeSlots'),
       soundToggleBtn: document.getElementById('soundToggleBtn'),
       soundIcon: document.getElementById('soundIcon'),
       fullscreenBtn: document.getElementById('fullscreenBtn'),
@@ -53,15 +85,12 @@ class NumeriaHub {
       worldChaptersList: document.getElementById('worldChaptersList'),
       closeChaptersBtn: document.getElementById('closeChaptersBtn'),
 
-      // Town Map Layers
+      // Map
       mapSvgContainer: document.getElementById('mapSvgContainer'),
-      mapNodesContainer: document.getElementById('mapNodesContainer'),
-      playerSprite: document.getElementById('playerSprite'),
-      playerSpriteBody: document.getElementById('playerSpriteBody'),
       townToast: document.getElementById('townToast'),
       townToastText: document.getElementById('townToastText'),
 
-      // Bottom SMB3 Status & Controls Bar
+      // Status bar
       currentBuildingBadge: document.getElementById('currentBuildingBadge'),
       currentBuildingTitle: document.getElementById('currentBuildingTitle'),
       currentBuildingStatus: document.getElementById('currentBuildingStatus'),
@@ -69,8 +98,9 @@ class NumeriaHub {
       dpadNextBtn: document.getElementById('dpadNextBtn'),
       enterDoorBtn: document.getElementById('enterDoorBtn'),
 
-      // Quest / Stage Briefing Modal
+      // Stage briefing
       questModal: document.getElementById('questModal'),
+      questArt: document.getElementById('questArt'),
       questRegion: document.getElementById('questRegion'),
       questTitle: document.getElementById('questTitle'),
       questSubtitle: document.getElementById('questSubtitle'),
@@ -83,8 +113,9 @@ class NumeriaHub {
       embarkQuestBtn: document.getElementById('embarkQuestBtn'),
       closeQuestBtn: document.getElementById('closeQuestBtn'),
 
-      // Victory Scroll Modal
+      // Stage clear
       victoryModal: document.getElementById('victoryModal'),
+      victoryBadgeCard: document.getElementById('victoryBadgeCard'),
       victoryTitle: document.getElementById('victoryTitle'),
       victoryStarsContainer: document.getElementById('victoryStarsContainer'),
       victoryScoreText: document.getElementById('victoryScoreText'),
@@ -98,9 +129,10 @@ class NumeriaHub {
   }
 
   init() {
-    this.initAudioState();
+    this.updateSoundButtonVisuals();
     this.initHarness();
     this.bindEvents();
+    this.renderLoginBackdrop();
 
     // Auto-login if session saved
     const lastPin = localStorage.getItem('numeria_active_pin');
@@ -110,13 +142,9 @@ class NumeriaHub {
     }
   }
 
-  initAudioState() {
-    this.updateSoundButtonVisuals();
-  }
-
   updateSoundButtonVisuals() {
     if (this.dom.soundIcon) {
-      this.dom.soundIcon.textContent = hubAudio.isMuted ? '🔇' : '🔊';
+      this.dom.soundIcon.innerHTML = hubAudio.isMuted ? ICON_SOUND_OFF : ICON_SOUND_ON;
     }
   }
 
@@ -139,113 +167,103 @@ class NumeriaHub {
     window.addEventListener('pointerdown', unlockListener);
     window.addEventListener('keydown', unlockListener);
 
-    // Sound toggle
-    if (this.dom.soundToggleBtn) {
-      this.dom.soundToggleBtn.addEventListener('click', () => {
-        hubAudio.toggleMute();
-        this.updateSoundButtonVisuals();
-        if (!hubAudio.isMuted) hubAudio.playSelect();
-      });
-    }
+    this.dom.soundToggleBtn?.addEventListener('click', () => {
+      hubAudio.toggleMute();
+      this.updateSoundButtonVisuals();
+      if (!hubAudio.isMuted) hubAudio.playSelect();
+    });
 
-    // Fullscreen toggle
-    if (this.dom.fullscreenBtn) {
-      this.dom.fullscreenBtn.addEventListener('click', () => {
-        hubAudio.playSelect();
-        if (!document.fullscreenElement) {
-          document.documentElement.requestFullscreen().catch(() => {});
-        } else {
-          document.exitFullscreen().catch(() => {});
-        }
-      });
-    }
+    this.dom.fullscreenBtn?.addEventListener('click', () => {
+      hubAudio.playSelect();
+      if (!document.fullscreenElement) {
+        document.documentElement.requestFullscreen().catch(() => {});
+      } else {
+        document.exitFullscreen().catch(() => {});
+      }
+    });
 
-    // World / Chapter Selector Modal
-    if (this.dom.worldSelectBtn) {
-      this.dom.worldSelectBtn.addEventListener('click', () => {
-        hubAudio.playSelect();
-        this.openChaptersModal();
-      });
-    }
-    if (this.dom.closeChaptersBtn) {
-      this.dom.closeChaptersBtn.addEventListener('click', () => {
-        hubAudio.playSelect();
-        this.dom.worldChaptersModal.classList.add('hidden');
-      });
-    }
+    this.dom.worldSelectBtn?.addEventListener('click', () => {
+      hubAudio.playSelect();
+      this.openChaptersModal();
+    });
+    this.dom.closeChaptersBtn?.addEventListener('click', () => {
+      hubAudio.playSelect();
+      this.dom.worldChaptersModal.classList.add('hidden');
+    });
 
     // Switch user / Logout
-    if (this.dom.switchUserBtn) {
-      this.dom.switchUserBtn.addEventListener('click', () => {
-        hubAudio.playSelect();
-        localStorage.removeItem('numeria_active_pin');
-        localStorage.removeItem('numeria_active_passcode');
-        this.dom.worldScreen.classList.add('hidden');
-        this.dom.loginScreen.classList.remove('hidden');
-        if (this.dom.pinInput) {
-          this.dom.pinInput.value = '';
-          this.dom.pinInput.focus();
-        }
-        if (this.dom.passcodeInput) {
-          this.dom.passcodeInput.value = '';
-        }
-      });
-    }
+    this.dom.switchUserBtn?.addEventListener('click', () => {
+      hubAudio.playSelect();
+      this.cancelWalk();
+      localStorage.removeItem('numeria_active_pin');
+      localStorage.removeItem('numeria_active_passcode');
+      this.dom.worldScreen.classList.add('hidden');
+      if (this.dom.mapSvgContainer) this.dom.mapSvgContainer.innerHTML = '';
+      this.dom.loginScreen.classList.remove('hidden');
+      this.renderLoginBackdrop();
+      if (this.dom.pinInput) {
+        this.dom.pinInput.value = '';
+        this.dom.pinInput.focus();
+      }
+      if (this.dom.passcodeInput) this.dom.passcodeInput.value = '';
+    });
 
     // PIN & Passcode Login Form
-    if (this.dom.loginForm) {
-      this.dom.loginForm.addEventListener('submit', (e) => {
-        e.preventDefault();
-        const pin = this.dom.pinInput ? this.dom.pinInput.value.trim() : '';
-        const passcode = this.dom.passcodeInput ? this.dom.passcodeInput.value.trim() : '';
+    this.dom.loginForm?.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const pin = this.dom.pinInput ? this.dom.pinInput.value.trim() : '';
+      const passcode = this.dom.passcodeInput ? this.dom.passcodeInput.value.trim() : '';
 
-        if (!/^[0-9]{4}$/.test(pin)) {
-          this.showLoginError('Please enter a valid 4-digit PIN (e.g. 1042)');
-          return;
-        }
-        if (!passcode) {
-          this.showLoginError('Please enter your secret passcode.');
-          return;
-        }
-        this.loginWithCredentials(pin, passcode);
-      });
-    }
+      if (!/^[0-9]{4}$/.test(pin)) {
+        this.showLoginError('Please enter a valid 4-digit PIN (e.g. 1042)');
+        return;
+      }
+      if (!passcode) {
+        this.showLoginError('Please enter your secret passcode.');
+        return;
+      }
+      this.loginWithCredentials(pin, passcode);
+    });
 
     // Quick Demo Buttons
-    if (this.dom.quickPin1042) {
-      this.dom.quickPin1042.addEventListener('click', () => {
-        if (this.dom.pinInput) this.dom.pinInput.value = '1042';
-        if (this.dom.passcodeInput) this.dom.passcodeInput.value = 'star6';
-        this.loginWithCredentials('1042', 'star6');
-      });
-    }
-    if (this.dom.quickPin7777) {
-      this.dom.quickPin7777.addEventListener('click', () => {
-        if (this.dom.pinInput) this.dom.pinInput.value = '7777';
-        if (this.dom.passcodeInput) this.dom.passcodeInput.value = 'math6';
-        this.loginWithCredentials('7777', 'math6');
-      });
-    }
+    this.dom.quickPin1042?.addEventListener('click', () => {
+      if (this.dom.pinInput) this.dom.pinInput.value = '1042';
+      if (this.dom.passcodeInput) this.dom.passcodeInput.value = 'star6';
+      this.loginWithCredentials('1042', 'star6');
+    });
+    this.dom.quickPin7777?.addEventListener('click', () => {
+      if (this.dom.pinInput) this.dom.pinInput.value = '7777';
+      if (this.dom.passcodeInput) this.dom.passcodeInput.value = 'math6';
+      this.loginWithCredentials('7777', 'math6');
+    });
 
-    // On-screen D-Pad & Enter Door controls
-    if (this.dom.dpadPrevBtn) {
-      this.dom.dpadPrevBtn.addEventListener('click', () => this.stepPlayer(-1));
-    }
-    if (this.dom.dpadNextBtn) {
-      this.dom.dpadNextBtn.addEventListener('click', () => this.stepPlayer(1));
-    }
-    if (this.dom.enterDoorBtn) {
-      this.dom.enterDoorBtn.addEventListener('click', () => {
-        const node = REALM_NODES[this.playerNodeIndex];
-        if (node) this.tryEnterBuilding(node);
-      });
-    }
+    // On-screen D-Pad & A button
+    this.dom.dpadPrevBtn?.addEventListener('click', () => this.stepPlayer(-1));
+    this.dom.dpadNextBtn?.addEventListener('click', () => this.stepPlayer(1));
+    this.dom.enterDoorBtn?.addEventListener('click', () => {
+      if (this.isWalking) return;
+      const node = REALM_NODES[this.playerNodeIndex];
+      if (node) this.tryEnterBuilding(node);
+    });
 
-    // Keyboard navigation on the Town Overworld
+    // Click a building or tile on the map to walk there (delegated: the SVG is re-rendered)
+    this.dom.mapSvgContainer?.addEventListener('click', (e) => {
+      const target = e.target.closest('[data-idx]');
+      if (!target) return;
+      const idx = Number(target.getAttribute('data-idx'));
+      if (Number.isNaN(idx)) return;
+      if (idx === this.playerNodeIndex && !this.isWalking) {
+        this.tryEnterBuilding(REALM_NODES[idx]);
+      } else {
+        this.walkPlayerToIndex(idx, true);
+      }
+    });
+
+    // Keyboard navigation on the overworld
     window.addEventListener('keydown', (e) => {
-      // Ignore if login screen, cartridge harness, or victory modal is active
       if (!this.dom.loginScreen.classList.contains('hidden')) return;
       if (this.harness && this.harness.currentNode) return;
+
       if (!this.dom.victoryModal.classList.contains('hidden')) {
         if (e.key === 'Enter' || e.key === ' ') {
           e.preventDefault();
@@ -254,7 +272,12 @@ class NumeriaHub {
         return;
       }
 
-      // If Stage Briefing Modal is open, Enter/Space launches the cartridge, Escape closes
+      if (!this.dom.worldChaptersModal.classList.contains('hidden')) {
+        if (e.key === 'Escape') this.dom.closeChaptersBtn.click();
+        return;
+      }
+
+      // Stage briefing open: Enter/Space starts the stage, Escape closes
       if (!this.dom.questModal.classList.contains('hidden')) {
         if (e.key === 'Enter' || e.key === ' ') {
           e.preventDefault();
@@ -266,7 +289,6 @@ class NumeriaHub {
         return;
       }
 
-      // Town movement keys
       if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D' || e.key === 'ArrowDown' || e.key === 's' || e.key === 'S') {
         e.preventDefault();
         this.stepPlayer(1);
@@ -275,56 +297,53 @@ class NumeriaHub {
         this.stepPlayer(-1);
       } else if (e.key === 'Enter' || e.key === ' ') {
         e.preventDefault();
+        if (this.isWalking) return;
         const node = REALM_NODES[this.playerNodeIndex];
         if (node) this.tryEnterBuilding(node);
       }
     });
 
-    // Quest Modal actions
-    if (this.dom.closeQuestBtn) {
-      this.dom.closeQuestBtn.addEventListener('click', () => {
-        hubAudio.playSelect();
-        this.dom.questModal.classList.add('hidden');
-      });
-    }
+    // Stage briefing actions
+    this.dom.closeQuestBtn?.addEventListener('click', () => {
+      hubAudio.playSelect();
+      this.dom.questModal.classList.add('hidden');
+    });
+    this.dom.embarkQuestBtn?.addEventListener('click', () => {
+      if (!this.selectedNode) return;
+      this.dom.questModal.classList.add('hidden');
+      this.harness.launch(this.selectedNode);
+    });
 
-    if (this.dom.embarkQuestBtn) {
-      this.dom.embarkQuestBtn.addEventListener('click', () => {
-        if (!this.selectedNode) return;
-        this.dom.questModal.classList.add('hidden');
-        this.harness.launch(this.selectedNode);
-      });
-    }
-
-    // Victory Modal actions
-    if (this.dom.returnToMapBtn) {
-      this.dom.returnToMapBtn.addEventListener('click', () => {
-        hubAudio.playSelect();
-        this.dom.victoryModal.classList.add('hidden');
-        this.renderMap();
-        this.updateHUD();
-      });
-    }
+    // Stage clear: back to the map, then walk to the newly opened stage
+    this.dom.returnToMapBtn?.addEventListener('click', () => {
+      hubAudio.playSelect();
+      this.dom.victoryModal.classList.add('hidden');
+      this.renderMap();
+      this.updateHUD();
+      if (this.pendingWalkIdx !== null) {
+        const idx = this.pendingWalkIdx;
+        this.pendingWalkIdx = null;
+        setTimeout(() => this.walkPlayerToIndex(idx), 250);
+      }
+    });
   }
 
   showLoginError(msg) {
-    if (this.dom.loginError) {
-      this.dom.loginError.textContent = msg;
-      this.dom.loginError.classList.remove('hidden');
-      setTimeout(() => {
-        this.dom.loginError.classList.add('hidden');
-      }, 4000);
-    }
+    if (!this.dom.loginError) return;
+    this.dom.loginError.textContent = msg;
+    this.dom.loginError.classList.remove('hidden');
+    setTimeout(() => this.dom.loginError.classList.add('hidden'), 4000);
   }
 
   showTownToast(msg) {
     if (!this.dom.townToast || !this.dom.townToastText) return;
     clearTimeout(this.toastTimeout);
     this.dom.townToastText.textContent = msg;
+    // Restart the pop animation
+    this.dom.townToast.classList.add('hidden');
+    void this.dom.townToast.offsetWidth;
     this.dom.townToast.classList.remove('hidden');
-    this.toastTimeout = setTimeout(() => {
-      this.dom.townToast.classList.add('hidden');
-    }, 3200);
+    this.toastTimeout = setTimeout(() => this.dom.townToast.classList.add('hidden'), 3400);
   }
 
   async loginWithCredentials(pin, passcode) {
@@ -341,8 +360,9 @@ class NumeriaHub {
 
     this.dom.loginScreen.classList.add('hidden');
     this.dom.worldScreen.classList.remove('hidden');
+    // Drop the title-screen map so its SVG pattern ids never shadow the live map's.
+    if (this.dom.loginBackdrop) this.dom.loginBackdrop.innerHTML = '';
 
-    // Position player at highest unlocked non-WIP node
     this.setInitialPlayerPosition();
     this.updateHUD();
     this.renderMap();
@@ -351,365 +371,317 @@ class NumeriaHub {
   setInitialPlayerPosition() {
     let bestIdx = 0;
     REALM_NODES.forEach((n, idx) => {
-      if (!n.isWip && playerState.isNodeUnlocked(n.id)) {
-        bestIdx = idx;
-      }
+      if (!n.isWip && playerState.isNodeUnlocked(n.id)) bestIdx = idx;
     });
+    this.cancelWalk();
     this.playerNodeIndex = bestIdx;
+    this.heroPos = { ...REALM_NODES[bestIdx].mapCoords };
   }
 
+  /* ---------------------------------------------------------------- */
+  /* HUD / status bar                                                  */
+  /* ---------------------------------------------------------------- */
   updateHUD() {
-    if (this.dom.hudPlayerPin) {
-      this.dom.hudPlayerPin.textContent = `PLAYER #${playerState.pin}`;
-    }
-    if (this.dom.hudPlayerLevel) {
-      this.dom.hudPlayerLevel.textContent = `LV.${playerState.level}`;
-    }
+    if (this.dom.hudPlayerPin) this.dom.hudPlayerPin.textContent = `#${playerState.pin}`;
+    if (this.dom.hudPlayerLevel) this.dom.hudPlayerLevel.textContent = `LV.${playerState.level}`;
+
     const xpNext = playerState.getXpForNextLevel();
     if (this.dom.hudXpCurrent) this.dom.hudXpCurrent.textContent = playerState.xp;
     if (this.dom.hudXpNext) this.dom.hudXpNext.textContent = xpNext;
-    if (this.dom.hudXpBar) {
-      const pct = Math.min(100, Math.max(0, (playerState.xp / Math.max(1, xpNext)) * 100));
-      this.dom.hudXpBar.style.width = `${pct}%`;
-    }
-    if (this.dom.hudCoins) {
-      this.dom.hudCoins.textContent = playerState.coins.toLocaleString();
-    }
 
-    if (this.dom.teacherBanner) {
-      if (playerState.isTeacherOverride) {
-        this.dom.teacherBanner.classList.remove('hidden');
-      } else {
-        this.dom.teacherBanner.classList.add('hidden');
-      }
+    const pct = Math.min(1, Math.max(0, playerState.xp / Math.max(1, xpNext)));
+    const lit = Math.floor(pct * PMETER_SEGMENTS);
+    if (this.dom.pmeterSegs) {
+      this.dom.pmeterSegs.innerHTML = Array.from({ length: PMETER_SEGMENTS }, (_, i) =>
+        `<span class="pseg ${i < lit ? 'on' : ''}"></span>`).join('');
     }
+    this.dom.pmeterP?.classList.toggle('on', lit >= PMETER_SEGMENTS - 1);
 
+    if (this.dom.hudCoins) this.dom.hudCoins.textContent = playerState.coins.toLocaleString();
+
+    this.dom.teacherBanner?.classList.toggle('hidden', !playerState.isTeacherOverride);
+
+    this.renderBadgeSlots();
     this.updateBottomLocationBar();
+  }
+
+  renderBadgeSlots() {
+    if (!this.dom.badgeSlots) return;
+    this.dom.badgeSlots.innerHTML = REALM_NODES.map((node, idx) => {
+      const cleared = Boolean(playerState.nodeRecords[node.id]?.cleared);
+      const cls = node.isWip ? 'wip' : cleared ? 'earned' : '';
+      const here = idx === this.playerNodeIndex ? 'is-here' : '';
+      const code = node.id === 'node_apex' ? 'BOSS' : node.lessonCode;
+      const title = `${node.badgeName}${cleared ? ' (earned)' : node.isWip ? ' (coming soon)' : ''}`;
+      return `
+        <div class="badge-slot ${cls} ${here}" title="${title}">
+          ${cleared ? `<div class="-mt-2">${badgeIconSvg(node.buildingType, 26)}</div>` : ''}
+          <span class="slot-code">${code}</span>
+        </div>`;
+    }).join('');
+  }
+
+  stageState(node) {
+    if (node.isWip) return 'wip';
+    if (!playerState.isNodeUnlocked(node.id)) return 'locked';
+    if (playerState.nodeRecords[node.id]?.cleared) return 'cleared';
+    return 'open';
   }
 
   updateBottomLocationBar() {
     const node = REALM_NODES[this.playerNodeIndex];
     if (!node) return;
-
-    const isUnlocked = playerState.isNodeUnlocked(node.id);
-    const isWip = Boolean(node.isWip);
+    const state = this.stageState(node);
 
     if (this.dom.currentBuildingBadge) {
-      this.dom.currentBuildingBadge.textContent = `STAGE ${node.lessonCode}`;
+      this.dom.currentBuildingBadge.textContent = node.id === 'node_apex' ? 'BOSS' : node.lessonCode;
     }
     if (this.dom.currentBuildingTitle) {
-      this.dom.currentBuildingTitle.textContent = `${node.title} (${node.subtitle})`;
+      this.dom.currentBuildingTitle.textContent = `${node.title} · ${node.subtitle}`;
     }
 
-    if (this.dom.currentBuildingStatus && this.dom.enterDoorBtn) {
-      if (isWip) {
-        this.dom.currentBuildingStatus.innerHTML = `<span class="text-amber-300">🚧 Under Construction — Walk past to Stage 3-7!</span>`;
-        this.dom.enterDoorBtn.className = 'px-5 py-2 rounded-xl bg-stone-700 text-stone-300 font-black text-xs uppercase tracking-wider border-2 border-stone-500 cursor-not-allowed';
-        this.dom.enterDoorBtn.innerHTML = `<span>🚧 Under Construction</span>`;
-      } else if (!isUnlocked) {
-        this.dom.currentBuildingStatus.innerHTML = `<span class="text-rose-300">🔒 Door Locked — Clear previous building first!</span>`;
-        this.dom.enterDoorBtn.className = 'px-5 py-2 rounded-xl bg-rose-900/80 text-rose-200 font-black text-xs uppercase tracking-wider border-2 border-rose-500';
-        this.dom.enterDoorBtn.innerHTML = `<span>🔒 Door Locked</span>`;
-      } else {
-        this.dom.currentBuildingStatus.innerHTML = `<span class="text-emerald-300">🟢 Door Unlocked! Press SPACE / ENTER to go inside!</span>`;
-        this.dom.enterDoorBtn.className = 'px-5 py-2 rounded-xl bg-gradient-to-b from-emerald-400 to-emerald-600 hover:from-emerald-300 hover:to-emerald-500 text-slate-950 font-black text-xs uppercase tracking-wider border-2 border-white shadow-lg cursor-pointer animate-pulse';
-        this.dom.enterDoorBtn.innerHTML = `<span>🚪 ENTER BUILDING [SPACE]</span>`;
-      }
+    const btn = this.dom.enterDoorBtn;
+    const status = this.dom.currentBuildingStatus;
+    if (!btn || !status) return;
+    btn.classList.remove('is-open', 'is-locked', 'is-wip');
+    const label = btn.querySelector('.a-btn-label');
+
+    if (state === 'wip') {
+      status.innerHTML = `<span class="text-[#ffd23f]">Under construction. Keep walking to Stage 3-7!</span>`;
+      btn.classList.add('is-wip');
+      if (label) label.textContent = 'SOON';
+    } else if (state === 'locked') {
+      status.innerHTML = `<span class="text-[#ff9aa0]">Locked. Clear the stage before this one first.</span>`;
+      btn.classList.add('is-locked');
+      if (label) label.textContent = 'LOCKED';
+    } else {
+      const stars = playerState.nodeRecords[node.id]?.stars || 0;
+      status.innerHTML = state === 'cleared'
+        ? `<span class="text-[#7dffb0]">Cleared ${'★'.repeat(stars)}${'☆'.repeat(3 - stars)} · Press A, SPACE, or ENTER to play again</span>`
+        : `<span class="text-[#7dffb0]">Door open! Press A, SPACE, or ENTER to go in</span>`;
+      btn.classList.add('is-open');
+      if (label) label.textContent = 'ENTER';
     }
   }
 
-  /**
-   * Moves the player sprite 1 step forward or backward along the town road.
-   */
+  /* ---------------------------------------------------------------- */
+  /* Walking                                                           */
+  /* ---------------------------------------------------------------- */
   stepPlayer(delta) {
+    if (this.isWalking) return;
     const targetIdx = Math.max(0, Math.min(REALM_NODES.length - 1, this.playerNodeIndex + delta));
     if (targetIdx === this.playerNodeIndex) return;
     this.walkPlayerToIndex(targetIdx);
   }
 
+  cancelWalk() {
+    if (this.walkRaf) cancelAnimationFrame(this.walkRaf);
+    this.walkRaf = null;
+    this.isWalking = false;
+    document.getElementById('heroSprite')?.classList.remove('walking');
+  }
+
   /**
-   * Walks the player sprite along the cobblestone road to the target building index.
+   * Walks the hero along the road, tile by tile, to the target stage.
    */
   walkPlayerToIndex(targetIdx, openOnArrival = false) {
+    if (this.isWalking) return;
     if (targetIdx < 0 || targetIdx >= REALM_NODES.length) return;
 
     if (targetIdx === this.playerNodeIndex) {
-      if (openOnArrival) {
-        this.tryEnterBuilding(REALM_NODES[targetIdx]);
-      }
+      if (openOnArrival) this.tryEnterBuilding(REALM_NODES[targetIdx]);
       return;
     }
 
-    this.facingLeft = targetIdx < this.playerNodeIndex;
-    this.playerNodeIndex = targetIdx;
+    // Build the polyline through every stage between here and there.
+    const dir = targetIdx > this.playerNodeIndex ? 1 : -1;
+    const points = [{ ...REALM_NODES[this.playerNodeIndex].mapCoords }];
+    const arrivals = []; // { dist, idx } distance along the path where each stage tile is reached
+    let i = this.playerNodeIndex;
+    let total = 0;
+    while (i !== targetIdx) {
+      const route = routeBetween(REALM_NODES[i], REALM_NODES[i + dir]).slice(1);
+      route.forEach((p) => {
+        const prev = points[points.length - 1];
+        total += Math.hypot(p.x - prev.x, p.y - prev.y);
+        points.push(p);
+      });
+      i += dir;
+      arrivals.push({ dist: total, idx: i });
+    }
+
+    const hero = document.getElementById('heroSprite');
+    this.isWalking = true;
+    hero?.classList.remove('hop');
+    hero?.classList.add('walking');
     hubAudio.playStep();
 
-    this.updatePlayerSpritePosition(true);
-    this.updateBottomLocationBar();
-    this.highlightActiveBuilding();
+    // Long trips go faster so no walk takes more than ~2.4s.
+    const speed = Math.max(WALK_SPEED, total / 2.4);
+    let travelled = 0;
+    let last = performance.now();
+    let nextArrival = 0;
 
-    if (openOnArrival) {
-      setTimeout(() => {
-        this.tryEnterBuilding(REALM_NODES[targetIdx]);
-      }, 360);
-    }
+    const tick = (now) => {
+      const dt = Math.min(0.05, (now - last) / 1000);
+      last = now;
+      travelled = Math.min(total, travelled + speed * dt);
+
+      // Locate position along the polyline
+      let remain = travelled;
+      let pos = points[points.length - 1];
+      for (let k = 1; k < points.length; k++) {
+        const a = points[k - 1];
+        const b = points[k];
+        const len = Math.hypot(b.x - a.x, b.y - a.y);
+        if (remain <= len) {
+          const t = len === 0 ? 1 : remain / len;
+          pos = { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t };
+          if (b.x !== a.x) this.facingLeft = b.x < a.x;
+          break;
+        }
+        remain -= len;
+      }
+      this.heroPos = pos;
+      this.applyHeroTransform();
+
+      while (nextArrival < arrivals.length && travelled >= arrivals[nextArrival].dist - 0.5) {
+        this.playerNodeIndex = arrivals[nextArrival].idx;
+        nextArrival++;
+        if (nextArrival < arrivals.length) hubAudio.playStep();
+        this.highlightActiveBuilding();
+        this.updateBottomLocationBar();
+        this.renderBadgeSlots();
+      }
+
+      if (travelled < total) {
+        this.walkRaf = requestAnimationFrame(tick);
+        return;
+      }
+
+      // Arrived
+      this.walkRaf = null;
+      this.isWalking = false;
+      this.playerNodeIndex = targetIdx;
+      this.heroPos = { ...REALM_NODES[targetIdx].mapCoords };
+      this.applyHeroTransform();
+      hero?.classList.remove('walking');
+      void hero?.getBoundingClientRect();
+      hero?.classList.add('hop');
+      hubAudio.playNodeHover();
+      this.highlightActiveBuilding();
+      this.updateBottomLocationBar();
+      this.renderBadgeSlots();
+
+      if (openOnArrival) {
+        setTimeout(() => this.tryEnterBuilding(REALM_NODES[targetIdx]), 220);
+      }
+    };
+
+    this.walkRaf = requestAnimationFrame(tick);
   }
 
-  updatePlayerSpritePosition(animateHop = false) {
-    if (!this.dom.playerSprite) return;
-    const node = REALM_NODES[this.playerNodeIndex];
-    if (!node) return;
-
-    // Position the player sprite on the cobblestone road circle right in front of the building door
-    const roadX = node.mapCoords.x;
-    const roadY = node.mapCoords.y + 68;
-
-    this.dom.playerSprite.style.left = `${(roadX / 1366) * 100}%`;
-    this.dom.playerSprite.style.top = `${(roadY / 768) * 100}%`;
-
-    if (this.dom.playerSpriteBody) {
-      this.dom.playerSpriteBody.style.transform = this.facingLeft ? 'scaleX(-1)' : 'scaleX(1)';
-      if (animateHop) {
-        this.dom.playerSpriteBody.classList.remove('animate-mario-hop');
-        void this.dom.playerSpriteBody.offsetWidth;
-        this.dom.playerSpriteBody.classList.add('animate-mario-hop');
-      }
-    }
+  applyHeroTransform() {
+    const hero = document.getElementById('heroSprite');
+    if (!hero) return;
+    hero.setAttribute('transform', `translate(${this.heroPos.x.toFixed(1)} ${(this.heroPos.y + 4).toFixed(1)})`);
+    hero.querySelector('.hero-facing')?.setAttribute('transform', this.facingLeft ? 'scale(-1 1)' : 'scale(1 1)');
   }
 
   highlightActiveBuilding() {
-    const cards = this.dom.mapNodesContainer?.querySelectorAll('.town-building-wrapper');
-    if (!cards) return;
-    cards.forEach((el, idx) => {
-      if (idx === this.playerNodeIndex) {
-        el.classList.add('scale-105', 'z-30');
-      } else {
-        el.classList.remove('scale-105', 'z-30');
-      }
+    const current = REALM_NODES[this.playerNodeIndex]?.id;
+    this.dom.mapSvgContainer?.querySelectorAll('[data-node]').forEach((el) => {
+      el.classList.toggle('is-current', el.getAttribute('data-node') === current);
     });
+  }
+
+  /* ---------------------------------------------------------------- */
+  /* Map rendering                                                     */
+  /* ---------------------------------------------------------------- */
+  buildWorldSvg({ withHero = true, aspect = 'meet' } = {}) {
+    const segments = [];
+    for (let i = 0; i < REALM_NODES.length - 1; i++) {
+      const next = REALM_NODES[i + 1];
+      const open = Boolean(next.isWip) || playerState.isNodeUnlocked(next.id);
+      segments.push({ points: routeBetween(REALM_NODES[i], next), open });
+    }
+
+    const stages = REALM_NODES.map((node, idx) => this.stageSvg(node, idx)).join('');
+
+    return `
+      <svg viewBox="0 0 ${MAP_W} ${MAP_H}" preserveAspectRatio="xMidYMid ${aspect}" xmlns="http://www.w3.org/2000/svg">
+        ${worldDefs()}
+        ${terrainSvg()}
+        ${roadsSvg(segments, REALM_NODES[0].mapCoords)}
+        ${bridgeSvg(BRIDGE_POS.x, BRIDGE_POS.y)}
+        ${scenerySvg()}
+        ${cloudsSvg()}
+        ${stages}
+        ${withHero ? `<g id="heroSprite" transform="translate(${this.heroPos.x} ${this.heroPos.y + 4})">${heroSvg()}</g>` : ''}
+      </svg>`;
+  }
+
+  stageSvg(node, idx) {
+    const state = this.stageState(node);
+    const isCurrent = idx === this.playerNodeIndex;
+    const art = buildingArt(node.buildingType);
+    const { x, y } = node.mapCoords;
+
+    return `
+      <g class="map-stage" data-idx="${idx}" transform="translate(${x} ${y})">
+        <title>${node.lessonCode === 'BOSS' ? 'Boss' : 'Stage ' + node.lessonCode}: ${node.title} (${node.subtitle})</title>
+        <g class="bldg ${state === 'locked' ? 'bldg-locked' : ''}">
+          ${art.svg}
+          ${state === 'locked' ? lockOverlay(art.door) : ''}
+        </g>
+        <g data-node="${node.id}" class="nameplate ${isCurrent ? 'is-current' : ''}">
+          ${nameplateSvg(node.title, art.top - 12, false)}
+        </g>
+      </g>
+      <g data-idx="${idx}" class="map-stage">
+        ${stageTileSvg(node, state, isCurrent)}
+        ${state === 'cleared' ? `<g transform="translate(${x} ${y})">${clearedFlag()}</g>` : ''}
+      </g>`;
   }
 
   renderMap() {
-    this.renderTownRoadsAndScenery();
-    this.renderTownBuildings();
-    this.updatePlayerSpritePosition(false);
+    if (!this.dom.mapSvgContainer) return;
+    this.cancelWalk();
+    this.heroPos = { ...REALM_NODES[this.playerNodeIndex].mapCoords };
+    this.dom.mapSvgContainer.innerHTML = this.buildWorldSvg();
+    this.applyHeroTransform();
+    this.highlightActiveBuilding();
     this.updateBottomLocationBar();
   }
 
-  /**
-   * Renders the SMB3-style cobblestone town roads, river, bridge, and stop nodes.
-   */
-  renderTownRoadsAndScenery() {
-    if (!this.dom.mapSvgContainer) return;
-
-    let svgHtml = `
-      <svg class="absolute inset-0 w-full h-full pointer-events-none" viewBox="0 0 1366 768" preserveAspectRatio="none">
-        <defs>
-          <linearGradient id="riverGrad" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stop-color="#0284c7" />
-            <stop offset="50%" stop-color="#38bdf8" />
-            <stop offset="100%" stop-color="#0369a1" />
-          </linearGradient>
-        </defs>
-
-        <!-- Background SMB3 Rounded Hills -->
-        <ellipse cx="220" cy="640" rx="220" ry="120" fill="#15803d" stroke="#052e16" stroke-width="4" opacity="0.65" />
-        <ellipse cx="650" cy="660" rx="280" ry="140" fill="#166534" stroke="#052e16" stroke-width="4" opacity="0.55" />
-        <ellipse cx="1130" cy="640" rx="250" ry="130" fill="#15803d" stroke="#052e16" stroke-width="4" opacity="0.65" />
-
-        <!-- Sparkling Town River between 3-3 and 3-4 -->
-        <path d="M 575 0 C 540 220, 610 450, 565 768" stroke="#fde047" stroke-width="64" fill="none" opacity="0.5" />
-        <path d="M 575 0 C 540 220, 610 450, 565 768" stroke="url(#riverGrad)" stroke-width="52" fill="none" />
-        <path d="M 575 0 C 540 220, 610 450, 565 768" stroke="#bae6fd" stroke-width="4" stroke-dasharray="14 18" fill="none" opacity="0.7" />
-    `;
-
-    // Draw Cobblestone Path connecting each building's front doorstep (mapCoords.y + 68)
-    for (let i = 0; i < REALM_NODES.length - 1; i++) {
-      const curr = REALM_NODES[i];
-      const next = REALM_NODES[i + 1];
-
-      const isNextUnlocked = playerState.isNodeUnlocked(next.id) || next.isWip;
-
-      const x1 = curr.mapCoords.x;
-      const y1 = curr.mapCoords.y + 68;
-      const x2 = next.mapCoords.x;
-      const y2 = next.mapCoords.y + 68;
-
-      const pathData = `M ${x1} ${y1} L ${x2} ${y1} L ${x2} ${y2}`;
-
-      // Outer dark road border
-      svgHtml += `
-        <path d="${pathData}" stroke="#78350f" stroke-width="26" stroke-linecap="round" stroke-linejoin="round" fill="none" />
-      `;
-      // Inner sandy cobblestone road
-      svgHtml += `
-        <path d="${pathData}" stroke="${isNextUnlocked ? '#fde047' : '#d6d3d1'}" stroke-width="18" stroke-linecap="round" stroke-linejoin="round" fill="none" />
-      `;
-      // Dashed SMB3 tile markings
-      svgHtml += `
-        <path d="${pathData}" stroke="${isNextUnlocked ? '#ca8a04' : '#78716c'}" stroke-width="4" stroke-dasharray="10 10" stroke-linecap="round" stroke-linejoin="round" fill="none" />
-      `;
-    }
-
-    // Draw SMB3 Map Stop Circles at each doorstep
-    REALM_NODES.forEach((node) => {
-      const cx = node.mapCoords.x;
-      const cy = node.mapCoords.y + 68;
-      const isUnlocked = playerState.isNodeUnlocked(node.id);
-      const isCleared = playerState.nodeRecords[node.id]?.cleared;
-
-      const fillCol = node.isWip ? '#f59e0b' : isCleared ? '#22c55e' : isUnlocked ? '#fef08a' : '#94a3b8';
-
-      svgHtml += `
-        <circle cx="${cx}" cy="${cy}" r="14" fill="#451a03" />
-        <circle cx="${cx}" cy="${cy}" r="10" fill="${fillCol}" stroke="#ffffff" stroke-width="2.5" />
-      `;
-    });
-
-    svgHtml += `</svg>`;
-    this.dom.mapSvgContainer.innerHTML = svgHtml;
+  renderLoginBackdrop() {
+    if (!this.dom.loginBackdrop) return;
+    this.dom.loginBackdrop.innerHTML = this.buildWorldSvg({ withHero: false, aspect: 'slice' });
   }
 
-  /**
-   * Renders the Town Buildings with roofs, windows, signs, and interactive doors.
-   */
-  renderTownBuildings() {
-    if (!this.dom.mapNodesContainer) return;
-    this.dom.mapNodesContainer.innerHTML = '';
-
-    REALM_NODES.forEach((node, idx) => {
-      const isUnlocked = playerState.isNodeUnlocked(node.id);
-      const record = playerState.nodeRecords[node.id];
-      const isCleared = Boolean(record && record.cleared);
-      const isWip = Boolean(node.isWip);
-
-      const buildingEl = document.createElement('div');
-      buildingEl.className = `town-building-wrapper absolute -translate-x-1/2 -translate-y-1/2 flex flex-col items-center cursor-pointer select-none transition-all duration-200 hover:scale-105 ${
-        idx === this.playerNodeIndex ? 'scale-105 z-30' : 'z-20'
-      }`;
-      buildingEl.style.left = `${(node.mapCoords.x / 1366) * 100}%`;
-      buildingEl.style.top = `${(node.mapCoords.y / 768) * 100}%`;
-
-      // Roof Flag & Mastery Stars
-      let roofTopHtml = '';
-      if (isCleared) {
-        const starCount = record.stars || 1;
-        roofTopHtml = `
-          <div class="flex items-center space-x-1 mb-1 px-2 py-0.5 rounded-full bg-slate-950/90 border-2 border-amber-400 shadow-md">
-            <span class="text-xs">🚩</span>
-            ${'<span class="text-xs text-amber-400">★</span>'.repeat(starCount)}
-            ${'<span class="text-xs text-slate-600">★</span>'.repeat(3 - starCount)}
-          </div>
-        `;
-      } else if (isUnlocked && !isWip) {
-        roofTopHtml = `
-          <div class="mb-1 px-2 py-0.5 rounded-full bg-emerald-500 border-2 border-white text-[10px] font-black text-slate-950 uppercase tracking-wider shadow animate-bounce">
-            ▼ OPEN
-          </div>
-        `;
-      } else if (isWip) {
-        roofTopHtml = `
-          <div class="mb-1 px-2 py-0.5 rounded-full bg-amber-400 border-2 border-slate-950 text-[9px] font-black text-slate-950 uppercase tracking-wider shadow">
-            🚧 BUILDING...
-          </div>
-        `;
-      }
-
-      // Door Visual State
-      let doorHtml = '';
-      if (isWip) {
-        // Under construction scaffolding & cones
-        doorHtml = `
-          <div class="w-11 h-12 rounded-t-lg bg-amber-950 border-2 border-amber-500 flex flex-col items-center justify-center relative overflow-hidden">
-            <div class="w-full h-2.5 hazard-tape"></div>
-            <span class="text-base my-0.5">🚧</span>
-            <div class="w-full h-2 hazard-tape"></div>
-          </div>
-        `;
-      } else if (!isUnlocked) {
-        // Locked iron/wood door with padlock
-        doorHtml = `
-          <div id="door-${node.id}" class="w-11 h-12 rounded-t-lg bg-stone-900 border-2 border-stone-500 flex flex-col items-center justify-center relative shadow-inner">
-            <div class="absolute inset-x-0 top-1/2 h-1 bg-stone-600"></div>
-            <span class="relative z-10 text-lg drop-shadow">🔒</span>
-          </div>
-        `;
-      } else {
-        // Unlocked glowing doorway!
-        doorHtml = `
-          <div class="w-11 h-12 rounded-t-lg bg-gradient-to-b from-amber-200 via-amber-400 to-amber-500 border-2 border-white flex flex-col items-center justify-end pb-1 relative shadow-[0_0_15px_rgba(251,191,36,0.8)] group">
-            <span class="text-[9px] font-black text-slate-950 uppercase tracking-tighter">ENTER</span>
-            <span class="w-1.5 h-1.5 rounded-full bg-slate-900 absolute right-1.5 top-1/2"></span>
-          </div>
-        `;
-      }
-
-      buildingEl.innerHTML = `
-        ${roofTopHtml}
-
-        <!-- Pitched Mario-style Building Roof -->
-        <div class="w-32 h-8 bg-gradient-to-b ${node.roofColor} border-2 border-slate-950 rounded-t-2xl shadow-md flex items-center justify-center relative">
-          <span class="px-2 py-0.5 rounded bg-slate-950/90 text-amber-300 font-mono-math font-black text-[10px] border border-amber-400/50">
-            ${node.lessonCode}
-          </span>
-        </div>
-
-        <!-- Building Facade / Walls -->
-        <div class="w-28 h-20 ${node.wallColor} border-x-4 border-b-4 border-slate-950 rounded-b-lg shadow-xl flex flex-col items-center justify-between pt-1.5 px-2 relative">
-          <!-- Building Sign & Windows Row -->
-          <div class="w-full flex items-center justify-between px-1">
-            <div class="w-4 h-4 rounded-sm bg-sky-200/80 border border-slate-950"></div>
-            <span class="text-lg leading-none">${node.icon}</span>
-            <div class="w-4 h-4 rounded-sm bg-sky-200/80 border border-slate-950"></div>
-          </div>
-
-          <!-- The Front Door -->
-          ${doorHtml}
-        </div>
-
-        <!-- Town Building Nameplate -->
-        <div class="mt-1 px-2.5 py-0.5 rounded-lg bg-slate-950/90 border-2 border-white/80 shadow-md text-center">
-          <div class="text-[11px] font-black text-white whitespace-nowrap leading-tight">
-            ${node.title}
-          </div>
-        </div>
-      `;
-
-      buildingEl.addEventListener('click', () => {
-        if (this.playerNodeIndex === idx) {
-          this.tryEnterBuilding(node);
-        } else {
-          this.walkPlayerToIndex(idx, true);
-        }
-      });
-
-      this.dom.mapNodesContainer.appendChild(buildingEl);
-    });
-  }
-
-  /**
-   * Attempts to open the building door where the player is standing.
-   */
+  /* ---------------------------------------------------------------- */
+  /* Entering stages                                                   */
+  /* ---------------------------------------------------------------- */
   tryEnterBuilding(node) {
     if (node.isWip) {
       hubAudio.playLockRattle();
-      this.showTownToast(`🚧 ${node.title} (Lesson 3-6: Distributive Property) is under construction! Walk right past to 3-7!`);
+      this.showTownToast(`${node.title} (Lesson 3-6: Distributive Property) is still being built. Walk on past to Stage 3-7!`);
       return;
     }
 
-    const isUnlocked = playerState.isNodeUnlocked(node.id);
-    if (!isUnlocked) {
+    if (!playerState.isNodeUnlocked(node.id)) {
       hubAudio.playLockRattle();
-      const doorEl = document.getElementById(`door-${node.id}`);
-      if (doorEl) {
-        doorEl.classList.add('animate-bounce');
-        setTimeout(() => doorEl.classList.remove('animate-bounce'), 600);
+      const stageEl = this.dom.mapSvgContainer?.querySelector(`.map-stage[data-idx="${REALM_NODES.indexOf(node)}"] .bldg`);
+      if (stageEl) {
+        stageEl.animate(
+          [{ transform: 'translateX(0)' }, { transform: 'translateX(-4px)' }, { transform: 'translateX(4px)' }, { transform: 'translateX(0)' }],
+          { duration: 260, iterations: 2 }
+        );
       }
-
       const effectivePrereq = getEffectivePrerequisite(node.id);
       const prereqNode = REALM_NODES.find(n => n.id === effectivePrereq);
-      const reqName = prereqNode ? `${prereqNode.title} (${prereqNode.lessonCode})` : 'the previous building';
-      this.showTownToast(`🔒 Door Locked! Clear ${reqName} first to unlock this building!`);
+      const reqName = prereqNode ? `${prereqNode.title} (${prereqNode.lessonCode})` : 'the stage before this one';
+      this.showTownToast(`Locked! Clear ${reqName} first to open this door.`);
       return;
     }
 
@@ -719,64 +691,72 @@ class NumeriaHub {
 
   openChaptersModal() {
     if (!this.dom.worldChaptersModal || !this.dom.worldChaptersList) return;
-    this.dom.worldChaptersList.innerHTML = '';
 
-    WORLD_CHAPTERS.forEach((chap) => {
-      const card = document.createElement('div');
-      card.className = `p-3.5 rounded-2xl border-2 flex items-center justify-between ${
-        chap.isActive
-          ? 'bg-amber-950/60 border-amber-400 text-white'
-          : 'bg-slate-900/70 border-slate-700 text-slate-400 opacity-75'
-      }`;
-
-      card.innerHTML = `
-        <div class="flex items-center space-x-3">
-          <div class="w-10 h-10 rounded-xl flex items-center justify-center font-black text-base ${
-            chap.isActive ? 'bg-amber-400 text-slate-950' : 'bg-slate-800 text-slate-500'
-          }">
-            ${chap.isActive ? '🏙️' : '🔒'}
+    this.dom.worldChaptersList.innerHTML = WORLD_CHAPTERS.map((chap) => `
+      <div class="chapter-card ${chap.isActive ? 'bg-[#ffd23f]' : 'bg-[#ece2c8] opacity-80'}">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-lg border-[3px] border-[#1d1433] flex items-center justify-center px text-[10px] ${chap.isActive ? 'bg-[#e5484d] text-white' : 'bg-[#b9b2a0] text-[#5e5640]'}">
+            ${chap.worldLabel.replace('WORLD ', '')}
           </div>
           <div>
-            <div class="text-[10px] font-black uppercase tracking-widest ${chap.isActive ? 'text-amber-300' : 'text-slate-500'}">
-              ${chap.worldLabel}
-            </div>
-            <div class="text-sm font-black">${chap.title}</div>
-            <div class="text-xs text-slate-400">${chap.subtitle}</div>
+            <div class="px text-[10px] text-[#1d1433]">${chap.title.toUpperCase()}</div>
+            <div class="text-xs font-bold text-[#5e4a26] mt-1">${chap.subtitle}</div>
           </div>
         </div>
-        <div>
-          ${
-            chap.isActive
-              ? '<span class="px-3 py-1 rounded-full bg-emerald-500 text-slate-950 font-black text-xs uppercase">Current Town</span>'
-              : '<span class="px-2.5 py-1 rounded-full bg-slate-800 border border-slate-700 text-slate-400 font-bold text-[10px] uppercase">Coming Soon</span>'
-          }
-        </div>
-      `;
-      this.dom.worldChaptersList.appendChild(card);
-    });
+        ${chap.isActive
+          ? '<span class="px text-[8px] px-2 py-1.5 rounded-md bg-[#2fbf71] text-white border-2 border-[#1d1433]">YOU ARE HERE</span>'
+          : '<span class="px text-[8px] px-2 py-1.5 rounded-md bg-[#d9cfb4] text-[#7a6f52] border-2 border-[#9a9078]">SOON</span>'}
+      </div>`).join('');
 
     this.dom.worldChaptersModal.classList.remove('hidden');
+  }
+
+  questArtSvg(node) {
+    const art = buildingArt(node.buildingType);
+    const top = art.top - 20;
+    const vbH = 40 - top;
+    return `
+      <svg viewBox="-100 ${top} 200 ${vbH}" preserveAspectRatio="xMidYMax meet" xmlns="http://www.w3.org/2000/svg">
+        ${worldDefs()}
+        <rect x="-200" y="${top - 400}" width="400" height="${vbH + 600}" fill="#8fd3ff"/>
+        <rect x="-200" y="-60" width="400" height="20" fill="#b5e3ff"/>
+        <circle cx="76" cy="${top + 34}" r="16" fill="${PALETTE.gold}" stroke="${PALETTE.ink}" stroke-width="3"/>
+        ${cloud(-70, top + 40, 0.55, 0, 0).replace('class="cloud"', '')}
+        <path d="M-200 -36 Q-140 -70 -80 -38 Q-20 -64 40 -36 Q110 -72 200 -36 V60 H-200 Z" fill="#3fa53a" stroke="${PALETTE.ink}" stroke-width="3"/>
+        <rect x="-200" y="-24" width="400" height="80" fill="url(#grassTex)"/>
+        <path d="M-200 -24 H200" stroke="${PALETTE.ink}" stroke-width="3"/>
+        <rect x="-200" y="-6" width="400" height="20" fill="${PALETTE.road}" stroke="${PALETTE.ink}" stroke-width="3"/>
+        <g>${art.svg}</g>
+      </svg>`;
   }
 
   openQuestModal(node) {
     this.selectedNode = node;
     const record = playerState.nodeRecords[node.id];
+    const stageLabel = node.lessonCode === 'BOSS' ? 'Boss Stage' : `Stage ${node.lessonCode}`;
 
-    if (this.dom.questRegion) this.dom.questRegion.textContent = `${node.regionName} • Stage ${node.lessonCode}`;
-    if (this.dom.questTitle) this.dom.questTitle.textContent = `${node.icon} ${node.title}`;
+    if (this.dom.questArt) {
+      this.dom.questArt.style.background = '#8fd3ff';
+      this.dom.questArt.style.borderRightColor = PALETTE.ink;
+      this.dom.questArt.innerHTML = this.questArtSvg(node);
+    }
+    if (this.dom.questRegion) this.dom.questRegion.textContent = `${node.regionName} • ${stageLabel}`;
+    if (this.dom.questTitle) this.dom.questTitle.textContent = node.title.toUpperCase();
     if (this.dom.questSubtitle) this.dom.questSubtitle.textContent = node.subtitle;
     if (this.dom.questStandard) this.dom.questStandard.textContent = node.standard;
     if (this.dom.questDescription) this.dom.questDescription.textContent = node.description;
-    if (this.dom.questBoss) this.dom.questBoss.textContent = node.bossName;
+    if (this.dom.questBoss) {
+      this.dom.questBoss.textContent = node.bossName;
+      this.dom.questBoss.title = node.bossName;
+    }
     if (this.dom.questXpReward) this.dom.questXpReward.textContent = `+${node.xpReward} XP`;
-    if (this.dom.questCoinsReward) this.dom.questCoinsReward.textContent = `+${node.coinsReward} Coins`;
+    if (this.dom.questCoinsReward) this.dom.questCoinsReward.textContent = `+${node.coinsReward}`;
 
     if (this.dom.questStarsContainer) {
       const starCount = record ? (record.stars || 0) : 0;
       this.dom.questStarsContainer.innerHTML = `
-        <span class="text-xs font-black uppercase text-slate-400 mr-1.5">Stage Stars:</span>
-        ${[1, 2, 3].map(i => `<span class="text-lg ${i <= starCount ? 'text-amber-400' : 'text-slate-600'}">★</span>`).join('')}
-      `;
+        <span class="text-[11px] font-black uppercase text-[#8a6d3b] mr-1">Best</span>
+        ${[1, 2, 3].map(i => svgStar(i <= starCount, 24)).join('')}`;
     }
 
     this.dom.questModal.classList.remove('hidden');
@@ -788,43 +768,33 @@ class NumeriaHub {
 
     const result = await playerState.processCartridgeCompletion(node.id, payload);
 
-    if (this.dom.victoryTitle) {
-      this.dom.victoryTitle.textContent = `${node.title} Cleared!`;
+    if (this.dom.victoryBadgeCard) {
+      this.dom.victoryBadgeCard.innerHTML = badgeIconSvg(node.buildingType, 58);
+      this.dom.victoryBadgeCard.title = node.badgeName;
     }
+    if (this.dom.victoryTitle) this.dom.victoryTitle.textContent = `${node.title.toUpperCase()} CLEARED!`;
     if (this.dom.victoryScoreText) {
       this.dom.victoryScoreText.textContent = `Score: ${payload.score || 10} / ${payload.total || 10}`;
     }
-    if (this.dom.victoryXpText) {
-      this.dom.victoryXpText.textContent = `+${result.xpGained} XP`;
-    }
-    if (this.dom.victoryCoinsText) {
-      this.dom.victoryCoinsText.textContent = `+${result.coinsGained} Coins`;
-    }
+    if (this.dom.victoryXpText) this.dom.victoryXpText.textContent = `+${result.xpGained} XP`;
+    if (this.dom.victoryCoinsText) this.dom.victoryCoinsText.textContent = `+${result.coinsGained}`;
 
     if (this.dom.victoryStarsContainer) {
       this.dom.victoryStarsContainer.innerHTML = [1, 2, 3]
-        .map(i => `<span class="text-4xl ${i <= result.stars ? 'text-amber-400 drop-shadow-[0_0_10px_rgba(245,158,11,0.8)]' : 'text-slate-700'}">★</span>`)
-        .join(' ');
+        .map(i => `<span class="victory-star" style="animation-delay:${0.5 + i * 0.18}s">${svgStar(i <= result.stars, 44)}</span>`)
+        .join('');
     }
 
-    if (this.dom.victoryLevelUpNotice) {
-      if (result.leveledUp) {
-        this.dom.victoryLevelUpNotice.classList.remove('hidden');
-      } else {
-        this.dom.victoryLevelUpNotice.classList.add('hidden');
-      }
-    }
+    this.dom.victoryLevelUpNotice?.classList.toggle('hidden', !result.leveledUp);
 
+    this.pendingWalkIdx = null;
     if (this.dom.victoryNextUnlockNotice && this.dom.victoryNextUnlockName) {
       if (result.nextUnlockedNode) {
         this.dom.victoryNextUnlockName.textContent = `${result.nextUnlockedNode.title} (Stage ${result.nextUnlockedNode.lessonCode})`;
         this.dom.victoryNextUnlockNotice.classList.remove('hidden');
-
-        // Auto-walk player to the newly unlocked building!
+        // Walk the hero to the newly opened stage once the player is back on the map.
         const nextIdx = REALM_NODES.findIndex(n => n.id === result.nextUnlockedNode.id);
-        if (nextIdx >= 0) {
-          this.playerNodeIndex = nextIdx;
-        }
+        if (nextIdx >= 0) this.pendingWalkIdx = nextIdx;
       } else {
         this.dom.victoryNextUnlockNotice.classList.add('hidden');
       }

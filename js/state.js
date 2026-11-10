@@ -5,7 +5,7 @@
  */
 
 import { fetchStudentProfile, saveStudentProfile, logCartridgeSession } from './db.js';
-import { REALM_NODES, getEffectivePrerequisite } from './nodes.js';
+import { REALM_NODES, getEffectivePrerequisite } from './nodes.js?v=w3map1';
 
 export class PlayerState {
   constructor() {

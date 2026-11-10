@@ -12,7 +12,7 @@
       theme: {
         extend: {
           fontFamily: {
-            sans: ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
+            sans: ['Nunito', 'system-ui', '-apple-system', 'sans-serif'],
             mono: ['JetBrains Mono', 'monospace'],
           }
         }
@@ -23,475 +23,243 @@
   <!-- Supabase CDN (REST Client for live classroom sync) -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
-  <style>
-    @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Inter:wght@500;600;700;800;900&family=JetBrains+Mono:wght@700;800&display=swap');
-
-    body {
-      font-family: 'Inter', system-ui, sans-serif;
-      user-select: none;
-      -webkit-user-select: none;
-      background-color: #050811;
-    }
-
-    .font-pixel {
-      font-family: 'Press Start 2P', monospace;
-    }
-
-    .font-mono-math {
-      font-family: 'JetBrains Mono', monospace;
-    }
-
-    /* Super Mario World Vibrant Overworld Grass & Sky Canvas */
-    .mario-town-map {
-      background: linear-gradient(180deg, #38bdf8 0%, #7dd3fc 26%, #4ade80 26.5%, #22c55e 65%, #16a34a 100%);
-    }
-
-    /* Checkered SMB3 Border Pattern */
-    .smb3-panel {
-      background-color: #fef3c7;
-      border: 4px solid #0f172a;
-      box-shadow: 0 6px 0 #0f172a;
-    }
-
-    /* Construction Hazard Tape for Building 3-6 */
-    .hazard-tape {
-      background-image: repeating-linear-gradient(
-        -45deg,
-        #facc15,
-        #facc15 6px,
-        #0f172a 6px,
-        #0f172a 12px
-      );
-    }
-
-    /* Player Sprite Walking & Idle Bounce */
-    @keyframes marioIdle {
-      0%, 100% { transform: translateY(0px); }
-      50% { transform: translateY(-4px); }
-    }
-
-    @keyframes marioHop {
-      0% { transform: translateY(0px) scale(1); }
-      40% { transform: translateY(-22px) scale(1.1); }
-      100% { transform: translateY(0px) scale(1); }
-    }
-
-    .animate-mario-idle {
-      animation: marioIdle 0.8s ease-in-out infinite;
-    }
-
-    .animate-mario-hop {
-      animation: marioHop 0.34s cubic-bezier(0.34, 1.56, 0.64, 1);
-    }
-
-    /* Floating Clouds */
-    @keyframes floatCloud {
-      0%, 100% { transform: translateX(0px); }
-      50% { transform: translateX(18px); }
-    }
-    .cloud-drift {
-      animation: floatCloud 7s ease-in-out infinite;
-    }
-  </style>
+  <link rel="stylesheet" href="./css/world.css?v=w3map1">
 </head>
-<body class="w-screen h-screen overflow-hidden text-slate-100 flex items-center justify-center">
+<body class="w-screen h-screen overflow-hidden flex items-center justify-center">
 
   <!-- MASTER 1366x768 CHROMEBOOK CONTAINER -->
-  <main class="relative w-full h-full max-w-[1366px] max-h-[768px] overflow-hidden flex flex-col bg-slate-950 border-4 border-slate-900 shadow-2xl">
+  <main id="gameFrame" class="relative w-full h-full max-w-[1366px] max-h-[768px] overflow-hidden flex flex-col">
 
     <!-- ============================================================== -->
-    <!-- SCREEN 1: 4-DIGIT PIN + PASSCODE LOGIN SCREEN (SMB3 TITLE BOX) -->
+    <!-- SCREEN 1: TITLE SCREEN + PIN / PASSCODE LOGIN                  -->
     <!-- ============================================================== -->
-    <section id="loginScreen" class="absolute inset-0 z-50 flex items-center justify-center p-6 mario-town-map">
-      <!-- Decorative Background Clouds & Hills -->
-      <div class="absolute top-10 left-20 text-5xl opacity-90 cloud-drift pointer-events-none">☁️</div>
-      <div class="absolute top-16 right-28 text-6xl opacity-90 cloud-drift pointer-events-none">☁️</div>
-      <div class="absolute bottom-8 left-12 text-4xl pointer-events-none">🌲🌳🌲</div>
-      <div class="absolute bottom-8 right-12 text-4xl pointer-events-none">🌳🌲🍄</div>
+    <section id="loginScreen" class="absolute inset-0 z-50 flex items-center justify-center">
+      <div id="loginBackdrop" class="absolute inset-0 pointer-events-none"></div>
+      <div class="absolute inset-0 login-dim pointer-events-none"></div>
+      <div class="curtain-top pointer-events-none"></div>
+      <div class="curtain curtain-l pointer-events-none"></div>
+      <div class="curtain curtain-r pointer-events-none"></div>
 
-      <div class="max-w-md w-full bg-slate-900/95 border-4 border-amber-400 rounded-3xl p-7 shadow-[0_10px_0_#0f172a] text-center relative z-10">
-        <!-- Town Sign Crest -->
-        <div class="w-16 h-16 mx-auto rounded-2xl bg-gradient-to-b from-amber-300 to-amber-500 border-4 border-white flex items-center justify-center text-3xl shadow-md mb-3">
-          🍄
+      <div class="relative z-10 flex flex-col items-center">
+        <!-- Logo -->
+        <div class="text-center mb-4 logo-drop">
+          <div class="world-badge px">WORLD 3</div>
+          <h1 class="logo-text px">EXPRESSION<br>TOWN</h1>
+          <div class="logo-sub">Numeric &amp; Algebraic Expressions · enVision 2.0 Grade 6 · Topic 3</div>
         </div>
 
-        <div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-400 text-slate-950 text-[10px] font-black tracking-wider uppercase mb-2">
-          <span>enVision 2.0 • 6th Grade Topic 3</span>
-        </div>
+        <!-- Login card -->
+        <div class="card-cream w-[400px] max-w-[92vw] p-5">
+          <form id="loginForm" class="space-y-3" onsubmit="return false;">
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label for="pinInput" class="field-label px">PLAYER PIN</label>
+                <input
+                  type="text"
+                  id="pinInput"
+                  inputmode="numeric"
+                  pattern="[0-9]{4}"
+                  maxlength="4"
+                  placeholder="1042"
+                  autocomplete="off"
+                  required
+                  class="field-input px text-lg tracking-[0.2em]"
+                />
+              </div>
+              <div>
+                <label for="passcodeInput" class="field-label px">PASSCODE</label>
+                <input
+                  type="text"
+                  id="passcodeInput"
+                  placeholder="star6"
+                  autocomplete="off"
+                  required
+                  class="field-input font-mono text-base font-extrabold tracking-wider"
+                />
+              </div>
+            </div>
 
-        <h1 class="font-pixel text-lg text-amber-300 tracking-tight leading-snug drop-shadow">
-          WORLD 3: EXPRESSION TOWN
-        </h1>
-        <p class="text-xs text-slate-300 mt-1 font-semibold">
-          Numeric & Algebraic Expressions Overworld
-        </p>
+            <div id="loginError" class="hidden msg-error"></div>
 
-        <!-- PIN & Passcode Input Form -->
-        <form id="loginForm" class="mt-5 space-y-3.5" onsubmit="return false;">
-          <div class="text-left">
-            <label for="pinInput" class="block text-xs font-black text-amber-300 uppercase tracking-wider mb-1">
-              4-Digit Player PIN
-            </label>
-            <input
-              type="text"
-              id="pinInput"
-              inputmode="numeric"
-              pattern="[0-9]{4}"
-              maxlength="4"
-              placeholder="e.g. 1042"
-              autocomplete="off"
-              required
-              class="w-full text-center text-2xl font-black font-mono-math tracking-widest text-amber-300 bg-slate-950 py-2 px-4 rounded-xl border-2 border-amber-500 focus:border-white outline-none transition placeholder:text-slate-700"
-            />
-          </div>
-
-          <div class="text-left">
-            <label for="passcodeInput" class="block text-xs font-black text-amber-300 uppercase tracking-wider mb-1">
-              Secret Passcode
-            </label>
-            <input
-              type="text"
-              id="passcodeInput"
-              placeholder="e.g. star6"
-              autocomplete="off"
-              required
-              class="w-full text-center text-lg font-bold font-mono tracking-wider text-white bg-slate-950 py-2 px-4 rounded-xl border-2 border-amber-500 focus:border-white outline-none transition placeholder:text-slate-700"
-            />
-          </div>
-
-          <div id="loginError" class="hidden text-xs font-bold text-rose-300 bg-rose-950 border-2 border-rose-500 rounded-xl py-2 px-3"></div>
-
-          <button
-            type="submit"
-            id="loginBtn"
-            class="w-full py-3 px-6 rounded-2xl bg-gradient-to-b from-emerald-400 to-emerald-600 hover:from-emerald-300 hover:to-emerald-500 active:translate-y-0.5 font-black text-slate-950 text-sm tracking-wider uppercase border-2 border-white shadow-[0_4px_0_#064e3b] transition-all flex items-center justify-center space-x-2 cursor-pointer"
-          >
-            <span>▶ PRESS START / ENTER TOWN</span>
-          </button>
-        </form>
-
-        <!-- Quick Demo Accounts -->
-        <div class="mt-5 pt-4 border-t border-slate-800 text-left">
-          <div class="text-[10px] uppercase font-bold text-slate-400 tracking-wider mb-2">
-            Quick Test Accounts:
-          </div>
-          <div class="grid grid-cols-2 gap-2">
-            <button
-              type="button"
-              id="quickPin1042"
-              class="py-2 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-600 text-xs text-slate-200 font-bold text-center transition cursor-pointer"
-            >
-              🏃 #1042 (star6)
+            <button type="submit" id="loginBtn" class="btn-chunky btn-red w-full py-3 text-sm">
+              <span class="px">▶ PRESS START</span>
             </button>
-            <button
-              type="button"
-              id="quickPin7777"
-              class="py-2 px-3 rounded-xl bg-indigo-900 hover:bg-indigo-800 border border-indigo-500 text-xs text-amber-200 font-bold text-center transition cursor-pointer"
-            >
-              👑 Teacher #7777 (math6)
-            </button>
+          </form>
+
+          <div class="mt-4 pt-3 border-t-[3px] border-dashed border-[#d9c69c]">
+            <div class="text-[11px] uppercase font-extrabold text-[#8a6d3b] tracking-wider mb-2">Quick test accounts</div>
+            <div class="grid grid-cols-2 gap-2">
+              <button type="button" id="quickPin1042" class="btn-chunky btn-cream py-2 text-xs">
+                Student #1042
+              </button>
+              <button type="button" id="quickPin7777" class="btn-chunky btn-purple py-2 text-xs">
+                Teacher #7777
+              </button>
+            </div>
           </div>
         </div>
       </div>
+
+      <div class="checker-floor pointer-events-none"></div>
     </section>
 
     <!-- ============================================================== -->
-    <!-- SCREEN 2: SUPER MARIO WORLD TOWN MAP & RETRO HUD -->
+    <!-- SCREEN 2: WORLD MAP + STATUS BAR                               -->
     <!-- ============================================================== -->
     <section id="worldScreen" class="relative w-full h-full flex flex-col hidden select-none">
-      
-      <!-- TOP SMB3 HUD BAR -->
-      <header class="h-14 w-full bg-slate-950 border-b-4 border-amber-400 px-5 flex items-center justify-between z-30 shadow-lg">
-        
-        <!-- Left: Chapter / Town Selector & Player Badge -->
-        <div class="flex items-center space-x-3">
-          <button
-            type="button"
-            id="worldSelectBtn"
-            title="Switch World / Chapter"
-            class="px-3 py-1.5 rounded-xl bg-gradient-to-b from-amber-300 to-amber-500 hover:from-amber-200 hover:to-amber-400 border-2 border-white text-slate-950 font-black text-xs tracking-wide shadow flex items-center space-x-1.5 cursor-pointer"
-          >
-            <span>🗺️</span>
-            <span>WORLD 3: EXPRESSION TOWN</span>
-            <span class="text-[10px]">▾</span>
+
+      <!-- MAP VIEWPORT -->
+      <div id="mapViewport" class="relative flex-1 w-full overflow-hidden">
+        <!-- Whole world (terrain, roads, buildings, hero) is one SVG drawn by hub.js -->
+        <div id="mapSvgContainer" class="absolute inset-0 w-full h-full"></div>
+
+        <!-- World sign (opens world selector) -->
+        <button type="button" id="worldSelectBtn" title="Switch World" class="world-sign">
+          <span class="world-sign-top px">WORLD 3</span>
+          <span class="world-sign-name px">EXPRESSION TOWN</span>
+          <span class="world-sign-hint">▾ worlds</span>
+        </button>
+
+        <!-- System buttons -->
+        <div class="absolute top-3 right-3 z-30 flex items-center gap-2">
+          <span id="teacherBanner" class="hidden chip chip-purple px">TEACHER: ALL OPEN</span>
+          <span id="hudPlayerPin" class="chip chip-ink px">#1042</span>
+          <button type="button" id="soundToggleBtn" title="Toggle sound" class="sys-btn">
+            <span id="soundIcon"></span>
           </button>
-
-          <span id="hudPlayerPin" class="font-mono-math text-xs bg-slate-800 text-amber-300 px-2.5 py-1 rounded-lg border border-slate-600 font-extrabold">
-            PLAYER #1042
-          </span>
-
-          <span id="teacherBanner" class="hidden text-[10px] bg-indigo-600 border border-white text-white px-2 py-0.5 rounded-md font-black uppercase">
-            👑 Teacher All-Doors-Unlocked
-          </span>
-        </div>
-
-        <!-- Center: Level & Star Power XP Bar -->
-        <div class="flex items-center space-x-3 max-w-xs w-full mx-3">
-          <div id="hudPlayerLevel" class="font-pixel text-[11px] text-amber-300 bg-slate-900 border-2 border-amber-400 px-2.5 py-1 rounded-lg">
-            LV.1
-          </div>
-          <div class="flex-1">
-            <div class="flex justify-between text-[10px] font-black text-slate-300 mb-0.5">
-              <span>⭐ STAR EXP</span>
-              <span><span id="hudXpCurrent">0</span> / <span id="hudXpNext">100</span></span>
-            </div>
-            <div class="w-full h-3 bg-slate-900 rounded-full border-2 border-slate-600 overflow-hidden">
-              <div id="hudXpBar" class="h-full bg-gradient-to-r from-amber-400 to-yellow-300 rounded-full transition-all duration-300" style="width: 0%"></div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Right: Coin Counter & System Controls -->
-        <div class="flex items-center space-x-2.5">
-          <div class="flex items-center space-x-1.5 px-3 py-1 rounded-xl bg-slate-900 border-2 border-amber-400 text-amber-300 font-mono-math font-black text-xs">
-            <span>🪙</span>
-            <span>×</span>
-            <span id="hudCoins">50</span>
-          </div>
-
-          <button
-            type="button"
-            id="soundToggleBtn"
-            title="Toggle 8-Bit Audio"
-            class="w-9 h-9 rounded-xl bg-slate-800 hover:bg-slate-700 border-2 border-slate-600 flex items-center justify-center text-sm transition cursor-pointer"
-          >
-            <span id="soundIcon">🔊</span>
+          <button type="button" id="fullscreenBtn" title="Toggle fullscreen" class="sys-btn">
+            <svg viewBox="0 0 20 20" width="18" height="18" aria-hidden="true"><path d="M3 8V3h5M12 3h5v5M17 12v5h-5M8 17H3v-5" fill="none" stroke="#1d1433" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>
           </button>
-
-          <button
-            type="button"
-            id="fullscreenBtn"
-            title="Toggle Fullscreen"
-            class="w-9 h-9 rounded-xl bg-slate-800 hover:bg-slate-700 border-2 border-slate-600 flex items-center justify-center text-sm text-slate-200 transition cursor-pointer"
-          >
-            ⛶
-          </button>
-
-          <button
-            type="button"
-            id="switchUserBtn"
-            title="Log Out / Change PIN"
-            class="px-2.5 py-1.5 rounded-xl bg-rose-950 hover:bg-rose-900 border-2 border-rose-500 text-xs font-black text-rose-200 transition cursor-pointer"
-          >
-            Exit PIN
-          </button>
-        </div>
-      </header>
-
-      <!-- ============================================================ -->
-      <!-- TOWN MAP VIEWPORT (Super Mario World Overworld Canvas)       -->
-      <!-- ============================================================ -->
-      <div class="relative flex-1 w-full mario-town-map overflow-hidden">
-
-        <!-- Sky Scenery: Pixel Clouds & Sun -->
-        <div class="absolute top-4 left-12 text-4xl opacity-90 cloud-drift pointer-events-none">☁️</div>
-        <div class="absolute top-8 left-[30%] text-5xl opacity-95 cloud-drift pointer-events-none">☁️</div>
-        <div class="absolute top-3 left-[62%] text-4xl opacity-90 cloud-drift pointer-events-none">☁️</div>
-        <div class="absolute top-6 right-20 text-5xl opacity-90 pointer-events-none">☀️</div>
-
-        <!-- Town Signboard in Top-Left Grass -->
-        <div class="absolute top-20 left-6 z-10 pointer-events-none bg-amber-100 border-4 border-amber-900 rounded-2xl px-3.5 py-1.5 shadow-md">
-          <div class="text-[10px] font-black uppercase text-amber-900 tracking-wider">Welcome to</div>
-          <div class="font-pixel text-xs text-slate-950">EXPRESSION TOWN</div>
+          <button type="button" id="switchUserBtn" title="Log out / change PIN" class="sys-btn sys-exit px">EXIT</button>
         </div>
 
-        <!-- Decorative Town Trees, Bushes & Bridge -->
-        <div class="absolute top-[42%] left-[21%] text-2xl pointer-events-none">🌳</div>
-        <div class="absolute top-[68%] left-[25%] text-2xl pointer-events-none">🌲🌺</div>
-        <div class="absolute top-[33%] left-[41%] text-2xl pointer-events-none">🌲</div>
-        <div class="absolute top-[55%] left-[46.2%] z-10 pointer-events-none px-2 py-0.5 bg-amber-800 border-2 border-amber-950 rounded text-[10px] font-black text-amber-200 shadow">
-          🌉 Factor Bridge
-        </div>
-        <div class="absolute top-[34%] left-[64%] text-2xl pointer-events-none">🌳🍄</div>
-        <div class="absolute top-[67%] left-[80%] text-2xl pointer-events-none">🌲🌳</div>
-
-        <!-- SVG Layer: Cobblestone Roads, River & Doorstep Stop Circles -->
-        <div id="mapSvgContainer" class="absolute inset-0 w-full h-full pointer-events-none z-10"></div>
-
-        <!-- Interactive Town Buildings Layer -->
-        <div id="mapNodesContainer" class="absolute inset-0 w-full h-full z-20 pointer-events-auto"></div>
-
-        <!-- WALKABLE PLAYER SPRITE (Moves along the road from building to building!) -->
-        <div
-          id="playerSprite"
-          class="absolute -translate-x-1/2 -translate-y-1/2 z-40 pointer-events-none transition-all duration-300 ease-out"
-          style="left: 10.6%; top: 67.4%;"
-        >
-          <div id="playerSpriteBody" class="flex flex-col items-center">
-            <!-- Player Pointer Arrow -->
-            <div class="px-1.5 py-0.5 rounded bg-slate-950 text-amber-300 font-pixel text-[8px] border border-amber-400 shadow mb-0.5">
-              YOU
-            </div>
-            <!-- Retro Hero Character Avatar -->
-            <div class="w-11 h-11 rounded-2xl bg-gradient-to-b from-red-500 via-red-600 to-blue-700 border-3 border-white shadow-[0_4px_0_#0f172a] flex items-center justify-center text-xl animate-mario-idle">
-              🏃
-            </div>
-            <!-- Ground Shadow -->
-            <div class="w-7 h-2 bg-black/40 rounded-full -mt-1"></div>
-          </div>
-        </div>
-
-        <!-- Speech / Notification Toast Bubble -->
-        <div
-          id="townToast"
-          class="hidden absolute top-4 left-1/2 -translate-x-1/2 z-50 bg-slate-950/95 border-4 border-amber-400 rounded-2xl px-5 py-2.5 shadow-2xl flex items-center space-x-2"
-        >
-          <span id="townToastText" class="text-xs font-extrabold text-white"></span>
+        <!-- Message box -->
+        <div id="townToast" class="hidden msg-box">
+          <span id="townToastText"></span>
         </div>
       </div>
 
-      <!-- ============================================================ -->
-      <!-- BOTTOM SMB3 MAP CONTROLS & CURRENT BUILDING BANNER           -->
-      <!-- ============================================================ -->
-      <footer class="h-16 w-full bg-slate-950 border-t-4 border-amber-400 px-6 flex items-center justify-between z-30">
-        
-        <!-- Left: Walk Controls (D-Pad + Keyboard Hint) -->
-        <div class="flex items-center space-x-2">
-          <button
-            type="button"
-            id="dpadPrevBtn"
-            class="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 active:translate-y-0.5 border-2 border-slate-500 text-xs font-black text-white flex items-center space-x-1 cursor-pointer"
-          >
-            <span>◀</span>
-            <span>WALK PREV</span>
+      <!-- STATUS BAR -->
+      <footer class="status-bar">
+        <!-- D-pad -->
+        <div class="dpad" aria-label="Walk controls">
+          <button type="button" id="dpadPrevBtn" class="dpad-arm dpad-left" title="Walk back (← key)">
+            <svg viewBox="0 0 20 20" width="18" height="18" aria-hidden="true"><path d="M13 4 L6 10 L13 16 Z" fill="#fff"/></svg>
           </button>
-          <button
-            type="button"
-            id="dpadNextBtn"
-            class="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 active:translate-y-0.5 border-2 border-slate-500 text-xs font-black text-white flex items-center space-x-1 cursor-pointer"
-          >
-            <span>WALK NEXT</span>
-            <span>▶</span>
+          <div class="dpad-hub"></div>
+          <button type="button" id="dpadNextBtn" class="dpad-arm dpad-right" title="Walk forward (→ key)">
+            <svg viewBox="0 0 20 20" width="18" height="18" aria-hidden="true"><path d="M7 4 L14 10 L7 16 Z" fill="#fff"/></svg>
           </button>
-          <span class="hidden lg:inline-block text-[11px] text-slate-400 font-semibold ml-2">
-            Use <kbd class="px-1.5 py-0.5 bg-slate-800 border border-slate-600 rounded text-amber-300 font-mono text-[10px]">◄</kbd> <kbd class="px-1.5 py-0.5 bg-slate-800 border border-slate-600 rounded text-amber-300 font-mono text-[10px]">►</kbd> keys or click any building
-          </span>
+          <div class="dpad-caption">← → WALK</div>
         </div>
 
-        <!-- Center: Current Standing Building Info Box (SMB3 Bottom Box Style) -->
-        <div class="flex items-center space-x-3 bg-slate-900 border-2 border-amber-400/70 rounded-xl px-4 py-1.5">
-          <span id="currentBuildingBadge" class="px-2 py-0.5 rounded bg-amber-400 text-slate-950 font-mono-math font-black text-xs uppercase">
-            STAGE 3-1
-          </span>
-          <div>
-            <div id="currentBuildingTitle" class="text-xs font-black text-white leading-tight">
-              Power Plant (Exponents)
+        <!-- Main status box -->
+        <div class="status-box">
+          <div class="status-row">
+            <span class="world-tag px">WORLD 3</span>
+            <div class="pmeter" title="Star EXP toward next level">
+              <div id="pmeterSegs" class="pmeter-segs"></div>
+              <span id="pmeterP" class="pmeter-p px">P</span>
             </div>
-            <div id="currentBuildingStatus" class="text-[10px] font-bold">
-              🟢 Door Unlocked!
+            <span id="hudPlayerLevel" class="px text-[11px] text-white">LV.1</span>
+            <span class="text-[11px] font-extrabold text-[#b9b2d6] font-mono"><span id="hudXpCurrent">0</span>/<span id="hudXpNext">100</span> XP</span>
+            <span class="coin-count px">
+              <svg viewBox="-8 -8 16 16" width="16" height="16" aria-hidden="true"><ellipse rx="6" ry="7" fill="#ffd23f" stroke="#1d1433" stroke-width="2"/><rect x="-1" y="-4" width="2" height="8" rx="1" fill="#c99a12"/></svg>
+              ×<span id="hudCoins">50</span>
+            </span>
+          </div>
+          <div class="status-row mt-2">
+            <span id="currentBuildingBadge" class="stage-chip px">3-1</span>
+            <div class="min-w-0 flex-1">
+              <div id="currentBuildingTitle" class="text-[13px] font-black text-white leading-tight truncate">Power Plant</div>
+              <div id="currentBuildingStatus" class="text-[11px] font-bold leading-tight truncate"></div>
             </div>
           </div>
         </div>
 
-        <!-- Right: Enter Building Door Action Button -->
-        <div>
-          <button
-            type="button"
-            id="enterDoorBtn"
-            class="px-5 py-2 rounded-xl bg-gradient-to-b from-emerald-400 to-emerald-600 text-slate-950 font-black text-xs uppercase tracking-wider border-2 border-white shadow-lg cursor-pointer"
-          >
-            🚪 ENTER BUILDING [SPACE]
-          </button>
+        <!-- Badge cards -->
+        <div class="cards-box">
+          <div class="cards-label px">BADGES</div>
+          <div id="badgeSlots" class="flex gap-1.5"></div>
         </div>
+
+        <!-- A button -->
+        <button type="button" id="enterDoorBtn" class="a-btn">
+          <span class="a-btn-face px">A</span>
+          <span class="a-btn-label px">ENTER</span>
+        </button>
       </footer>
     </section>
 
     <!-- ============================================================== -->
-    <!-- MODAL 0: MULTI-CHAPTER / MULTI-TOWN WORLD SELECTOR             -->
+    <!-- MODAL 0: WORLD SELECTOR                                        -->
     <!-- ============================================================== -->
-    <div id="worldChaptersModal" class="hidden absolute inset-0 z-50 bg-slate-950/85 backdrop-blur-sm flex items-center justify-center p-6 select-none">
-      <div class="max-w-lg w-full bg-slate-900 border-4 border-amber-400 rounded-3xl p-6 shadow-2xl">
-        <div class="flex items-center justify-between pb-3 border-b border-slate-800">
+    <div id="worldChaptersModal" class="hidden modal-scrim z-50">
+      <div class="card-cream max-w-lg w-full p-6 pop-in">
+        <div class="flex items-center justify-between pb-3 border-b-[3px] border-dashed border-[#d9c69c]">
           <div>
-            <div class="text-[10px] font-black uppercase tracking-widest text-amber-400">6th Grade Math Overworld</div>
-            <h2 class="font-pixel text-base text-white mt-1">SELECT WORLD / TOWN</h2>
+            <div class="text-[11px] font-extrabold uppercase tracking-widest text-[#8a6d3b]">6th Grade Math</div>
+            <h2 class="px text-base text-[#1d1433] mt-1">SELECT WORLD</h2>
           </div>
-          <button
-            type="button"
-            id="closeChaptersBtn"
-            class="w-8 h-8 rounded-full bg-slate-800 hover:bg-slate-700 text-white font-bold flex items-center justify-center cursor-pointer"
-          >
-            ✕
-          </button>
+          <button type="button" id="closeChaptersBtn" class="x-btn">✕</button>
         </div>
 
-        <div id="worldChaptersList" class="my-4 space-y-2.5">
-          <!-- Populated by JS -->
-        </div>
+        <div id="worldChaptersList" class="my-4 space-y-2.5"></div>
 
-        <div class="text-[11px] text-slate-400 text-center font-medium">
-          More towns unlock as your class advances through enVision 2.0 Topics!
+        <div class="text-[12px] text-[#8a6d3b] text-center font-bold">
+          More worlds open as your class moves through the enVision 2.0 topics!
         </div>
       </div>
     </div>
 
     <!-- ============================================================== -->
-    <!-- MODAL 1: SMB3 BUILDING STAGE BRIEFING CARD                     -->
+    <!-- MODAL 1: STAGE BRIEFING CARD                                   -->
     <!-- ============================================================== -->
-    <div id="questModal" class="hidden absolute inset-0 z-40 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-6 select-none">
-      <div class="max-w-lg w-full bg-slate-900 border-4 border-amber-400 rounded-3xl p-7 shadow-[0_10px_0_#0f172a] relative overflow-hidden">
-        
-        <div class="flex items-start justify-between">
-          <div>
-            <div id="questRegion" class="text-[11px] font-black uppercase tracking-widest text-amber-400">
+    <div id="questModal" class="hidden modal-scrim z-40">
+      <div class="card-cream w-[760px] max-w-[94vw] flex overflow-hidden pop-in">
+        <!-- Building art pane -->
+        <div id="questArt" class="quest-art"></div>
+
+        <div class="flex-1 p-6 min-w-0">
+          <div class="flex items-start justify-between gap-3">
+            <div id="questRegion" class="text-[11px] font-extrabold uppercase tracking-widest text-[#8a6d3b]">
               West Town Plaza • Stage 3-1
             </div>
-            <h2 id="questTitle" class="font-pixel text-lg text-white mt-1">
-              ⚡ Power Plant
-            </h2>
-            <div id="questSubtitle" class="text-xs text-emerald-300 font-bold mt-1">
-              Understand and Apply Exponents
+            <button type="button" id="closeQuestBtn" class="x-btn -mt-1 -mr-1">✕</button>
+          </div>
+          <h2 id="questTitle" class="px text-[17px] leading-snug text-[#1d1433] mt-1">Power Plant</h2>
+          <div id="questSubtitle" class="text-sm text-[#1b8a4f] font-black mt-1.5">Understand and Apply Exponents</div>
+
+          <div class="mt-3 px-3 py-2 rounded-lg bg-white/70 border-2 border-[#e6d4a8] text-[12px] text-[#4a3a20] font-semibold">
+            <span class="font-black text-[#c25e12]">Lesson goal: </span>
+            <span id="questStandard">enVision 2.0 Lesson 3-1</span>
+          </div>
+
+          <p id="questDescription" class="mt-3 text-[13px] leading-relaxed text-[#3a2e1a] font-semibold">
+            Step inside the Town Power Plant!
+          </p>
+
+          <div class="mt-4 grid grid-cols-3 gap-2 text-center">
+            <div class="intel-box">
+              <div class="intel-label">Boss</div>
+              <div id="questBoss" class="intel-value text-[#c2283a] truncate">Singularity Core</div>
+            </div>
+            <div class="intel-box">
+              <div class="intel-label">Clear XP</div>
+              <div id="questXpReward" class="intel-value">+150 XP</div>
+            </div>
+            <div class="intel-box">
+              <div class="intel-label">Coins</div>
+              <div id="questCoinsReward" class="intel-value">+50</div>
             </div>
           </div>
-          <button
-            type="button"
-            id="closeQuestBtn"
-            class="w-8 h-8 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-200 text-sm flex items-center justify-center font-bold cursor-pointer"
-          >
-            ✕
-          </button>
-        </div>
 
-        <!-- enVision Standard Badge -->
-        <div class="mt-4 px-3.5 py-2 rounded-xl bg-slate-950 border-2 border-slate-800 text-[11px] text-slate-200">
-          <span class="font-black text-amber-400">Lesson Goal: </span>
-          <span id="questStandard">enVision 2.0 Lesson 3-1</span>
-        </div>
-
-        <!-- Description -->
-        <p id="questDescription" class="mt-3.5 text-xs leading-relaxed text-slate-300 font-medium">
-          Step inside the Town Power Plant! Balance high-voltage surge waves by dialing bases and exponents before the generator overloads.
-        </p>
-
-        <!-- Stage Intel Grid -->
-        <div class="mt-4 grid grid-cols-3 gap-2.5 bg-slate-950 border-2 border-slate-800 p-3 rounded-2xl text-center">
-          <div>
-            <div class="text-[10px] font-bold text-slate-400 uppercase">Building Boss</div>
-            <div id="questBoss" class="text-xs font-black text-rose-400 mt-0.5 truncate">Singularity Core</div>
+          <div class="mt-5 flex items-center justify-between">
+            <div id="questStarsContainer" class="flex items-center gap-1"></div>
+            <button type="button" id="embarkQuestBtn" class="btn-chunky btn-green py-3 px-6 text-sm">
+              <span class="px text-[11px]">▶ START STAGE</span>
+            </button>
           </div>
-          <div>
-            <div class="text-[10px] font-bold text-slate-400 uppercase">Clear XP</div>
-            <div id="questXpReward" class="text-xs font-black text-amber-400 mt-0.5">+150 XP</div>
-          </div>
-          <div>
-            <div class="text-[10px] font-bold text-slate-400 uppercase">Coin Reward</div>
-            <div id="questCoinsReward" class="text-xs font-black text-amber-400 mt-0.5">+50 Coins</div>
-          </div>
-        </div>
-
-        <!-- Stars Record & Enter Button -->
-        <div class="mt-5 flex items-center justify-between pt-4 border-t border-slate-800">
-          <div id="questStarsContainer" class="flex items-center">
-            <!-- Populated by JS -->
-          </div>
-
-          <button
-            type="button"
-            id="embarkQuestBtn"
-            class="py-3 px-6 rounded-2xl bg-gradient-to-b from-emerald-400 to-emerald-600 hover:from-emerald-300 hover:to-emerald-500 active:translate-y-0.5 font-black text-slate-950 text-xs tracking-wider uppercase border-2 border-white shadow-[0_4px_0_#064e3b] transition-all flex items-center space-x-2 cursor-pointer"
-          >
-            <span>🚪 Enter Building & Start</span>
-          </button>
         </div>
       </div>
     </div>
@@ -499,31 +267,18 @@
     <!-- ============================================================== -->
     <!-- MODAL 2: UNIVERSAL CARTRIDGE HARNESS (IFRAME CONTAINER)        -->
     <!-- ============================================================== -->
-    <div id="cartridgeHarnessModal" class="hidden absolute inset-0 z-50 flex flex-col bg-slate-950">
-      
-      <!-- Top Cartridge Controller Bar -->
-      <div class="h-12 w-full bg-slate-950 border-b-2 border-amber-400 px-4 flex items-center justify-between select-none">
-        <div class="flex items-center space-x-3">
-          <span id="harnessLessonBadge" class="px-2.5 py-0.5 rounded bg-amber-400 text-slate-950 font-mono-math text-[10px] font-black uppercase">
-            Lesson 3-1
-          </span>
-          <span id="harnessQuestTitle" class="text-xs font-black text-white">
-            Power Plant
-          </span>
+    <div id="cartridgeHarnessModal" class="hidden absolute inset-0 z-50 flex flex-col bg-black">
+      <div class="harness-bar">
+        <div class="flex items-center gap-3 min-w-0">
+          <span id="harnessLessonBadge" class="stage-chip px">Lesson 3-1</span>
+          <span id="harnessQuestTitle" class="text-sm font-black text-white truncate">Power Plant</span>
         </div>
-
-        <button
-          type="button"
-          id="harnessRetreatBtn"
-          class="py-1 px-3.5 rounded-lg bg-rose-900 hover:bg-rose-800 border border-rose-400 text-white text-xs font-black transition flex items-center space-x-1.5 cursor-pointer"
-        >
-          <span>🏃 Exit Building to Town Map</span>
-          <span>✕</span>
+        <button type="button" id="harnessRetreatBtn" class="btn-chunky btn-red py-1.5 px-3 text-xs">
+          ◀ Back to Map
         </button>
       </div>
 
-      <!-- Isolated Cartridge Viewport -->
-      <div class="flex-1 w-full h-[calc(100%-3rem)] bg-black overflow-hidden relative">
+      <div class="flex-1 w-full bg-black overflow-hidden relative">
         <iframe
           id="cartridgeIframe"
           src="about:blank"
@@ -535,59 +290,43 @@
     </div>
 
     <!-- ============================================================== -->
-    <!-- MODAL 3: STAGE CLEAR / BUILDING CONQUERED CELEBRATION          -->
+    <!-- MODAL 3: STAGE CLEAR                                           -->
     <!-- ============================================================== -->
-    <div id="victoryModal" class="hidden absolute inset-0 z-50 bg-slate-950/90 backdrop-blur-md flex items-center justify-center p-6 select-none">
-      <div class="max-w-md w-full bg-slate-900 border-4 border-amber-400 rounded-3xl p-8 shadow-[0_10px_0_#0f172a] text-center relative overflow-hidden">
-        
-        <div class="w-20 h-20 mx-auto rounded-3xl bg-amber-400 border-4 border-white flex items-center justify-center text-4xl shadow-lg mb-3">
-          🚩
-        </div>
+    <div id="victoryModal" class="hidden modal-scrim z-50">
+      <div class="victory-rays pointer-events-none"></div>
+      <div class="card-cream w-[440px] max-w-[92vw] px-7 pt-10 pb-6 text-center relative pop-in">
+        <div class="clear-banner px">STAGE CLEAR!</div>
 
-        <div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500 text-slate-950 text-[10px] font-black tracking-widest uppercase mb-2">
-          <span>Stage Clear!</span>
-        </div>
+        <div id="victoryBadgeCard" class="badge-card-big mx-auto mb-3"></div>
 
-        <h2 id="victoryTitle" class="font-pixel text-base text-amber-300 leading-snug">
-          Power Plant Cleared!
-        </h2>
+        <h2 id="victoryTitle" class="px text-[13px] text-[#1d1433] leading-snug">Power Plant Cleared!</h2>
 
-        <!-- Stars Display -->
-        <div id="victoryStarsContainer" class="flex justify-center items-center space-x-2 my-4"></div>
+        <div id="victoryStarsContainer" class="flex justify-center items-center gap-2 my-3"></div>
 
-        <div id="victoryScoreText" class="text-xs font-mono-math text-slate-200 font-bold mb-4">
-          Score: 10 / 10
-        </div>
+        <div id="victoryScoreText" class="text-sm font-mono font-extrabold text-[#4a3a20] mb-3">Score: 10 / 10</div>
 
-        <!-- Rewards Grid -->
-        <div class="grid grid-cols-2 gap-3 bg-slate-950 border-2 border-slate-800 p-3 rounded-2xl mb-4">
-          <div class="text-center">
-            <div class="text-[10px] font-bold text-slate-400 uppercase">Star EXP</div>
-            <div id="victoryXpText" class="text-sm font-black text-amber-400 font-mono-math mt-0.5">+150 XP</div>
+        <div class="grid grid-cols-2 gap-2 mb-3">
+          <div class="intel-box">
+            <div class="intel-label">Star EXP</div>
+            <div id="victoryXpText" class="intel-value">+150 XP</div>
           </div>
-          <div class="text-center">
-            <div class="text-[10px] font-bold text-slate-400 uppercase">Town Coins</div>
-            <div id="victoryCoinsText" class="text-sm font-black text-amber-400 font-mono-math mt-0.5">+50 Coins</div>
+          <div class="intel-box">
+            <div class="intel-label">Coins</div>
+            <div id="victoryCoinsText" class="intel-value">+50</div>
           </div>
         </div>
 
-        <!-- Level-Up Alert -->
-        <div id="victoryLevelUpNotice" class="hidden mb-4 py-2 px-3 rounded-xl bg-indigo-900 border-2 border-indigo-400 text-xs font-black text-amber-200 animate-bounce">
-          🍄 1-UP! LEVEL INCREASED!
+        <div id="victoryLevelUpNotice" class="hidden mb-3 py-2 px-3 rounded-lg bg-[#7b4bff] border-[3px] border-[#1d1433] text-white px text-[10px] animate-bounce">
+          LEVEL UP!
         </div>
 
-        <!-- Next Building Door Unlocked Alert -->
-        <div id="victoryNextUnlockNotice" class="hidden mb-5 py-2.5 px-4 rounded-xl bg-emerald-950 border-2 border-emerald-400 text-xs font-bold text-emerald-200">
-          🔓 <span class="uppercase tracking-wide text-[10px] text-emerald-400">Next Building Door Unlocked:</span><br/>
-          <span id="victoryNextUnlockName" class="font-black text-sm text-white">Town Bank Vault (Stage 3-2)</span>
+        <div id="victoryNextUnlockNotice" class="hidden mb-4 py-2 px-3 rounded-lg bg-[#dff7e6] border-[3px] border-[#1d1433] text-[12px] font-bold text-[#1b5e3a]">
+          <span class="uppercase tracking-wide text-[10px] font-black text-[#1b8a4f]">New path open:</span><br/>
+          <span id="victoryNextUnlockName" class="font-black text-sm text-[#1d1433]">Town Bank Vault (Stage 3-2)</span>
         </div>
 
-        <button
-          type="button"
-          id="returnToMapBtn"
-          class="w-full py-3.5 px-6 rounded-2xl bg-gradient-to-b from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 active:translate-y-0.5 font-black text-slate-950 text-xs tracking-wider uppercase border-2 border-white shadow-[0_4px_0_#78350f] transition-all cursor-pointer"
-        >
-          ▶ Continue to Expression Town
+        <button type="button" id="returnToMapBtn" class="btn-chunky btn-gold w-full py-3 text-sm">
+          <span class="px text-[11px]">▶ BACK TO THE MAP</span>
         </button>
       </div>
     </div>
@@ -595,6 +334,6 @@
   </main>
 
   <!-- Hub ES Module Script -->
-  <script type="module" src="./js/hub.js"></script>
+  <script type="module" src="./js/hub.js?v=w3map1"></script>
 </body>
 </html>
