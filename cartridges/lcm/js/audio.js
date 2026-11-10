@@ -1,242 +1,154 @@
 /**
- * Web Audio API procedural sound synthesizer for Power Grid: LCM Circuit Breaker
- * Zero external audio files, pure Web Audio synthesis.
- * Auto-persists mute preference to localStorage.
+ * Grid Sync: The LCM Substation - Audio
+ * Procedural Web Audio only (no files). Mute choice is saved in localStorage.
  */
 
-class SoundSystem {
+const STORAGE_KEY = 'lcm_power_grid_muted';
+
+class SoundEngine {
   constructor() {
     this.ctx = null;
     this.isMuted = false;
-
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('lcm_power_grid_muted');
-      if (saved !== null) {
-        this.isMuted = saved === 'true';
-      }
-    }
+    try {
+      this.isMuted = localStorage.getItem(STORAGE_KEY) === 'true';
+    } catch (e) { /* storage blocked */ }
+    this.lastHopAt = 0;
   }
 
-  initContext() {
-    if (!this.ctx && typeof window !== 'undefined') {
+  getContext() {
+    if (this.isMuted) return null;
+    if (!this.ctx) {
       const AudioCtx = window.AudioContext || window.webkitAudioContext;
-      if (AudioCtx) {
-        this.ctx = new AudioCtx();
-      }
+      if (!AudioCtx) return null;
+      this.ctx = new AudioCtx();
     }
-    if (this.ctx && this.ctx.state === 'suspended') {
-      this.ctx.resume().catch(() => {});
-    }
+    if (this.ctx.state === 'suspended') this.ctx.resume().catch(() => {});
+    return this.ctx;
   }
 
   getMuted() {
     return this.isMuted;
   }
 
-  toggleMute() {
-    this.isMuted = !this.isMuted;
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('lcm_power_grid_muted', String(this.isMuted));
-    }
+  setMuted(muted) {
+    this.isMuted = muted;
+    try { localStorage.setItem(STORAGE_KEY, String(muted)); } catch (e) { /* ignore */ }
+    if (muted && this.ctx && this.ctx.state === 'running') this.ctx.suspend().catch(() => {});
+  }
+
+  toggleMuted() {
+    this.setMuted(!this.isMuted);
     return this.isMuted;
   }
 
-  /**
-   * Heavy mechanical magnetic switch latch
-   */
-  playBreakerLock() {
-    if (this.isMuted) return;
-    this.initContext();
-    if (!this.ctx) return;
-
-    const t = this.ctx.currentTime;
-    const osc = this.ctx.createOscillator();
-    const gain = this.ctx.createGain();
-
-    osc.type = 'triangle';
-    osc.frequency.setValueAtTime(140, t);
-    osc.frequency.exponentialRampToValueAtTime(40, t + 0.12);
-
-    gain.gain.setValueAtTime(0.4, t);
-    gain.gain.exponentialRampToValueAtTime(0.01, t + 0.14);
-
-    osc.connect(gain);
-    gain.connect(this.ctx.destination);
-
-    osc.start(t);
-    osc.stop(t + 0.15);
-  }
-
-  /**
-   * Pulse zap when frequency wave hits a cell
-   */
-  playPulseZap(freqType = 'cyan', pitchMultiplier = 1) {
-    if (this.isMuted) return;
-    this.initContext();
-    if (!this.ctx) return;
-
-    const t = this.ctx.currentTime;
-    const osc = this.ctx.createOscillator();
-    const gain = this.ctx.createGain();
-
-    const baseFreq = freqType === 'cyan' ? 520 : freqType === 'amber' ? 440 : 660;
-
-    osc.type = 'sine';
-    const startF = baseFreq * pitchMultiplier;
-    osc.frequency.setValueAtTime(startF, t);
-    osc.frequency.exponentialRampToValueAtTime(startF * 0.5, t + 0.08);
-
-    gain.gain.setValueAtTime(0.12, t);
-    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.09);
-
-    osc.connect(gain);
-    gain.connect(this.ctx.destination);
-
-    osc.start(t);
-    osc.stop(t + 0.1);
-  }
-
-  /**
-   * High-voltage arc vibration when pulses collide
-   */
-  playOverloadZap() {
-    if (this.isMuted) return;
-    this.initContext();
-    if (!this.ctx) return;
-
-    const t = this.ctx.currentTime;
-    const osc1 = this.ctx.createOscillator();
-    const osc2 = this.ctx.createOscillator();
-    const gain = this.ctx.createGain();
-
-    osc1.type = 'sawtooth';
-    osc2.type = 'sawtooth';
-
-    osc1.frequency.setValueAtTime(180, t);
-    osc2.frequency.setValueAtTime(184, t); // beat-frequency dissonance
-
-    gain.gain.setValueAtTime(0.2, t);
-    gain.gain.exponentialRampToValueAtTime(0.01, t + 0.25);
-
-    osc1.connect(gain);
-    osc2.connect(gain);
-    gain.connect(this.ctx.destination);
-
-    osc1.start(t);
-    osc2.start(t);
-    osc1.stop(t + 0.26);
-    osc2.stop(t + 0.26);
-  }
-
-  /**
-   * Harmonic victory chime on perfect LCM lock
-   */
-  playSuccessHarmonic() {
-    if (this.isMuted) return;
-    this.initContext();
-    if (!this.ctx) return;
-
-    const t = this.ctx.currentTime;
-    const notes = [523.25, 659.25, 783.99, 1046.5]; // C5, E5, G5, C6 major arpeggio
-
-    notes.forEach((freq, idx) => {
-      const osc = this.ctx.createOscillator();
-      const gain = this.ctx.createGain();
-
-      osc.type = 'triangle';
-      osc.frequency.setValueAtTime(freq, t + idx * 0.07);
-
-      gain.gain.setValueAtTime(0, t + idx * 0.07);
-      gain.gain.linearRampToValueAtTime(0.25, t + idx * 0.07 + 0.02);
-      gain.gain.exponentialRampToValueAtTime(0.001, t + idx * 0.07 + 0.6);
-
+  /** One oscillator note. */
+  tone({ type = 'sine', from, to = from, dur = 0.12, vol = 0.15, delay = 0, attack = 0.005 }) {
+    const ctx = this.getContext();
+    if (!ctx) return;
+    try {
+      const t = ctx.currentTime + delay;
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = type;
+      osc.frequency.setValueAtTime(from, t);
+      if (to !== from) osc.frequency.exponentialRampToValueAtTime(Math.max(1, to), t + dur);
+      gain.gain.setValueAtTime(0.0001, t);
+      gain.gain.linearRampToValueAtTime(vol, t + attack);
+      gain.gain.exponentialRampToValueAtTime(0.0001, t + dur);
       osc.connect(gain);
-      gain.connect(this.ctx.destination);
-
-      osc.start(t + idx * 0.07);
-      osc.stop(t + idx * 0.07 + 0.65);
-    });
+      gain.connect(ctx.destination);
+      osc.start(t);
+      osc.stop(t + dur + 0.02);
+    } catch (e) { /* audio is optional */ }
   }
 
-  /**
-   * Harsh electrical fault short-circuit buzz
-   */
-  playFaultBuzz() {
-    if (this.isMuted) return;
-    this.initContext();
-    if (!this.ctx) return;
-
-    const t = this.ctx.currentTime;
-    const osc = this.ctx.createOscillator();
-    const gain = this.ctx.createGain();
-
-    osc.type = 'sawtooth';
-    osc.frequency.setValueAtTime(95, t);
-    osc.frequency.setValueAtTime(80, t + 0.1);
-    osc.frequency.setValueAtTime(60, t + 0.2);
-
-    gain.gain.setValueAtTime(0.35, t);
-    gain.gain.exponentialRampToValueAtTime(0.01, t + 0.35);
-
-    osc.connect(gain);
-    gain.connect(this.ctx.destination);
-
-    osc.start(t);
-    osc.stop(t + 0.36);
+  /** Short burst of filtered noise (electric crackle). */
+  noise({ dur = 0.25, vol = 0.2, freq = 1800, delay = 0 }) {
+    const ctx = this.getContext();
+    if (!ctx) return;
+    try {
+      const t = ctx.currentTime + delay;
+      const len = Math.floor(ctx.sampleRate * dur);
+      const buf = ctx.createBuffer(1, len, ctx.sampleRate);
+      const data = buf.getChannelData(0);
+      for (let i = 0; i < len; i++) data[i] = (Math.random() * 2 - 1) * (1 - i / len);
+      const src = ctx.createBufferSource();
+      src.buffer = buf;
+      const filter = ctx.createBiquadFilter();
+      filter.type = 'bandpass';
+      filter.frequency.value = freq;
+      const gain = ctx.createGain();
+      gain.gain.setValueAtTime(vol, t);
+      gain.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+      src.connect(filter);
+      filter.connect(gain);
+      gain.connect(ctx.destination);
+      src.start(t);
+    } catch (e) { /* audio is optional */ }
   }
 
-  /**
-   * Energy charge-up rising pitch
-   */
+  playClick() { this.tone({ from: 700, to: 900, dur: 0.05, vol: 0.08 }); }
+  playKey() { this.tone({ type: 'square', from: 1100, dur: 0.03, vol: 0.04 }); }
+  playTick() { this.tone({ type: 'square', from: 1500, dur: 0.04, vol: 0.05 }); }
+
+  /** A pulse landing on a block. Lanes get different pitches; rapid hops are thinned out. */
+  playHop(lane = 0) {
+    const now = performance.now();
+    if (now - this.lastHopAt < 45) return;
+    this.lastHopAt = now;
+    const base = [520, 392, 660][lane] || 520;
+    this.tone({ from: base, to: base * 0.6, dur: 0.08, vol: 0.08 });
+  }
+
+  /** Two of three pulses meet (not the real collision). */
+  playPartial() {
+    this.tone({ type: 'triangle', from: 880, to: 1100, dur: 0.12, vol: 0.12 });
+  }
+
+  /** Breaker clamps onto the track. */
+  playBreakerLock() {
+    this.tone({ type: 'triangle', from: 160, to: 45, dur: 0.14, vol: 0.35 });
+    this.noise({ dur: 0.06, vol: 0.12, freq: 3000 });
+  }
+
+  /** Big arc when all pulses collide. */
+  playCollision() {
+    this.tone({ type: 'sawtooth', from: 180, to: 60, dur: 0.35, vol: 0.2 });
+    this.tone({ type: 'sawtooth', from: 184, to: 62, dur: 0.35, vol: 0.2 });
+    this.noise({ dur: 0.35, vol: 0.25, freq: 1400 });
+  }
+
+  /** Breaker caught the surge. */
+  playCatch() {
+    [523.25, 659.25, 783.99, 1046.5].forEach((f, i) => this.tone({ type: 'triangle', from: f, dur: 0.5, vol: 0.2, delay: i * 0.07 }));
+  }
+
+  playFault() {
+    this.tone({ type: 'sawtooth', from: 95, to: 55, dur: 0.4, vol: 0.3 });
+    this.noise({ dur: 0.3, vol: 0.2, freq: 600 });
+  }
+
+  playAlarm() {
+    for (let i = 0; i < 3; i++) this.tone({ type: 'sawtooth', from: 880, to: 440, dur: 0.2, vol: 0.14, delay: i * 0.24 });
+  }
+
   playChargeUp() {
-    if (this.isMuted) return;
-    this.initContext();
-    if (!this.ctx) return;
-
-    const t = this.ctx.currentTime;
-    const osc = this.ctx.createOscillator();
-    const gain = this.ctx.createGain();
-
-    osc.type = 'sine';
-    osc.frequency.setValueAtTime(150, t);
-    osc.frequency.exponentialRampToValueAtTime(800, t + 0.45);
-
-    gain.gain.setValueAtTime(0.01, t);
-    gain.gain.linearRampToValueAtTime(0.2, t + 0.35);
-    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.48);
-
-    osc.connect(gain);
-    gain.connect(this.ctx.destination);
-
-    osc.start(t);
-    osc.stop(t + 0.5);
+    this.tone({ from: 150, to: 800, dur: 0.45, vol: 0.18, attack: 0.3 });
   }
 
-  /**
-   * Urgent alarm siren when grid stability is below 35%
-   */
-  playUrgentSiren() {
-    if (this.isMuted) return;
-    this.initContext();
-    if (!this.ctx) return;
+  playPowerDown() {
+    this.tone({ type: 'sawtooth', from: 440, to: 40, dur: 1.1, vol: 0.22 });
+  }
 
-    const t = this.ctx.currentTime;
-    const osc = this.ctx.createOscillator();
-    const gain = this.ctx.createGain();
+  playBossHit() {
+    this.noise({ dur: 0.45, vol: 0.3, freq: 900 });
+    this.tone({ type: 'square', from: 300, to: 70, dur: 0.4, vol: 0.18 });
+  }
 
-    osc.type = 'sawtooth';
-    osc.frequency.setValueAtTime(880, t);
-    osc.frequency.linearRampToValueAtTime(440, t + 0.2);
-
-    gain.gain.setValueAtTime(0.18, t);
-    gain.gain.exponentialRampToValueAtTime(0.01, t + 0.22);
-
-    osc.connect(gain);
-    gain.connect(this.ctx.destination);
-
-    osc.start(t);
-    osc.stop(t + 0.23);
+  playVictory() {
+    const notes = [523.25, 659.25, 783.99, 1046.5, 783.99, 1046.5, 1318.5];
+    notes.forEach((f, i) => this.tone({ type: 'triangle', from: f, dur: 0.35, vol: 0.18, delay: i * 0.11 }));
   }
 }
 
-export const soundEngine = new SoundSystem();
+export const soundEngine = new SoundEngine();

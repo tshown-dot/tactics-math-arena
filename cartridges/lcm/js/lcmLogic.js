@@ -1,261 +1,213 @@
 /**
- * Power Grid: LCM Circuit Breaker - Mathematical Logic Engine
- * Aligned with enVisionmath 2.0 Topic 3 (Least Common Multiple)
- * Zero frameworks, pure vanilla ES Module
+ * Grid Sync: The LCM Substation - Math Logic
+ * Pure functions only (no DOM), so the test suite can run them in Node.
  */
 
 /**
- * Parses user input supporting multiple numeric formats:
- * e.g., 15, "15", "$15", "15.00", " $15.00 ", "$1,000"
- * Returns NaN if input cannot be parsed as a positive finite number.
+ * Parses user input in several formats: 15, "15", "$15", "15.00", " $15.00 ", "$1,000", "72%".
+ * Returns NaN if the input is not a finite number.
  */
 export function parseMathInput(val) {
   if (val === null || val === undefined) return NaN;
-  if (typeof val === 'number') {
-    return isFinite(val) && !isNaN(val) ? val : NaN;
-  }
+  if (typeof val === 'number') return isFinite(val) ? val : NaN;
   if (typeof val !== 'string') return NaN;
-
-  // Trim whitespace, strip currency symbol ($), commas, percent signs
   const cleaned = val.trim().replace(/^\$/, '').replace(/,/g, '').replace(/%$/, '').trim();
   if (cleaned.length === 0) return NaN;
-
   const parsed = Number(cleaned);
-  return isFinite(parsed) && !isNaN(parsed) ? parsed : NaN;
+  return isFinite(parsed) ? parsed : NaN;
 }
 
-/**
- * Greatest Common Divisor (Euclidean algorithm)
- */
+/** Greatest common divisor (Euclidean algorithm). */
 export function gcd(a, b) {
   a = Math.abs(Math.round(a));
   b = Math.abs(Math.round(b));
-  while (b !== 0) {
-    const temp = b;
-    b = a % b;
-    a = temp;
-  }
+  while (b !== 0) [a, b] = [b, a % b];
   return a;
 }
 
-/**
- * Least Common Multiple for two integers
- */
+/** Least common multiple of two whole numbers. */
 export function lcm(a, b) {
   a = Math.abs(Math.round(a));
   b = Math.abs(Math.round(b));
   if (a === 0 || b === 0) return 0;
-  return (a * b) / gcd(a, b);
+  return (a / gcd(a, b)) * b;
 }
 
-/**
- * Least Common Multiple for an array of numbers (2 or 3 numbers)
- */
-export function lcmMultiple(nums) {
+export function lcmMany(nums) {
   if (!nums || nums.length === 0) return 0;
-  return nums.reduce((acc, curr) => lcm(acc, curr));
+  return nums.reduce((acc, n) => lcm(acc, n));
 }
 
-/**
- * Returns all positive multiples of `n` up to `max` (default 100)
- */
+export function gcdMany(nums) {
+  if (!nums || nums.length === 0) return 0;
+  return nums.reduce((acc, n) => gcd(acc, n));
+}
+
+/** Positive multiples of n up to max (inclusive). */
 export function getMultiples(n, max = 100) {
-  if (n <= 0) return [];
-  const multiples = [];
-  for (let i = n; i <= max; i += n) {
-    multiples.push(i);
-  }
-  return multiples;
+  if (!(n > 0)) return [];
+  const out = [];
+  for (let m = n; m <= max; m += n) out.push(m);
+  return out;
 }
 
-/**
- * Returns all common multiples for a set of numbers up to `max` (default 100)
- */
+/** Common multiples of every number in nums, up to max. */
 export function getCommonMultiples(nums, max = 100) {
-  if (!nums || nums.length === 0) return [];
-  const baseLcm = lcmMultiple(nums);
-  if (baseLcm === 0 || baseLcm > max) return [];
-  return getMultiples(baseLcm, max);
+  const base = lcmMany(nums);
+  if (base === 0 || base > max) return [];
+  return getMultiples(base, max);
+}
+
+export function isCommonMultiple(n, nums) {
+  return n > 0 && nums.every((x) => n % x === 0);
+}
+
+/** Smallest prime factor of n (n >= 2). */
+function smallestPrime(n) {
+  for (let p = 2; p * p <= n; p++) if (n % p === 0) return p;
+  return n;
 }
 
 /**
- * Result classification types for circuit breaker placement
+ * Diagnoses an LCM answer. Codes:
+ *   CORRECT, INVALID,
+ *   PRODUCT          - multiplied the numbers, but they share a factor (product > LCM)
+ *   COMMON_NOT_LEAST - a common multiple, but not the least one
+ *   GCF_MIXUP        - gave the GCF instead
+ *   TOO_SMALL        - smaller than the biggest number (can't be a multiple of it)
+ *   SOME             - a multiple of some numbers but not all
+ *   NONE             - a multiple of none of them
+ * Messages explain the mistake and name the right answer (a miss always moves on to fresh numbers).
  */
-export const EVALUATION_RESULTS = {
-  PERFECT_LCM: 'PERFECT_LCM',
-  HIGHER_COMMON_MULTIPLE: 'HIGHER_COMMON_MULTIPLE',
-  SINGLE_MULTIPLE: 'SINGLE_MULTIPLE',
-  NON_MULTIPLE: 'NON_MULTIPLE',
-};
+export function diagnoseLCMAnswer(rawAnswer, nums) {
+  const answer = parseMathInput(rawAnswer);
+  const target = lcmMany(nums);
+  const list = nums.join(', ');
+  const max = Math.max(...nums);
+
+  if (isNaN(answer) || answer <= 0 || !Number.isInteger(answer)) {
+    return { code: 'INVALID', isCorrect: false, lcm: target, message: 'Enter a positive whole number.' };
+  }
+  if (answer === target) {
+    return { code: 'CORRECT', isCorrect: true, lcm: target, message: `LCM(${list}) = ${target}` };
+  }
+
+  const hits = nums.filter((n) => answer % n === 0);
+  const misses = nums.filter((n) => answer % n !== 0);
+
+  if (misses.length === 0) {
+    const product = nums.reduce((a, b) => a * b, 1);
+    const k = answer / target;
+    const smaller = answer / smallestPrime(k); // still a common multiple, and smaller than the answer
+    if (answer === product) {
+      const g = nums.length === 2 ? gcd(nums[0], nums[1]) : null;
+      return {
+        code: 'PRODUCT', isCorrect: false, lcm: target, smaller,
+        message: g
+          ? `${nums.join(' × ')} = ${answer} is A common multiple, but ${nums[0]} and ${nums[1]} share a factor of ${g}, so they line up sooner. ${smaller === target ? '' : `Even ${smaller} works. `}The LEAST is ${target}.`
+          : `Multiplying gives A common multiple, but these numbers share factors, so they line up sooner. The LEAST is ${target}.`,
+      };
+    }
+    return {
+      code: 'COMMON_NOT_LEAST', isCorrect: false, lcm: target, smaller,
+      message: `${answer} works for ${nums.length === 2 ? 'both' : 'all of them'}, but it isn't the FIRST time they meet. ${smaller} also works (${answer} ÷ ${answer / smaller}). The least is ${target}.`,
+    };
+  }
+
+  const g = gcdMany(nums);
+  if (answer === g) {
+    return {
+      code: 'GCF_MIXUP', isCorrect: false, lcm: target,
+      message: `${answer} is the GCF (biggest number that divides INTO them). The LCM is a multiple, so it's at least ${max}. LCM(${list}) = ${target}.`,
+    };
+  }
+
+  if (answer < max) {
+    return {
+      code: 'TOO_SMALL', isCorrect: false, lcm: target,
+      message: `${answer} is smaller than ${max}, so it can't be a multiple of ${max}. Multiples only get bigger: ${getMultiples(max, max * 3).join(', ')}... LCM(${list}) = ${target}.`,
+    };
+  }
+
+  const m = misses[0];
+  if (hits.length > 0) {
+    const h = hits[hits.length - 1];
+    return {
+      code: 'SOME', isCorrect: false, lcm: target,
+      message: `${answer} = ${h} × ${answer / h}, so it's a multiple of ${hits.join(' and ')}. But ${answer} ÷ ${m} = ${Math.floor(answer / m)} R ${answer % m}, so ${m} never lands there. LCM(${list}) = ${target}.`,
+    };
+  }
+  return {
+    code: 'NONE', isCorrect: false, lcm: target,
+    message: `${answer} isn't a multiple of any of ${list} (${answer} ÷ ${m} = ${Math.floor(answer / m)} R ${answer % m}). LCM(${list}) = ${target}.`,
+  };
+}
+
+/** Diagnoses a GCF answer (used by the "GCF or LCM?" jobs). */
+export function diagnoseGCFAnswer(rawAnswer, nums) {
+  const answer = parseMathInput(rawAnswer);
+  const target = gcdMany(nums);
+  const list = nums.join(', ');
+  if (isNaN(answer) || answer <= 0 || !Number.isInteger(answer)) {
+    return { code: 'INVALID', isCorrect: false, gcf: target, message: 'Enter a positive whole number.' };
+  }
+  if (answer === target) return { code: 'CORRECT', isCorrect: true, gcf: target, message: `GCF(${list}) = ${target}` };
+  if (answer === lcmMany(nums)) {
+    return { code: 'LCM_MIXUP', isCorrect: false, gcf: target, message: `${answer} is the LCM. This job needs the biggest number that divides INTO ${list}: GCF = ${target}.` };
+  }
+  if (nums.every((n) => n % answer === 0)) {
+    return { code: 'COMMON_NOT_GREATEST', isCorrect: false, gcf: target, message: `${answer} divides both, but ${target} is bigger and also divides both. GCF(${list}) = ${target}.` };
+  }
+  return { code: 'NOT_FACTOR', isCorrect: false, gcf: target, message: `${answer} doesn't divide evenly into both ${list}. GCF(${list}) = ${target}.` };
+}
 
 /**
- * Inspects a tile during hover to provide instant pedagogical telemetry.
- * Gives students real-time intuitive guidance on divisibility and overlaps.
+ * Supply Run: buying `total` of each item when item A comes in packs of a and item B in packs of b.
  */
-export function inspectTile(tileNum, generatorValues) {
-  const tile = Math.round(parseMathInput(tileNum));
-  if (isNaN(tile) || tile < 1 || tile > 100) {
-    return {
-      isValid: false,
-      text: 'Out of bounds (1–100 only)',
-      type: 'invalid',
-    };
+export function evaluateSupply(rawTotal, a, b) {
+  const total = parseMathInput(rawTotal);
+  if (isNaN(total) || total <= 0 || !Number.isInteger(total)) {
+    return { total: 0, packsA: 0, packsB: 0, remA: 0, remB: 0, cleanA: false, cleanB: false, clean: false };
   }
-
-  const targetLcm = lcmMultiple(generatorValues);
-  const isShared = generatorValues.every((v) => tile % v === 0);
-  const matchingGens = generatorValues.filter((v) => tile % v === 0);
-
-  if (tile === targetLcm) {
-    return {
-      isValid: true,
-      tile,
-      isLcm: true,
-      type: 'perfect',
-      badge: '🎯 TARGET LCM',
-      text: `Tile ${tile} is the FIRST overlap! Both waves collide here first (${generatorValues.map((v) => `${v}×${tile / v}`).join(' and ')}). Click to place breaker!`,
-    };
-  }
-
-  if (isShared) {
-    return {
-      isValid: true,
-      tile,
-      isLcm: false,
-      type: 'higher-multiple',
-      badge: '⚠ HIGHER MULTIPLE',
-      text: `Tile ${tile} is a common multiple (${generatorValues.map((v) => `${v}×${tile / v}`).join(', ')}), but the surge will hit Tile ${targetLcm} FIRST!`,
-    };
-  }
-
-  if (matchingGens.length > 0) {
-    const missing = generatorValues.filter((v) => tile % v !== 0);
-    return {
-      isValid: true,
-      tile,
-      isLcm: false,
-      type: 'partial',
-      badge: '⚡ PARTIAL WAVE ONLY',
-      text: `Tile ${tile} only matches [${matchingGens.join(', ')}]. It misses [${missing.join(', ')}]. The surge meets at ${targetLcm}!`,
-    };
-  }
-
+  const remA = total % a;
+  const remB = total % b;
   return {
-    isValid: true,
-    tile,
-    isLcm: false,
-    type: 'dead',
-    badge: '○ DEAD TILE',
-    text: `Tile ${tile} is not on any active generator frequency. Count by [${generatorValues.join(', ')}] to find the overlap!`,
+    total,
+    packsA: Math.floor(total / a),
+    packsB: Math.floor(total / b),
+    remA,
+    remB,
+    cleanA: remA === 0,
+    cleanB: remB === 0,
+    clean: remA === 0 && remB === 0,
   };
 }
 
 /**
- * Evaluates student's circuit breaker placement against generator frequencies.
- * @param {number|string} placedInput - The tile number chosen by student
- * @param {number[]} generatorValues - Active generator frequencies (e.g. [4, 6] or [2, 3, 5])
- * @param {number} currentStreak - Current successful streak count
- * @returns {object} EvaluationOutcome with detailed diagnostic feedback
+ * Landing events for pulses that hop every nums[i] from 0, in order, up to `end`.
+ * Each event: { at, lanes: [lane indexes that land there] }.
  */
-export function evaluatePlacement(placedInput, generatorValues, currentStreak = 0) {
-  const placedTile = Math.round(parseMathInput(placedInput));
-  const targetLcm = lcmMultiple(generatorValues);
-  const commonMultiples = getCommonMultiples(generatorValues, 100);
+export function buildRace(nums, end) {
+  const events = new Map();
+  nums.forEach((n, lane) => {
+    for (let m = n; m <= end; m += n) {
+      if (!events.has(m)) events.set(m, []);
+      events.get(m).push(lane);
+    }
+  });
+  return [...events.entries()].sort((x, y) => x[0] - y[0]).map(([at, lanes]) => ({ at, lanes }));
+}
 
-  if (isNaN(placedTile) || placedTile < 1 || placedTile > 100) {
-    return {
-      result: EVALUATION_RESULTS.NON_MULTIPLE,
-      targetLcm,
-      placedTile: isNaN(placedTile) ? 0 : placedTile,
-      generatorValues,
-      commonMultiplesInGrid: commonMultiples,
-      stabilityDamage: 25,
-      scoreDelta: 0,
-      hudTitle: 'INVALID TILE COORDINATE',
-      hudMessage: 'Placement coordinates must be a valid number between 1 and 100.',
-      mathExplanation: `Please enter or click a grid cell from 1 to 100. Target LCM is ${targetLcm}.`,
-      diagnosticMisconception: 'OUT_OF_BOUNDS',
-      isSuccess: false,
-    };
-  }
+/** Where pulses first land together (all lanes). */
+export function firstCollision(nums) {
+  return lcmMany(nums);
+}
 
-  const isSharedMultiple = generatorValues.every((val) => placedTile % val === 0);
-  const isMultipleOfAny = generatorValues.some((val) => placedTile % val === 0);
-  const genStr = generatorValues.join(', ');
-
-  // 1. PERFECT LCM
-  if (placedTile === targetLcm) {
-    const streakBonus = Math.min(currentStreak, 5) * 50;
-    const score = 100 + streakBonus;
-
-    return {
-      result: EVALUATION_RESULTS.PERFECT_LCM,
-      targetLcm,
-      placedTile,
-      generatorValues,
-      commonMultiplesInGrid: commonMultiples,
-      stabilityDamage: 0,
-      scoreDelta: score,
-      hudTitle: 'GRID STABILIZED: PERFECT LOCK!',
-      hudMessage: `Tile ${targetLcm} is the LEAST Common Multiple for generators [${genStr}]! Frequency arc safely grounded!`,
-      mathExplanation: `Multiples collide at ${commonMultiples.slice(0, 4).join(', ')}... and ${targetLcm} is the very first (LEAST) overlap!`,
-      diagnosticMisconception: null,
-      isSuccess: true,
-    };
-  }
-
-  // 2. HIGHER COMMON MULTIPLE (Classic Trap: e.g. picking 24 instead of 12 for 4 and 6)
-  if (isSharedMultiple) {
-    return {
-      result: EVALUATION_RESULTS.HIGHER_COMMON_MULTIPLE,
-      targetLcm,
-      placedTile,
-      generatorValues,
-      commonMultiplesInGrid: commonMultiples,
-      stabilityDamage: 30,
-      scoreDelta: 25,
-      hudTitle: 'CIRCUIT BREACHED: HIGHER MULTIPLE DETECTED!',
-      hudMessage: `Breaker placed at Tile ${placedTile}, but the transformer arc flash detonated at the FIRST collision: Tile ${targetLcm}!`,
-      mathExplanation: `Tile ${placedTile} is indeed a common multiple, but LCM requires the LEAST (earliest) multiple! The pulses first met at ${targetLcm}.`,
-      diagnosticMisconception: 'CONFUSED_COMMON_WITH_LEAST',
-      isSuccess: false,
-    };
-  }
-
-  // 3. SINGLE MULTIPLE (Only matches one generator frequency)
-  if (isMultipleOfAny) {
-    const matchingGens = generatorValues.filter((v) => placedTile % v === 0);
-    const missingGens = generatorValues.filter((v) => placedTile % v !== 0);
-
-    return {
-      result: EVALUATION_RESULTS.SINGLE_MULTIPLE,
-      targetLcm,
-      placedTile,
-      generatorValues,
-      commonMultiplesInGrid: commonMultiples,
-      stabilityDamage: 40,
-      scoreDelta: 0,
-      hudTitle: 'FREQUENCY MISMATCH: PARTIAL PULSE ONLY!',
-      hudMessage: `Tile ${placedTile} only conducts Generator [${matchingGens.join(', ')}], missing Generator [${missingGens.join(', ')}]. Surges collided at Tile ${targetLcm}!`,
-      mathExplanation: `A common multiple must be divisible by ALL active generators ([${genStr}]). Count by each to find their first intersection: ${targetLcm}.`,
-      diagnosticMisconception: 'PARTIAL_MULTIPLE_ONLY',
-      isSuccess: false,
-    };
-  }
-
-  // 4. NON-MULTIPLE (Completely off frequency)
-  return {
-    result: EVALUATION_RESULTS.NON_MULTIPLE,
-    targetLcm,
-    placedTile,
-    generatorValues,
-    commonMultiplesInGrid: commonMultiples,
-    stabilityDamage: 50,
-    scoreDelta: 0,
-    hudTitle: 'GRID SHORT-CIRCUIT: DEAD TILE!',
-    hudMessage: `Tile ${placedTile} does not carry ANY active generator frequency. Uncontained surge collided at Tile ${targetLcm}!`,
-    mathExplanation: `None of [${genStr}] divide evenly into ${placedTile}. Count multiples of the generators to find where they synchronize: ${targetLcm}.`,
-    diagnosticMisconception: 'NON_MULTIPLE',
-    isSuccess: false,
-  };
+/**
+ * "Missing generator" check: does Beta = choice make the first collision with Alpha = a land on target?
+ */
+export function evaluateReverse(choice, a, target) {
+  const meet = lcm(a, choice);
+  if (meet === target) return { isCorrect: true, meet, code: 'CORRECT' };
+  return { isCorrect: false, meet, code: meet < target ? 'MEETS_EARLY' : 'MEETS_LATE' };
 }

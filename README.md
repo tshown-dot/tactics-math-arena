@@ -54,7 +54,7 @@ The Realm of Numeria connects all modular cartridges through a unified tactical 
 1. **Spire of Powers (Lesson 3-1):** Exponents & Repeated Multiplication *(Charge Runner)*
 2. **Vault of Divisors (Lesson 3-2):** Greatest Common Factor *(Vault Breaker)*
 3. **The Siege Works (Lesson 3-3):** Order of Operations *(Demolition Crane)*
-4. **Resonance Bastion (Lesson 3-4):** Least Common Multiple *(Power Grid)*
+4. **Resonance Bastion (Lesson 3-4):** Least Common Multiple *(Grid Sync)*
 5. **The Alchemist's Forge (Lesson 3-6):** The Distributive Property *(Reserved Modular Node)*
 6. **Plains of Convergence (Lesson 3-7):** Combining Like Terms *(Term Popper)*
 7. **The Citadel of Percents (Apex Boss):** Topic 3 Climax *(The Percentage Phantom)*

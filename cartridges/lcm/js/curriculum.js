@@ -1,147 +1,105 @@
 /**
- * Power Grid: LCM Circuit Breaker - Curriculum & Sector Configuration
- * Aligned with enVisionmath 2.0 Topic 3 (Least Common Multiple)
- * Zero frameworks, vanilla ES Module
+ * Grid Sync: The LCM Substation - Sectors (power lines of the substation)
+ * Each run builds fresh problems from these settings (see generator.js).
  */
 
-export const CURRICULUM_SECTORS = [
-  {
-    id: 1,
-    codename: 'SECTOR-01',
-    name: 'Direct Multiples Relay',
-    subtitle: 'One frequency divides evenly into the other',
-    ruleHint: 'Key Concept: When number A divides into number B, the larger number IS the Least Common Multiple!',
-    generatorsCount: 2,
-    targetWins: 3,
-    timeLimit: 55, // seconds countdown
-    stabilityDamagePerError: 25,
-    samplePairs: [
-      [3, 6],
-      [4, 8],
-      [3, 9],
-      [2, 6],
-      [4, 12],
-      [5, 10],
-      [2, 8],
-      [6, 12],
-    ],
-  },
-  {
-    id: 2,
-    codename: 'SECTOR-02',
-    name: 'Composite Resonance Junction',
-    subtitle: 'Frequencies share common factors',
-    ruleHint: 'Key Concept: LCM is LESS than their product! Find the first overlapping frequency in both pulse tracks.',
-    generatorsCount: 2,
-    targetWins: 3,
-    timeLimit: 50,
-    stabilityDamagePerError: 30,
-    samplePairs: [
-      [4, 6],
-      [6, 8],
-      [6, 9],
-      [8, 10],
-      [8, 12],
-      [9, 12],
-      [10, 15],
-      [6, 10],
-    ],
-  },
-  {
-    id: 3,
-    codename: 'SECTOR-03',
-    name: 'Co-Prime Surge Chamber',
-    subtitle: 'Numbers share no common factor other than 1',
-    ruleHint: 'Key Concept: When numbers are co-prime (consecutive numbers or prime pairs), multiply them directly (A × B) to get the LCM!',
-    generatorsCount: 2,
-    targetWins: 3,
-    timeLimit: 45,
-    stabilityDamagePerError: 35,
-    samplePairs: [
-      [3, 5],
-      [4, 5],
-      [5, 7],
-      [6, 7],
-      [7, 8],
-      [3, 8],
-      [4, 7],
-      [5, 9],
-    ],
-  },
-  {
-    id: 4,
-    codename: 'SECTOR-04',
-    name: 'Tri-Phase Overload Matrix',
-    subtitle: '3 simultaneous pulse generators in collision course',
-    ruleHint: 'Key Concept: Triple overlap! The breaker must stop the pulse at the very first number shared by ALL THREE waves.',
-    generatorsCount: 3,
-    targetWins: 3,
-    timeLimit: 45,
-    stabilityDamagePerError: 40,
-    samplePairs: [
-      [2, 3, 4],
-      [2, 3, 5],
-      [3, 4, 6],
-      [2, 4, 5],
-      [2, 4, 6],
-      [3, 5, 6],
-      [2, 5, 10],
-      [4, 6, 8],
-    ],
-  },
-  {
-    id: 5,
-    codename: 'SECTOR-05',
-    name: 'Megawatt Megacore [BOSS BATTLE]',
-    subtitle: 'Higher-Order Periodic Synchronization Dilemmas',
-    ruleHint: 'Boss Protocol: Solve real-world synchronization dilemmas and contain the unstable 4-generator reactor surge!',
-    generatorsCount: 3,
-    targetWins: 3,
-    timeLimit: 60,
-    stabilityDamagePerError: 50,
-    isBossSector: true,
-    samplePairs: [
-      [4, 6, 9],
-      [3, 6, 8],
-      [4, 8, 12],
-    ],
-    bossDilemmas: [
-      {
-        id: 'boss-dilemma-1',
-        title: 'Emergency Alarm Synchronization',
-        scenario: 'Warning Siren Alpha blasts every 12 seconds. Flash Beacon Beta pulses every 18 seconds. Coolant Vent Gamma cycles every 24 seconds. At what exact second will all three activate at the exact same moment?',
-        numbers: [12, 18, 24],
-        correctAnswer: 72,
-        options: [36, 48, 72, 144],
-        explanation: 'Multiples of 24: 24, 48, 72... Multiples of 18: 18, 36, 54, 72... Multiples of 12: 12, 24, 36, 48, 60, 72. LCM(12, 18, 24) = 72 seconds!'
-      },
-      {
-        id: 'boss-dilemma-2',
-        title: 'Interlocking Turbine Alignment',
-        scenario: 'Turbine Rotor A has 15 teeth per revolution, while Generator Gear B has 20 teeth per revolution. How many teeth must rotate through the sensor gate before both gears simultaneously complete whole cycles and align?',
-        numbers: [15, 20],
-        correctAnswer: 60,
-        options: [30, 45, 60, 300],
-        explanation: 'Count by 20: 20, 40, 60. Count by 15: 15, 30, 45, 60. Both gears synchronize at 60 teeth (Gear A completes 4 cycles, Gear B completes 3 cycles)!'
-      }
-    ]
-  }
-];
-
-export function getSectorById(id) {
-  return CURRICULUM_SECTORS.find((s) => s.id === id) || CURRICULUM_SECTORS[0];
-}
+/** What each job type practices (labels + end-of-run skill breakdown). */
+export const MODE_INFO = {
+  sync: { label: 'Sync the Pulses', icon: '⚡', skill: 'Find the LCM of two numbers' },
+  sync3: { label: 'Tri-Phase Sync', icon: '🔱', skill: 'Find the LCM of three numbers' },
+  supply: { label: 'Supply Run', icon: '📦', skill: 'Fewest items so the packs match' },
+  scan: { label: 'Spot the LCM', icon: '🔎', skill: 'Tell the LCM apart from common traps' },
+  tool: { label: 'GCF or LCM?', icon: '🧭', skill: 'Choose GCF or LCM for a real problem' },
+  reverse: { label: 'Missing Generator', icon: '❔', skill: 'Work backward from an LCM' },
+};
 
 /**
- * Returns a generator pair/trio from the sector pool
+ * numbers:
+ *   gs            - shared factors to build pairs from (a = g·m, b = g·n)
+ *   ms            - multipliers (1 = one number divides the other)
+ *   maxNum/maxLcm - size limits
+ *   directChance  - chance one number is a multiple of the other
+ *   coprimeChance - chance the pair shares no factor (LCM = product)
+ *   storyChance   - chance a Sync job is a real-world timing story
+ *   triple        - limits for three-number jobs
  */
-export function generateScenarioForSector(sectorId, lastUsed = null) {
-  const sector = getSectorById(sectorId);
-  const candidates = sector.samplePairs.filter((pair) => {
-    if (!lastUsed) return true;
-    return JSON.stringify(pair) !== JSON.stringify(lastUsed);
-  });
-  const pool = candidates.length > 0 ? candidates : sector.samplePairs;
-  const picked = pool[Math.floor(Math.random() * pool.length)];
-  return [...picked];
-}
+export const CURRICULUM_SECTORS = [
+  {
+    id: 'sector-1',
+    name: 'Line 1: Feeder Lines',
+    badge: 'LINE-1',
+    description: 'Small numbers. If one number divides into the other, the bigger one IS the LCM.',
+    timeLimit: 45,
+    overloadPerMiss: 25,
+    modes: ['sync', 'sync', 'scan', 'supply', 'sync'],
+    numbers: { gs: [2, 3, 4, 5], ms: [1, 2, 3, 4], maxNum: 12, maxLcm: 36, directChance: 0.45, coprimeChance: 0.15, storyChance: 0 },
+  },
+  {
+    id: 'sector-2',
+    name: 'Line 2: Transformer Yard',
+    badge: 'LINE-2',
+    description: 'Numbers that share a factor line up BEFORE their product. 4 × 6 = 24, but 4 and 6 first meet at 12.',
+    timeLimit: 45,
+    overloadPerMiss: 25,
+    modes: ['sync', 'supply', 'scan', 'sync', 'supply'],
+    numbers: { gs: [2, 3, 4, 5, 6], ms: [2, 3, 4, 5], maxNum: 20, maxLcm: 72, directChance: 0, coprimeChance: 0.1, storyChance: 0.4 },
+  },
+  {
+    id: 'sector-3',
+    name: 'Line 3: Town Schedules',
+    badge: 'LINE-3',
+    description: 'Buses, beacons and supply orders, plus the big question: does this job need the GCF or the LCM?',
+    timeLimit: 50,
+    overloadPerMiss: 25,
+    modes: ['tool', 'sync', 'supply', 'tool', 'scan', 'tool'],
+    numbers: { gs: [2, 3, 4, 5, 6], ms: [1, 2, 3, 4, 5], maxNum: 24, maxLcm: 90, directChance: 0.1, coprimeChance: 0.3, storyChance: 0.8 },
+  },
+  {
+    id: 'sector-4',
+    name: 'Line 4: Tri-Phase Core',
+    badge: 'LINE-4',
+    description: 'Three pulses at once. Two of them may meet early, but the breaker goes where ALL THREE land.',
+    timeLimit: 50,
+    overloadPerMiss: 25,
+    modes: ['sync3', 'reverse', 'sync3', 'supply', 'sync3', 'reverse'],
+    numbers: { gs: [2, 3, 4, 5, 6], ms: [2, 3, 4, 5], maxNum: 24, maxLcm: 96, directChance: 0, coprimeChance: 0.2, storyChance: 0.5, triple: { maxNum: 12, maxLcm: 72 } },
+  },
+  {
+    id: 'sector-5',
+    name: 'The Core: Dynamo Overlord',
+    badge: 'BOSS',
+    isBossSector: true,
+    bossName: 'Dynamo Overlord',
+    bossHp: 8,
+    description: 'The Dynamo Overlord has hijacked the grid. Every correct answer knocks out one of its 8 power coils.',
+    timeLimit: 45,
+    overloadPerMiss: 25,
+    modes: ['sync3', 'tool', 'sync', 'reverse', 'scan', 'sync3', 'supply', 'tool'],
+    numbers: { gs: [2, 3, 4, 5, 6, 7], ms: [2, 3, 4, 5], maxNum: 30, maxLcm: 120, directChance: 0.05, coprimeChance: 0.2, storyChance: 0.6, triple: { minNum: 3, maxNum: 15, maxLcm: 90 } },
+  },
+];
+
+/** Extra seconds for the longer job types. */
+export const EXTRA_TIME = { sync3: 10, tool: 10, reverse: 5 };
+
+/** Backup cells: each one resets the overload meter once. Out of cells at 100% = blackout. */
+export const BACKUP_CELLS = 3;
+
+/** Overload added when the timer runs out. */
+export const TIMEOUT_OVERLOAD = 35;
+
+/** Follow-up problems added per sector after misses. */
+export const MAX_FOLLOWUPS_PER_SECTOR = 3;
+
+export const MAX_COMBO = 5;
+
+export const BOSS_TAUNTS = [
+  '"Your town runs on MY schedule now."',
+  '"A lucky sync. It won\'t happen twice."',
+  '"My coils spin LEAST... I mean MOST... ugh!"',
+  '"Stop lining up my pulses!"',
+  '"Halfway? Impossible!"',
+  '"My multiples... they\'re collapsing!"',
+  '"One coil left. You won\'t find it!"',
+  '"POWER... FAILING..."',
+];
