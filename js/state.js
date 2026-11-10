@@ -37,8 +37,8 @@ export class PlayerState {
     }
 
     if (this.pin === '7777') {
-      if (cleanPass !== 'math6' && cleanPass !== 'math7') {
-        return { success: false, error: 'Incorrect Teacher Passcode. Use math6.' };
+      if (cleanPass !== 'test' && cleanPass !== 'math6' && cleanPass !== 'math7') {
+        return { success: false, error: 'Incorrect Teacher Passcode. Use Test.' };
       }
       this.isTeacherOverride = true;
       this.passcode = cleanPass;
@@ -49,10 +49,11 @@ export class PlayerState {
     const saved = await fetchStudentProfile(this.pin);
     if (saved) {
       const savedPass = String(saved.password || saved.passcode || '').trim().toLowerCase();
-      // Allow star6 or star7 for seed PIN 1042
+      // Allow star6 or star7 for seed PIN 1042, and test or math6 for teacher PIN 7777
       const isSeed1042 = this.pin === '1042' && (cleanPass === 'star6' || cleanPass === 'star7');
+      const isTeacher7777 = this.pin === '7777' && (cleanPass === 'test' || cleanPass === 'math6' || cleanPass === 'math7');
 
-      if (savedPass && !isSeed1042 && cleanPass !== savedPass) {
+      if (savedPass && !isSeed1042 && !isTeacher7777 && cleanPass !== savedPass) {
         return {
           success: false,
           error: `Incorrect secret passcode for PIN #${this.pin}. Check your math folder or ask teacher.`

@@ -233,8 +233,8 @@ class NumeriaHub {
     });
     this.dom.quickPin7777?.addEventListener('click', () => {
       if (this.dom.pinInput) this.dom.pinInput.value = '7777';
-      if (this.dom.passcodeInput) this.dom.passcodeInput.value = 'math6';
-      this.loginWithCredentials('7777', 'math6');
+      if (this.dom.passcodeInput) this.dom.passcodeInput.value = 'Test';
+      this.loginWithCredentials('7777', 'Test');
     });
 
     // On-screen D-Pad & A button

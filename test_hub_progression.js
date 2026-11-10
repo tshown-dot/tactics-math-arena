@@ -187,14 +187,21 @@ assert(emptyRes.success === false, 'Rejects empty passcode');
 const badTeacherRes = await authPlayer.loadPlayer('7777', 'wrongpass');
 assert(badTeacherRes.success === false, 'Rejects incorrect teacher passcode');
 
-// Teacher account PIN 7777 with math6
-const goodTeacherRes = await authPlayer.loadPlayer('7777', 'math6');
-assert(goodTeacherRes.success === true, 'Accepts valid teacher passcode math6');
+// Teacher account PIN 7777 with Test
+const goodTeacherRes = await authPlayer.loadPlayer('7777', 'Test');
+assert(goodTeacherRes.success === true, 'Accepts valid teacher passcode Test');
 assert(authPlayer.isTeacherOverride === true, 'Activates teacher override mode');
 
-// Teacher account PIN 7777 case-insensitive
-const caseTeacherRes = await authPlayer.loadPlayer('7777', 'MATH6');
-assert(caseTeacherRes.success === true, 'Accepts case-insensitive MATH6');
+// Teacher account PIN 7777 case-insensitive (test & TEST)
+const caseTeacherRes = await authPlayer.loadPlayer('7777', 'TEST');
+assert(caseTeacherRes.success === true, 'Accepts case-insensitive TEST');
+
+const lowerTeacherRes = await authPlayer.loadPlayer('7777', 'test');
+assert(lowerTeacherRes.success === true, 'Accepts lowercase test');
+
+// Backwards compatibility with math6
+const fallbackTeacherRes = await authPlayer.loadPlayer('7777', 'math6');
+assert(fallbackTeacherRes.success === true, 'Accepts fallback teacher passcode math6');
 
 // Student PIN 1042 accepts star6 or star7
 const seedStudentRes = await authPlayer.loadPlayer('1042', 'star6');
