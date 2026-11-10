@@ -626,6 +626,44 @@ const BUILDINGS = {
     };
   },
 
+  drone_depot() {
+    return {
+      top: -142,
+      door: { x: -12, y: -46 },
+      svg: `
+        ${shadow(62)}
+        <!-- windsock -->
+        <line x1="50" y1="-20" x2="50" y2="-92" stroke="${K}" stroke-width="3"/>
+        <g class="flag-wave"><path d="M51 -92 L74 -88 L74 -80 L51 -76 Z" fill="${PALETTE.orange}" ${O2}/>
+        <path d="M59 -90.5 V-77.5 M67 -89 V-79" stroke="#fff" stroke-width="3"/></g>
+        <!-- hangar with curved roof -->
+        <path d="M-50 -20 L-50 -70 Q-50 -98 -10 -98 Q30 -98 30 -70 L30 -20 Z" fill="#2f80ed" ${O}/>
+        <path d="M-42 -72 Q-42 -90 -10 -90 Q22 -90 22 -72" fill="none" stroke="#7fb6ff" stroke-width="4" stroke-linecap="round"/>
+        <path d="M-30 -96 V-20 M-10 -98 V-20 M10 -96 V-20" stroke="#1f5fbf" stroke-width="2"/>
+        <!-- big hangar door -->
+        <rect x="-32" y="-62" width="40" height="42" rx="3" fill="#e8eef9" ${O}/>
+        <path d="M-32 -52 H8 M-32 -42 H8 M-32 -32 H8" stroke="#a9b8d4" stroke-width="2"/>
+        <rect x="-26" y="-60" width="10" height="7" fill="#bfe8ff" stroke="${K}" stroke-width="1.5"/>
+        <!-- parcel stack -->
+        <rect x="34" y="-36" width="18" height="16" fill="#d9a85e" ${O2}/>
+        <rect x="36" y="-50" width="14" height="14" fill="#e9c27f" ${O2}/>
+        <path d="M43 -36 V-20 M43 -50 V-36" stroke="#8a5a2b" stroke-width="2"/>
+        <!-- rooftop helipad -->
+        <ellipse cx="-10" cy="-100" rx="26" ry="6" fill="#ffd23f" ${O}/>
+        <text x="-10" y="-97" text-anchor="middle" class="map-px" font-size="7" fill="${K}">H</text>
+        <!-- hovering drone carrying a parcel -->
+        <g class="drone-hover">
+          <line x1="-10" y1="-120" x2="-10" y2="-112" stroke="${K}" stroke-width="2"/>
+          <rect x="-16" y="-114" width="12" height="9" rx="1.5" fill="#d9a85e" ${O2}/>
+          <rect x="-24" y="-130" width="28" height="10" rx="4" fill="${PALETTE.red}" ${O}/>
+          <rect x="-14" y="-128" width="8" height="5" rx="2" fill="#bfe8ff"/>
+          <path d="M-22 -130 V-135 M2 -130 V-135" stroke="${K}" stroke-width="2.5"/>
+          <rect class="rotor" x="-32" y="-138" width="20" height="3.5" rx="1.75" fill="#ffffff" ${O2}/>
+          <rect class="rotor" x="-8" y="-138" width="20" height="3.5" rx="1.75" fill="#ffffff" ${O2}/>
+        </g>`,
+    };
+  },
+
   arcade() {
     let bulbs = '';
     for (let i = 0; i < 9; i++) {
@@ -752,6 +790,7 @@ const BADGES = {
   substation: `<rect x="-8" y="-11" width="16" height="23" rx="3" fill="${PALETTE.teal}" ${O2}/><rect x="-3" y="-14" width="6" height="4" fill="${K}"/><path d="M2 -7 L-3 1 L1 1 L-1 7 L4 -1 L0 -1 Z" fill="#fff36b"/>`,
   security_vault: `<circle cx="-4" cy="-3" r="7" fill="none" stroke="${K}" stroke-width="5"/><circle cx="-4" cy="-3" r="7" fill="none" stroke="${PALETTE.gold}" stroke-width="2.5"/><path d="M1 2 L11 12 M7 8 L10 5 M9 10 L12 7" stroke="${K}" stroke-width="5" stroke-linecap="round"/><path d="M1 2 L11 12 M7 8 L10 5 M9 10 L12 7" stroke="${PALETTE.gold}" stroke-width="2.4" stroke-linecap="round"/>`,
   forge_wip: `<rect x="-12" y="-4" width="24" height="10" rx="2" fill="url(#hazardTexMini)" ${O2}/><path d="M-8 6 V11 M8 6 V11" stroke="${K}" stroke-width="3"/>`,
+  drone_depot: `<path d="M0 -2 Q-8 -12 -15 -6 Q-9 -3 -6 2 Z M0 -2 Q8 -12 15 -6 Q9 -3 6 2 Z" fill="#ffffff" ${O2}/><rect x="-6" y="-5" width="12" height="9" rx="3" fill="${PALETTE.red}" ${O2}/><rect x="-5" y="5" width="10" height="7" rx="1.5" fill="#d9a85e" ${O2}/>`,
   arcade: `<circle r="13" fill="#fff" ${O2}/><circle r="8.5" fill="${PALETTE.red}" stroke="${K}" stroke-width="1.5"/><circle r="4" fill="#fff" stroke="${K}" stroke-width="1.5"/>`,
   castle: `<path d="M-12 8 L-12 -6 L-6 1 L0 -12 L6 1 L12 -6 L12 8 Z" fill="${PALETTE.gold}" ${O2}/><circle cx="0" cy="2" r="2.5" fill="${PALETTE.red}"/>`,
 };

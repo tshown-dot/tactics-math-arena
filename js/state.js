@@ -5,7 +5,7 @@
  */
 
 import { fetchStudentProfile, saveStudentProfile, logCartridgeSession } from './db.js';
-import { REALM_NODES, getEffectivePrerequisite } from './nodes.js?v=w3map1';
+import { REALM_NODES, getEffectivePrerequisite } from './nodes.js?v=w3map2';
 
 export class PlayerState {
   constructor() {
@@ -96,7 +96,27 @@ export class PlayerState {
       await this.save();
     }
 
+    this.backfillUnlocks();
     return { success: true };
+  }
+
+  /**
+   * Opens any stage whose required stage is already cleared but which is missing from the
+   * saved unlock list. This happens when a stage goes live after students passed it by:
+   * while Lesson 3-6 was under construction, clearing 3-5 unlocked 3-7 and skipped 3-6.
+   * The fix is kept in memory and is written on the player's next save.
+   */
+  backfillUnlocks() {
+    let added = 0;
+    REALM_NODES.forEach((node) => {
+      if (node.isWip || !node.requiredNodeId) return;
+      if (!this.nodeRecords[node.requiredNodeId]?.cleared) return;
+      if (!this.unlockedNodes.includes(node.id)) {
+        this.unlockedNodes.push(node.id);
+        added++;
+      }
+    });
+    return added;
   }
 
   async save() {
