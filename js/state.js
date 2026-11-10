@@ -5,7 +5,7 @@
  */
 
 import { fetchStudentProfile, saveStudentProfile, logCartridgeSession } from './db.js';
-import { REALM_NODES, getEffectivePrerequisite } from './nodes.js?v=w3map3';
+import { REALM_NODES, getEffectivePrerequisite } from './nodes.js?v=w3map4';
 
 /** Old stage IDs found in saves, mapped to the stage they belong to now. */
 export const LEGACY_NODE_IDS = { node_3_4: 'node_3_2_lcm' };

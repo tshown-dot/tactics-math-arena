@@ -67,6 +67,7 @@ assert(!('node_3_4' in byId), 'The old node_3_4 ID is no longer a stage');
 assert(byId.node_3_6.isWip === false, 'Lesson 3-6 is live (isWip: false)');
 assert(byId.node_3_6.cartridgeUrl === './cartridges/distributive/index.html', 'Lesson 3-6 points at the Drone Drop cartridge');
 assert(REALM_NODES[REALM_NODES.length - 1].id === 'node_apex', 'Final node is Apex Boss');
+assert(byId.node_apex.cartridgeUrl === './cartridges/boss/index.html', 'The Boss Castle runs the Topic 3 capstone, not a lesson game');
 REALM_NODES.forEach((n) => {
   if (n.id !== 'node_apex') assert(Boolean(n.lessonCode && n.mapCoords && n.buildingType), `${n.id} has a code, map spot, and building`);
 });

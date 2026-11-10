@@ -59,7 +59,7 @@ The Realm of Numeria connects all modular cartridges through a unified tactical 
 6. **Variable Vault (Lesson 3-5):** Evaluate Algebraic Expressions
 7. **Drone Depot (Lesson 3-6):** The Distributive Property *(Drone Drop)*
 8. **Target Arcade (Lesson 3-7):** Combining Like Terms *(Term Popper)*
-9. **Boss Castle:** Topic 3 Climax
+9. **Boss Castle:** Topic 3 capstone *(Siege of the Expression Colossus: one armor plate per stage, then combo attacks that mix lessons)*
 
 * **Progression Gating:** Clearing each stage unlocks the next one on the map, awarding XP, Gold Coins, and Mastery Stars.
 * **Lesson 3-2 has two stages:** GCF first, then LCM. Saves from when LCM was Stage 3-4 (`node_3_4`) are moved to the LCM stage (`node_3_2_lcm`) on login.
