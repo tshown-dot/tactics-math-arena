@@ -5,7 +5,10 @@
  */
 
 import { fetchStudentProfile, saveStudentProfile, logCartridgeSession } from './db.js';
-import { REALM_NODES, getEffectivePrerequisite } from './nodes.js?v=w3map2';
+import { REALM_NODES, getEffectivePrerequisite } from './nodes.js?v=w3map3';
+
+/** Old stage IDs found in saves, mapped to the stage they belong to now. */
+export const LEGACY_NODE_IDS = { node_3_4: 'node_3_2_lcm' };
 
 export class PlayerState {
   constructor() {
@@ -96,26 +99,59 @@ export class PlayerState {
       await this.save();
     }
 
+    this.migrateLegacyNodeIds();
     this.backfillUnlocks();
     return { success: true };
   }
 
   /**
-   * Opens any stage whose required stage is already cleared but which is missing from the
-   * saved unlock list. This happens when a stage goes live after students passed it by:
-   * while Lesson 3-6 was under construction, clearing 3-5 unlocked 3-7 and skipped 3-6.
+   * Renames stage IDs from older saves. The LCM game used to be Stage 3-4 ('node_3_4').
+   * It is now the second half of Lesson 3-2 ('node_3_2_lcm'), and Lesson 3-4 is the
+   * Signal Observatory ('node_3_4_expr'). Any 'node_3_4' in a save is the LCM stage.
+   */
+  migrateLegacyNodeIds() {
+    let changed = false;
+    Object.entries(LEGACY_NODE_IDS).forEach(([oldId, newId]) => {
+      if (this.unlockedNodes.includes(oldId)) {
+        this.unlockedNodes = this.unlockedNodes.filter((id) => id !== oldId);
+        if (!this.unlockedNodes.includes(newId)) this.unlockedNodes.push(newId);
+        changed = true;
+      }
+      if (this.nodeRecords[oldId]) {
+        if (!this.nodeRecords[newId]) this.nodeRecords[newId] = this.nodeRecords[oldId];
+        delete this.nodeRecords[oldId];
+        changed = true;
+      }
+    });
+    return changed;
+  }
+
+  /**
+   * Opens stages that older saves are missing because the map changed after students passed by.
+   * 1. A stage whose required stage is already cleared opens (while Lesson 3-6 was under
+   *    construction, clearing 3-5 unlocked 3-7 and skipped 3-6).
+   * 2. A stage that comes before an open stage opens too (the LCM stage moved in front of
+   *    3-3, so a student with 3-3 open has passed the spot where LCM now sits).
    * The fix is kept in memory and is written on the player's next save.
    */
   backfillUnlocks() {
     let added = 0;
-    REALM_NODES.forEach((node) => {
-      if (node.isWip || !node.requiredNodeId) return;
-      if (!this.nodeRecords[node.requiredNodeId]?.cleared) return;
-      if (!this.unlockedNodes.includes(node.id)) {
-        this.unlockedNodes.push(node.id);
+    const open = (id) => {
+      if (!this.unlockedNodes.includes(id)) {
+        this.unlockedNodes.push(id);
         added++;
       }
+    };
+    REALM_NODES.forEach((node) => {
+      if (node.isWip || !node.requiredNodeId) return;
+      if (this.nodeRecords[node.requiredNodeId]?.cleared) open(node.id);
     });
+    for (let i = REALM_NODES.length - 1; i >= 0; i--) {
+      const node = REALM_NODES[i];
+      if (!node.requiredNodeId || !this.unlockedNodes.includes(node.id)) continue;
+      const prereq = REALM_NODES.find((n) => n.id === node.requiredNodeId);
+      if (prereq && !prereq.isWip) open(prereq.id);
+    }
     return added;
   }
 
@@ -210,12 +246,6 @@ export class PlayerState {
       if (this.unlockNode(nextNode.id)) {
         nextUnlockedNode = nextNode;
       }
-    }
-
-    // Curriculum Bridge: Clearing 3-2 (GCF) also unlocks 3-4 (LCM Substation Grid)
-    // so students can proceed along either the PEMDAS or Factors/Multiples pathway!
-    if (nodeId === 'node_3_2') {
-      this.unlockNode('node_3_4');
     }
 
     // Save and log session

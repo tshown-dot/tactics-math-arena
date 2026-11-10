@@ -51,16 +51,19 @@ This app is a high-speed, zero-build static web application ready for Render dep
 
 The Realm of Numeria connects all modular cartridges through a unified tactical progression graph:
 
-1. **Spire of Powers (Lesson 3-1):** Exponents & Repeated Multiplication *(Charge Runner)*
-2. **Vault of Divisors (Lesson 3-2):** Greatest Common Factor *(Vault Breaker)*
-3. **The Siege Works (Lesson 3-3):** Order of Operations *(Demolition Crane)*
-4. **Resonance Bastion (Lesson 3-4):** Least Common Multiple *(Grid Sync)*
-5. **The Alchemist's Forge (Lesson 3-6):** The Distributive Property *(Reserved Modular Node)*
-6. **Plains of Convergence (Lesson 3-7):** Combining Like Terms *(Term Popper)*
-7. **The Citadel of Percents (Apex Boss):** Topic 3 Climax *(The Percentage Phantom)*
+1. **Power Plant (Lesson 3-1):** Exponents & Repeated Multiplication *(Charge Runner)*
+2. **Town Bank Vault (Lesson 3-2):** Greatest Common Factor *(Vault Breaker)*
+3. **Substation Grid (Lesson 3-2):** Least Common Multiple *(Grid Sync)*
+4. **Demolition Yard (Lesson 3-3):** Order of Operations *(Demolition Crane)*
+5. **Signal Observatory (Lesson 3-4):** Write Algebraic Expressions *(Galactic Translator)*
+6. **Variable Vault (Lesson 3-5):** Evaluate Algebraic Expressions
+7. **Drone Depot (Lesson 3-6):** The Distributive Property *(Drone Drop)*
+8. **Target Arcade (Lesson 3-7):** Combining Like Terms *(Term Popper)*
+9. **Boss Castle:** Topic 3 Climax
 
-* **Progression Gating:** Clearing each realm unlocks the next node on the tactical map, awarding XP, Gold Coins, and Mastery Stars.
-* **Lesson 3-6 Modular Plug:** Lesson 3-6 is marked as an active reserved slot (`isWip: true`), automatically bridging Lesson 3-4 to 3-7 until the cartridge is placed into `cartridges/distributive/`.
+* **Progression Gating:** Clearing each stage unlocks the next one on the map, awarding XP, Gold Coins, and Mastery Stars.
+* **Lesson 3-2 has two stages:** GCF first, then LCM. Saves from when LCM was Stage 3-4 (`node_3_4`) are moved to the LCM stage (`node_3_2_lcm`) on login.
+* **Under-construction stages:** A stage marked `isWip: true` is skipped, so the stage before it unlocks the one after it.
 * **Teacher Demo Override:** Logging in with PIN `7777` instantly unlocks all realms and the Apex Boss for classroom demonstrations.
 
 ---

@@ -276,17 +276,15 @@ export function scenerySvg() {
 
     <!-- West woods -->
     ${pine(62, 232, 1, 0)}${pine(96, 206, 1.15, 0.3)}${pine(78, 286, 0.9, 0.15)}
-    ${cottage(196, 252, '#3a8ef0')}
-    ${tree(132, 300, 0.9, 0.2)}
-    ${flowers(214, 286)}
+    ${cottage(122, 128, '#3a8ef0')}
+    ${tree(150, 320, 0.9, 0.2)}
+    ${flowers(300, 300)}
 
-    <!-- Plaza between the Bank and the river -->
-    ${fountain(452, 238)}
-    ${cottage(410, 150, '#e5484d')}
-    ${cottage(504, 160, '#ffb02e', '#e8f4ff')}
-    ${tree(520, 300, 0.85, 0.4)}
-    ${flowers(392, 280)}
-    ${bush(372, 258, 0.9, 0.1)}
+    <!-- Plaza between the Substation and the river -->
+    ${fountain(512, 250)}
+    ${cottage(520, 150, '#e5484d')}
+    ${tree(540, 330, 0.85, 0.4)}
+    ${flowers(470, 300)}
 
     <!-- East of river -->
     ${tree(652, 150, 0.9, 0.25)}
@@ -301,7 +299,7 @@ export function scenerySvg() {
     ${rock(1180, 330, 1.1)}
 
     <!-- Between the rows -->
-    ${bush(244, 470, 1, 0)}${bush(384, 464, 0.95, 0.2)}
+    ${bush(300, 470, 1, 0)}${bush(320, 400, 0.95, 0.2)}
     ${tree(660, 444, 0.85, 0.15)}${bush(770, 466, 1, 0.35)}
     ${bush(948, 466, 1, 0.1)}${bush(1068, 462, 0.95, 0.3)}
 
@@ -664,6 +662,41 @@ const BUILDINGS = {
     };
   },
 
+  observatory() {
+    return {
+      top: -134,
+      door: { x: -6, y: -44 },
+      svg: `
+        ${shadow(62)}
+        <!-- radio dish on a mast, beaming signal rings -->
+        <path d="M44 -20 L44 -66" stroke="${K}" stroke-width="7" stroke-linecap="round"/>
+        <path d="M44 -20 L44 -66" stroke="#b8c0d4" stroke-width="3.5" stroke-linecap="round"/>
+        <path d="M30 -60 Q40 -92 70 -94 Q58 -70 30 -60 Z" fill="#eef0f6" ${O}/>
+        <path d="M50 -77 L60 -86" stroke="${K}" stroke-width="2.5" stroke-linecap="round"/>
+        <circle cx="61" cy="-87" r="3" fill="${PALETTE.red}" ${O2}/>
+        <g class="signal-rings">
+          <path d="M68 -100 Q74 -106 72 -114" fill="none" stroke="#7dffb0" stroke-width="3" stroke-linecap="round"/>
+          <path d="M74 -96 Q84 -106 80 -120" fill="none" stroke="#7dffb0" stroke-width="3" stroke-linecap="round" opacity="0.6"/>
+        </g>
+        <!-- main hall -->
+        <rect x="-50" y="-66" width="80" height="46" fill="#5b3fc4" ${O}/>
+        <rect x="-50" y="-66" width="80" height="5" fill="#8c74ff"/>
+        <rect x="-42" y="-56" width="12" height="10" fill="#bfe8ff" stroke="${K}" stroke-width="1.5"/>
+        <rect x="18" y="-56" width="10" height="10" fill="#bfe8ff" stroke="${K}" stroke-width="1.5"/>
+        <!-- dome with an open slit and telescope -->
+        <path d="M-42 -66 Q-42 -112 -6 -112 Q30 -112 30 -66 Z" fill="#d9dceb" ${O}/>
+        <path d="M-34 -72 Q-32 -100 -14 -105" fill="none" stroke="#ffffff" stroke-width="4" stroke-linecap="round"/>
+        <path d="M-12 -111 L-12 -66 M0 -111 L0 -66" stroke="${K}" stroke-width="2"/>
+        <rect x="-12" y="-111" width="12" height="45" fill="#2a1f5c"/>
+        <path d="M-6 -86 L18 -120" stroke="${K}" stroke-width="11" stroke-linecap="round"/>
+        <path d="M-6 -86 L18 -120" stroke="${PALETTE.gold}" stroke-width="6" stroke-linecap="round"/>
+        <!-- twinkling stars over the dome -->
+        <path class="blink-text" d="M-34 -124 l2 5 l5 2 l-5 2 l-2 5 l-2 -5 l-5 -2 l5 -2 Z" fill="#fff36b" stroke="${K}" stroke-width="1"/>
+        <path class="bulb-b" d="M30 -128 l1.5 3.5 l3.5 1.5 l-3.5 1.5 l-1.5 3.5 l-1.5 -3.5 l-3.5 -1.5 l3.5 -1.5 Z" fill="#ffffff" stroke="${K}" stroke-width="1"/>
+        ${door(-6, -44, 18, 24, '#2a1f5c')}`,
+    };
+  },
+
   arcade() {
     let bulbs = '';
     for (let i = 0; i < 9; i++) {
@@ -791,6 +824,7 @@ const BADGES = {
   security_vault: `<circle cx="-4" cy="-3" r="7" fill="none" stroke="${K}" stroke-width="5"/><circle cx="-4" cy="-3" r="7" fill="none" stroke="${PALETTE.gold}" stroke-width="2.5"/><path d="M1 2 L11 12 M7 8 L10 5 M9 10 L12 7" stroke="${K}" stroke-width="5" stroke-linecap="round"/><path d="M1 2 L11 12 M7 8 L10 5 M9 10 L12 7" stroke="${PALETTE.gold}" stroke-width="2.4" stroke-linecap="round"/>`,
   forge_wip: `<rect x="-12" y="-4" width="24" height="10" rx="2" fill="url(#hazardTexMini)" ${O2}/><path d="M-8 6 V11 M8 6 V11" stroke="${K}" stroke-width="3"/>`,
   drone_depot: `<path d="M0 -2 Q-8 -12 -15 -6 Q-9 -3 -6 2 Z M0 -2 Q8 -12 15 -6 Q9 -3 6 2 Z" fill="#ffffff" ${O2}/><rect x="-6" y="-5" width="12" height="9" rx="3" fill="${PALETTE.red}" ${O2}/><rect x="-5" y="5" width="10" height="7" rx="1.5" fill="#d9a85e" ${O2}/>`,
+  observatory: `<path d="M-12 8 Q-12 -10 0 -10 Q12 -10 12 8 Z" fill="#d9dceb" ${O2}/><rect x="-3" y="-10" width="6" height="18" fill="#2a1f5c"/><path d="M0 -1 L9 -13" stroke="${K}" stroke-width="5" stroke-linecap="round"/><path d="M0 -1 L9 -13" stroke="${PALETTE.gold}" stroke-width="2.5" stroke-linecap="round"/><rect x="-14" y="7" width="28" height="5" rx="2" fill="#5b3fc4" ${O2}/>`,
   arcade: `<circle r="13" fill="#fff" ${O2}/><circle r="8.5" fill="${PALETTE.red}" stroke="${K}" stroke-width="1.5"/><circle r="4" fill="#fff" stroke="${K}" stroke-width="1.5"/>`,
   castle: `<path d="M-12 8 L-12 -6 L-6 1 L0 -12 L6 1 L12 -6 L12 8 Z" fill="${PALETTE.gold}" ${O2}/><circle cx="0" cy="2" r="2.5" fill="${PALETTE.red}"/>`,
 };

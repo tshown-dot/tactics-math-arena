@@ -6,8 +6,8 @@
  * (the tests re-check every answer with the Euclidean algorithm).
  */
 
-import { gcd, lcm, lcmMany, gcdMany, getMultiples } from './lcmLogic.js?v=20261109lcm1';
-import { CURRICULUM_SECTORS } from './curriculum.js?v=20261109lcm1';
+import { gcd, lcm, lcmMany, gcdMany, getMultiples } from './lcmLogic.js?v=20261110lcm2';
+import { CURRICULUM_SECTORS } from './curriculum.js?v=20261110lcm2';
 
 /** Small seeded PRNG (mulberry32) so runs are reproducible in tests. */
 export function createRng(seed = Date.now()) {

@@ -3,9 +3,10 @@
  * 
  * Verifies:
  * 1. Math input parsing formats ($15, 15, 15.00, %, decimals)
- * 2. Progression gating: Spire (3-1) -> Vault (3-2) -> Siege (3-3) -> Bastion (3-4) -> Plains (3-7)
- * 3. Lesson 3-6 (Drone Drop) is live, and the under-construction bypass still works for future stages
+ * 2. Stage order: 3-1 -> 3-2 GCF -> 3-2 LCM -> 3-3 -> 3-4 (Signal Observatory) -> 3-5 -> 3-6 -> 3-7 -> Boss
+ * 3. The under-construction bypass still works for future stages
  * 3b. Saves from before 3-6 went live get 3-6 unlocked on login
+ * 3c. Saves from when LCM was Stage 3-4 ('node_3_4') carry over to the 3-2 LCM stage
  * 4. Teacher bypass mode (PIN: 7777)
  */
 
@@ -50,35 +51,45 @@ assert(parseMathInput('25%') === 25, 'Parses "25%" to 25');
 assert(parseMathInput('invalid') === null, 'Rejects invalid string');
 
 console.log('\n--- TEST 2: Realm Node Registry & Lesson Alignment ---');
-assert(REALM_NODES.length === 8, 'Has exactly 8 realm nodes configured');
-assert(REALM_NODES[0].id === 'node_3_1' && REALM_NODES[0].lessonCode === '3-1', 'First node is Lesson 3-1');
-assert(REALM_NODES[1].id === 'node_3_2' && REALM_NODES[1].lessonCode === '3-2', 'Second node is Lesson 3-2');
-assert(REALM_NODES[2].id === 'node_3_3' && REALM_NODES[2].lessonCode === '3-3', 'Third node is Lesson 3-3');
-assert(REALM_NODES[3].id === 'node_3_4' && REALM_NODES[3].lessonCode === '3-4', 'Fourth node is Lesson 3-4');
-assert(REALM_NODES[4].id === 'node_3_5' && REALM_NODES[4].lessonCode === '3-5', 'Fifth node is Lesson 3-5 (Variable Vault)');
-assert(REALM_NODES[5].id === 'node_3_6' && REALM_NODES[5].lessonCode === '3-6', 'Sixth node is Lesson 3-6 (Drone Depot)');
-assert(REALM_NODES[5].isWip === false, 'Lesson 3-6 is live (isWip: false)');
-assert(REALM_NODES[5].cartridgeUrl === './cartridges/distributive/index.html', 'Lesson 3-6 points at the Drone Drop cartridge');
-assert(REALM_NODES[6].id === 'node_3_7' && REALM_NODES[6].lessonCode === '3-7', 'Seventh node is Lesson 3-7');
-assert(REALM_NODES[7].id === 'node_apex', 'Final node is Apex Boss');
+const order = REALM_NODES.map((n) => n.id);
+assert(REALM_NODES.length === 9, 'Has exactly 9 realm nodes configured');
+assert(JSON.stringify(order) === JSON.stringify([
+  'node_3_1', 'node_3_2', 'node_3_2_lcm', 'node_3_3', 'node_3_4_expr',
+  'node_3_5', 'node_3_6', 'node_3_7', 'node_apex',
+]), 'Stages run 3-1, 3-2 GCF, 3-2 LCM, 3-3, 3-4, 3-5, 3-6, 3-7, Boss');
+const byId = Object.fromEntries(REALM_NODES.map((n) => [n.id, n]));
+assert(byId.node_3_2.lessonCode === '3-2' && byId.node_3_2_lcm.lessonCode === '3-2', 'GCF and LCM are both Lesson 3-2');
+assert(byId.node_3_2_lcm.cartridgeUrl === './cartridges/lcm/index.html', 'The 3-2 LCM stage runs the Grid Sync cartridge');
+assert(byId.node_3_2_lcm.lessonId === 'G06_U03_L02_LCM', 'LCM logs under its own Lesson 3-2 ID');
+assert(byId.node_3_4_expr.lessonCode === '3-4' && byId.node_3_4_expr.lessonId === 'G06_U03_L04', 'Signal Observatory is Lesson 3-4');
+assert(byId.node_3_4_expr.cartridgeUrl === './cartridges/algebraic/index.html', 'Lesson 3-4 points at the Galactic Translator cartridge');
+assert(!('node_3_4' in byId), 'The old node_3_4 ID is no longer a stage');
+assert(byId.node_3_6.isWip === false, 'Lesson 3-6 is live (isWip: false)');
+assert(byId.node_3_6.cartridgeUrl === './cartridges/distributive/index.html', 'Lesson 3-6 points at the Drone Drop cartridge');
+assert(REALM_NODES[REALM_NODES.length - 1].id === 'node_apex', 'Final node is Apex Boss');
+REALM_NODES.forEach((n) => {
+  if (n.id !== 'node_apex') assert(Boolean(n.lessonCode && n.mapCoords && n.buildingType), `${n.id} has a code, map spot, and building`);
+});
 
-console.log('\n--- TEST 3: Effective Prerequisite with Lesson 3-6 WIP Bypass ---');
+console.log('\n--- TEST 3: Effective Prerequisite with WIP Bypass ---');
 assert(getEffectivePrerequisite('node_3_1') === null, 'Node 3-1 has no prerequisite');
-assert(getEffectivePrerequisite('node_3_2') === 'node_3_1', 'Node 3-2 requires 3-1');
-assert(getEffectivePrerequisite('node_3_3') === 'node_3_2', 'Node 3-3 requires 3-2');
-assert(getEffectivePrerequisite('node_3_4') === 'node_3_3', 'Node 3-4 requires 3-3');
-assert(getEffectivePrerequisite('node_3_5') === 'node_3_4', 'Node 3-5 requires 3-4');
+assert(getEffectivePrerequisite('node_3_2') === 'node_3_1', 'GCF requires 3-1');
+assert(getEffectivePrerequisite('node_3_2_lcm') === 'node_3_2', 'LCM requires GCF');
+assert(getEffectivePrerequisite('node_3_3') === 'node_3_2_lcm', 'Node 3-3 requires LCM');
+assert(getEffectivePrerequisite('node_3_4_expr') === 'node_3_3', 'Node 3-4 requires 3-3');
+assert(getEffectivePrerequisite('node_3_5') === 'node_3_4_expr', 'Node 3-5 requires 3-4');
 assert(getEffectivePrerequisite('node_3_6') === 'node_3_5', 'Node 3-6 requires 3-5');
-assert(getEffectivePrerequisite('node_3_7') === 'node_3_6', 'Node 3-7 requires 3-6 now that it is live');
+assert(getEffectivePrerequisite('node_3_7') === 'node_3_6', 'Node 3-7 requires 3-6');
 
 // The under-construction bypass must still work for future stages
-setWip(5, true);
+const idx36 = REALM_NODES.findIndex((n) => n.id === 'node_3_6');
+setWip(idx36, true);
 assert(getEffectivePrerequisite('node_3_7') === 'node_3_5', 'While a stage is WIP, the next stage bridges past it');
 const wipPlayer = new PlayerState();
-wipPlayer.unlockedNodes = ['node_3_1', 'node_3_2', 'node_3_3', 'node_3_4', 'node_3_5'];
+wipPlayer.unlockedNodes = ['node_3_1', 'node_3_2', 'node_3_2_lcm', 'node_3_3', 'node_3_4_expr', 'node_3_5'];
 const wipResult = await wipPlayer.processCartridgeCompletion('node_3_5', { score: 10, total: 10 });
 assert(wipResult.nextUnlockedNode?.id === 'node_3_7', 'Clearing 3-5 skips a WIP 3-6 and unlocks 3-7');
-setWip(5, false);
+setWip(idx36, false);
 
 console.log('\n--- TEST 4: Progression Locking & Unlock Sequence ---');
 // Fresh adventurer with only 3-1
@@ -92,33 +103,22 @@ unlocked.push('node_3_2');
 assert(isNodeUnlocked('node_3_2', unlocked) === true, 'Node 3-2 unlocks after 3-1');
 assert(isNodeUnlocked('node_3_3', unlocked) === false, 'Node 3-3 remains locked');
 
-// Test PlayerState processCartridgeCompletion from 3-2 unlocking both 3-3 and 3-4 (LCM)
-const gcfTestPlayer = new PlayerState();
-gcfTestPlayer.unlockedNodes = ['node_3_1', 'node_3_2'];
-await gcfTestPlayer.processCartridgeCompletion('node_3_2', { score: 10, total: 10 });
-assert(gcfTestPlayer.isNodeUnlocked('node_3_3') === true, 'Node 3-3 (Crane) unlocks after 3-2');
-assert(gcfTestPlayer.isNodeUnlocked('node_3_4') === true, 'Node 3-4 (LCM) unlocks after 3-2');
-
-// Test PlayerState processCartridgeCompletion from 3-4 unlocking 3-5 (Variable Vault)
+// Walk the whole chain: each clear opens exactly the next stage
 const testPlayer = new PlayerState();
-testPlayer.unlockedNodes = ['node_3_1', 'node_3_2', 'node_3_3', 'node_3_4'];
-const completionResult34 = await testPlayer.processCartridgeCompletion('node_3_4', { score: 10, total: 10 });
-assert(completionResult34.nextUnlockedNode !== null, 'Found next unlocked node after 3-4');
-assert(completionResult34.nextUnlockedNode.id === 'node_3_5', 'Node 3-4 unlocks node_3_5');
-assert(testPlayer.isNodeUnlocked('node_3_5') === true, 'Node 3-5 is now unlocked in player state');
-
-// 3-5 now unlocks the live 3-6 Drone Depot, and 3-6 unlocks 3-7
-const completionResult35 = await testPlayer.processCartridgeCompletion('node_3_5', { score: 10, total: 10 });
-assert(completionResult35.nextUnlockedNode?.id === 'node_3_6', 'Node 3-5 unlocks node_3_6 (Drone Depot)');
-assert(testPlayer.isNodeUnlocked('node_3_7') === false, 'Node 3-7 stays locked until 3-6 is cleared');
-const completionResult36 = await testPlayer.processCartridgeCompletion('node_3_6', { score: 9, total: 10 });
-assert(completionResult36.nextUnlockedNode?.id === 'node_3_7', 'Node 3-6 unlocks node_3_7');
-assert(testPlayer.isNodeUnlocked('node_3_7') === true, 'Node 3-7 is now unlocked in player state');
+testPlayer.unlockedNodes = ['node_3_1'];
+const chain = REALM_NODES.map((n) => n.id);
+for (let i = 0; i < chain.length - 1; i++) {
+  const next = chain[i + 1];
+  assert(testPlayer.isNodeUnlocked(next) === false, `${next} is locked before ${chain[i]} is cleared`);
+  const res = await testPlayer.processCartridgeCompletion(chain[i], { score: 10, total: 10 });
+  assert(res.nextUnlockedNode?.id === next, `Clearing ${chain[i]} unlocks ${next}`);
+  if (i + 2 < chain.length) assert(testPlayer.isNodeUnlocked(chain[i + 2]) === false, `${chain[i + 2]} stays locked`);
+}
 
 console.log('\n--- TEST 4b: Saves From Before 3-6 Went Live ---');
 // A student who cleared 3-5 while 3-6 was skipped: 3-7 unlocked, 3-6 never added
 const oldSave = new PlayerState();
-oldSave.unlockedNodes = ['node_3_1', 'node_3_2', 'node_3_3', 'node_3_4', 'node_3_5', 'node_3_7'];
+oldSave.unlockedNodes = ['node_3_1', 'node_3_2', 'node_3_2_lcm', 'node_3_3', 'node_3_4_expr', 'node_3_5', 'node_3_7'];
 oldSave.nodeRecords = { node_3_5: { cleared: true, stars: 3 } };
 assert(oldSave.isNodeUnlocked('node_3_6') === false, 'Old save starts with 3-6 locked');
 assert(oldSave.backfillUnlocks() === 1, 'Backfill opens exactly one missing stage');
@@ -129,6 +129,39 @@ const freshSave = new PlayerState();
 freshSave.unlockedNodes = ['node_3_1'];
 freshSave.nodeRecords = {};
 assert(freshSave.backfillUnlocks() === 0, 'Backfill changes nothing for a fresh player');
+
+console.log('\n--- TEST 4c: Saves From When LCM Was Stage 3-4 ---');
+// Cleared GCF only: old bridge opened 3-3 and the LCM stage (then 'node_3_4')
+const gcfOnly = new PlayerState();
+gcfOnly.unlockedNodes = ['node_3_1', 'node_3_2', 'node_3_3', 'node_3_4'];
+gcfOnly.nodeRecords = { node_3_2: { cleared: true, stars: 3 } };
+assert(gcfOnly.migrateLegacyNodeIds() === true, 'Old node_3_4 is migrated');
+gcfOnly.backfillUnlocks();
+assert(!gcfOnly.unlockedNodes.includes('node_3_4'), 'node_3_4 is gone from the unlock list');
+assert(gcfOnly.isNodeUnlocked('node_3_2_lcm') === true, 'The LCM unlock carries over to the 3-2 LCM stage');
+assert(gcfOnly.isNodeUnlocked('node_3_3') === true, 'Keeps 3-3 open');
+assert(gcfOnly.isNodeUnlocked('node_3_4_expr') === false, 'Does NOT get the new 3-4 for free');
+
+// Cleared LCM (old 3-4): stars and clear move to the LCM stage, 3-5 was open
+const lcmDone = new PlayerState();
+lcmDone.unlockedNodes = ['node_3_1', 'node_3_2', 'node_3_3', 'node_3_4', 'node_3_5'];
+lcmDone.nodeRecords = { node_3_4: { cleared: true, stars: 2, bestScore: 8, total: 10 } };
+lcmDone.migrateLegacyNodeIds();
+lcmDone.backfillUnlocks();
+assert(lcmDone.nodeRecords.node_3_2_lcm?.stars === 2, 'LCM stars move to the 3-2 LCM stage');
+assert(!('node_3_4' in lcmDone.nodeRecords), 'Old record key is removed');
+assert(lcmDone.isNodeUnlocked('node_3_4_expr') === true, 'A student already past 3-4 gets the new 3-4 opened');
+assert(lcmDone.isNodeUnlocked('node_3_5') === true, 'Keeps 3-5 open');
+assert(lcmDone.isNodeUnlocked('node_3_6') === false, 'Does not open stages ahead of the student');
+
+// Old save that only reached 3-3 (via PEMDAS path), LCM never opened
+const pemdasOnly = new PlayerState();
+pemdasOnly.unlockedNodes = ['node_3_1', 'node_3_2', 'node_3_3'];
+pemdasOnly.nodeRecords = {};
+pemdasOnly.migrateLegacyNodeIds();
+pemdasOnly.backfillUnlocks();
+assert(pemdasOnly.isNodeUnlocked('node_3_2_lcm') === true, 'A student with 3-3 open gets the LCM stage that now sits before it');
+assert(new PlayerState().migrateLegacyNodeIds() === false, 'Migration is a no-op for new saves');
 
 console.log('\n--- TEST 5: Teacher Override Mode (PIN: 7777) ---');
 assert(isNodeUnlocked('node_apex', ['node_3_1'], true) === true, 'Teacher override unlocks Apex Boss immediately');
@@ -173,7 +206,8 @@ fullAccessPlayer.isFullAccess = true;
 assert(fullAccessPlayer.isNodeUnlocked('node_3_1') === true, 'Node 3-1 unlocked with full access');
 assert(fullAccessPlayer.isNodeUnlocked('node_3_2') === true, 'Node 3-2 unlocked with full access');
 assert(fullAccessPlayer.isNodeUnlocked('node_3_3') === true, 'Node 3-3 unlocked with full access');
-assert(fullAccessPlayer.isNodeUnlocked('node_3_4') === true, 'Node 3-4 unlocked with full access');
+assert(fullAccessPlayer.isNodeUnlocked('node_3_2_lcm') === true, 'Node 3-2 LCM unlocked with full access');
+assert(fullAccessPlayer.isNodeUnlocked('node_3_4_expr') === true, 'Node 3-4 unlocked with full access');
 assert(fullAccessPlayer.isNodeUnlocked('node_3_5') === true, 'Node 3-5 unlocked with full access');
 assert(fullAccessPlayer.isNodeUnlocked('node_3_7') === true, 'Node 3-7 unlocked with full access');
 assert(fullAccessPlayer.isNodeUnlocked('node_apex') === true, 'Node Apex Boss unlocked with full access');
@@ -181,7 +215,8 @@ assert(fullAccessPlayer.isNodeUnlocked('node_apex') === true, 'Node Apex Boss un
 const normalPlayer = new PlayerState();
 normalPlayer.isFullAccess = false;
 normalPlayer.unlockedNodes = ['node_3_1'];
-assert(normalPlayer.isNodeUnlocked('node_3_4') === false, 'Node 3-4 remains locked without full access');
+assert(normalPlayer.isNodeUnlocked('node_3_4_expr') === false, 'Node 3-4 remains locked without full access');
+assert(normalPlayer.isNodeUnlocked('node_3_2_lcm') === false, 'Node 3-2 LCM remains locked without full access');
 
 console.log(`\n================================`);
 console.log(`TEST SUMMARY: ${passed} Passed, ${failed} Failed`);

@@ -21,7 +21,7 @@ import {
   evaluateSupply,
   evaluateReverse,
   buildRace,
-} from './lcmLogic.js?v=20261109lcm1';
+} from './lcmLogic.js?v=20261110lcm2';
 import {
   CURRICULUM_SECTORS,
   MODE_INFO,
@@ -31,11 +31,11 @@ import {
   MAX_FOLLOWUPS_PER_SECTOR,
   MAX_COMBO,
   BOSS_TAUNTS,
-} from './curriculum.js?v=20261109lcm1';
-import { createRng, buildRun, buildSector, makeProblem, makeFollowUp } from './generator.js?v=20261109lcm1';
-import { soundEngine } from './audio.js?v=20261109lcm1';
+} from './curriculum.js?v=20261110lcm2';
+import { createRng, buildRun, buildSector, makeProblem, makeFollowUp } from './generator.js?v=20261110lcm2';
+import { soundEngine } from './audio.js?v=20261110lcm2';
 
-const LESSON_ID = 'G06_U03_L04';
+const LESSON_ID = 'G06_U03_L02_LCM';
 const LANE_COLORS = ['#22d3ee', '#fbbf24', '#e879f9'];
 const LANE_NAMES = ['Alpha', 'Beta', 'Gamma'];
 const NUMBER_MODES = ['sync', 'sync3', 'supply'];

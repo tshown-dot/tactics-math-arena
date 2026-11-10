@@ -10,8 +10,8 @@
  * - Multi-world selector ready for future topics
  */
 
-import { REALM_NODES, WORLD_CHAPTERS, getEffectivePrerequisite } from './nodes.js?v=w3map2';
-import { playerState } from './state.js?v=w3map2';
+import { REALM_NODES, WORLD_CHAPTERS, getEffectivePrerequisite } from './nodes.js?v=w3map3';
+import { playerState } from './state.js?v=w3map3';
 import { hubAudio } from './audio.js';
 import { CartridgeHarness } from './cartridgeHarness.js';
 import {
@@ -20,7 +20,7 @@ import {
   routeBetween, roadsSvg, bridgeSvg, stageTileSvg,
   buildingArt, lockOverlay, clearedFlag, nameplateSvg,
   badgeIconSvg, heroSvg, cloud,
-} from './worldArt.js?v=w3map2';
+} from './worldArt.js?v=w3map3';
 
 const BRIDGE_POS = { x: 580, y: 490 };
 const PMETER_SEGMENTS = 8;
